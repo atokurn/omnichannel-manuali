@@ -1,0 +1,119 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String          @id @default(uuid())
+  email          String          @unique
+  name           String
+  password       String
+  role           Role            @default(USER)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  warehouses     Warehouse[]     @relation("WarehouseManagers")
+  transactions   Transaction[]   @relation("TransactionCreator")
+  products       Product[]       @relation("ProductCreator")
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  USER
+}
+
+model Product {
+  id             String          @id @default(uuid())
+  name           String
+  description    String?
+  sku            String          @unique
+  price          Float
+  cost           Float
+  minStockLevel  Int             @default(0)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  createdBy      User            @relation("ProductCreator", fields: [createdById], references: [id])
+  createdById    String
+  category       Category?       @relation(fields: [categoryId], references: [id])
+  categoryId     String?
+  inventories    Inventory[]
+  transactionItems TransactionItem[]
+}
+
+model Category {
+  id             String          @id @default(uuid())
+  name           String          @unique
+  description    String?
+  products       Product[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+model Warehouse {
+  id             String          @id @default(uuid())
+  name           String
+  location       String
+  description    String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  managers       User[]          @relation("WarehouseManagers")
+  inventories    Inventory[]
+  transactions   Transaction[]   @relation("WarehouseTransactions")
+}
+
+model Inventory {
+  id             String          @id @default(uuid())
+  quantity       Int
+  product        Product         @relation(fields: [productId], references: [id])
+  productId      String
+  warehouse      Warehouse       @relation(fields: [warehouseId], references: [id])
+  warehouseId    String
+  lastUpdated    DateTime        @updatedAt
+
+  @@unique([productId, warehouseId])
+}
+
+model Transaction {
+  id             String          @id @default(uuid())
+  type           TransactionType
+  status         TransactionStatus @default(PENDING)
+  date           DateTime        @default(now())
+  notes          String?
+  createdBy      User            @relation("TransactionCreator", fields: [createdById], references: [id])
+  createdById    String
+  warehouse      Warehouse       @relation("WarehouseTransactions", fields: [warehouseId], references: [id])
+  warehouseId    String
+  items          TransactionItem[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+model TransactionItem {
+  id             String          @id @default(uuid())
+  quantity       Int
+  price          Float
+  product        Product         @relation(fields: [productId], references: [id])
+  productId      String
+  transaction    Transaction     @relation(fields: [transactionId], references: [id])
+  transactionId  String
+}
+
+enum TransactionType {
+  PURCHASE
+  SALE
+  TRANSFER
+  ADJUSTMENT
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
