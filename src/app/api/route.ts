@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma, processTransaction, updateInventory, checkLowStock, getInventoryValue } from '@/lib/db';
-import { withAuth, withRole } from '@/lib/auth';
+import { withAuth, withPermission } from '@/lib/auth'; // Import withPermission instead of withRole
 
 // API Routes for Inventory Management System
 
@@ -49,8 +49,8 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// Create Product (Protected - Admin/Manager only)
-export const POST = withRole(async (req: NextRequest) => {
+// Create Product (Protected - Requires 'create_product' permission)
+export const POST = withPermission(async (req: NextRequest) => {
   try {
     const data = await req.json();
     const user = (req as any).user;
@@ -70,7 +70,7 @@ export const POST = withRole(async (req: NextRequest) => {
       { status: 500 }
     );
   }
-}, ['ADMIN', 'MANAGER']);
+}, ['create_product']); // Example permission, adjust as needed
 
 // Warehouse API routes
 export const getWarehouses = withAuth(async (req: NextRequest) => {
@@ -95,8 +95,8 @@ export const getWarehouses = withAuth(async (req: NextRequest) => {
   }
 });
 
-// Create Warehouse (Admin only)
-export const createWarehouse = withRole(async (req: NextRequest) => {
+// Create Warehouse (Protected - Requires 'manage_warehouses' permission)
+export const createWarehouse = withPermission(async (req: NextRequest) => {
   try {
     const data = await req.json();
     
@@ -112,7 +112,7 @@ export const createWarehouse = withRole(async (req: NextRequest) => {
       { status: 500 }
     );
   }
-}, ['ADMIN']);
+}, ['manage_warehouses']); // Example permission, adjust as needed
 
 // Transactions API
 export const createTransaction = withAuth(async (req: NextRequest) => {
@@ -230,7 +230,7 @@ export const createCategory = withRole(async (req: NextRequest) => {
       { status: 500 }
     );
   }
-}, ['ADMIN', 'MANAGER']);
+}, ['create_product']); // Example permission, adjust as needed
 
 // Update Category (Admin/Manager only)
 export const updateCategory = withRole(async (req: NextRequest) => {
@@ -260,7 +260,7 @@ export const updateCategory = withRole(async (req: NextRequest) => {
       { status: 500 }
     );
   }
-}, ['ADMIN', 'MANAGER']);
+}, ['create_product']); // Example permission, adjust as needed
 
 // Delete Category (Admin only)
 export const deleteCategory = withRole(async (req: NextRequest) => {
@@ -300,7 +300,7 @@ export const deleteCategory = withRole(async (req: NextRequest) => {
       { status: 500 }
     );
   }
-}, ['ADMIN']);
+}, ['manage_warehouses']); // Example permission, adjust as needed
 
 // User Management API
 export const getUsers = withRole(async (req: NextRequest) => {
@@ -325,7 +325,7 @@ export const getUsers = withRole(async (req: NextRequest) => {
       { status: 500 }
     );
   }
-}, ['ADMIN']);
+}, ['manage_warehouses']); // Example permission, adjust as needed
 
 // Create User (Admin only)
 export const createUser = withRole(async (req: NextRequest) => {
@@ -355,7 +355,7 @@ export const createUser = withRole(async (req: NextRequest) => {
       { status: 500 }
     );
   }
-}, ['ADMIN']);
+}, ['manage_warehouses']); // Example permission, adjust as needed
 
 // Update User (Admin only)
 export const updateUser = withRole(async (req: NextRequest) => {
@@ -399,7 +399,7 @@ export const updateUser = withRole(async (req: NextRequest) => {
       { status: 500 }
     );
   }
-}, ['ADMIN']);
+}, ['manage_warehouses']); // Example permission, adjust as needed
 
 // Financial Reports API
 export const getFinancialReports = withRole(async (req: NextRequest) => {
@@ -519,7 +519,7 @@ export const getFinancialReports = withRole(async (req: NextRequest) => {
       { status: 500 }
     );
   }
-}, ['ADMIN', 'MANAGER']);
+}, ['create_product']); // Example permission, adjust as needed
 
 // Analytics API
 export const getAnalytics = withRole(async (req: NextRequest) => {
@@ -612,4 +612,4 @@ export const getAnalytics = withRole(async (req: NextRequest) => {
       { status: 500 }
     );
   }
-}, ['ADMIN', 'MANAGER']);
+}, ['create_product']); // Example permission, adjust as needed

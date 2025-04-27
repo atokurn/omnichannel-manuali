@@ -19,7 +19,8 @@ type UserCredentials = {
 type TokenPayload = {
   userId: string;
   email: string;
-  role: string;
+  roles: string[]; // Store role names
+  permissions: string[]; // Store permission names
 };
 
 // User authentication functions
@@ -36,27 +37,89 @@ export async function registerUser(userData: {
     });
 
     if (existingUser) {
-      throw new Error('User already exists');
+      // Throw specific error message checked in the route handler
+      throw new Error('Email already exists');
     }
 
     // Hash password
     const hashedPassword = await hash(userData.password, SALT_ROUNDS);
 
-    // Create user
-    const user = await prisma.user.create({
+    // Find the default 'USER' role ID
+    const userRole = await prisma.role.findUnique({
+      where: { name: 'USER' },
+      select: { id: true }, // Only select the ID
+    });
+
+    if (!userRole) {
+      throw new Error("Default 'USER' role not found. Please seed the database.");
+    }
+
+    // Create user first, without the relation
+    const newUser = await prisma.user.create({
       data: {
         email: userData.email,
         name: userData.name,
         password: hashedPassword,
-        role: userData.role ? (userData.role as any) : 'USER',
+        // The relation will be created via the join table
       },
     });
 
+    // Create the entry in the UserRole join table
+    await prisma.userRole.create({
+      data: {
+        userId: newUser.id,
+        roleId: userRole.id,
+      },
+    });
+
+    // Fetch the user again with roles included
+    const user = await prisma.user.findUnique({
+      where: { id: newUser.id },
+      include: {
+        userRoles: { // Use the explicit relation field
+          include: {
+            role: { // Include the related Role
+              include: {
+                permissions: true // Include permissions from the Role
+              }
+            }
+          }
+        }
+      },
+    });
+
+    if (!user) {
+      // This should ideally not happen if creation was successful
+      throw new Error("Failed to fetch newly created user with roles.");
+    }
+
     // Remove password from response
-    const { password, ...userWithoutPassword } = user;
-    return userWithoutPassword;
+    // Prepare user data for response using the new structure
+    const rolesData = user.userRoles.map(ur => ({ id: ur.role.id, name: ur.role.name }));
+    const permissionsData = [...new Set(user.userRoles.flatMap(ur => ur.role.permissions.map(p => p.name)))];
+
+    // Remove password from the user object before creating the response
+    const { password: _, ...userWithoutPassword } = user;
+
+    const userResponse = {
+      ...userWithoutPassword, // Spread the user data without password
+      roles: rolesData, // Add the structured roles data
+      permissions: permissionsData, // Add the structured permissions data
+      // Note: userRoles relation data is implicitly excluded by spreading userWithoutPassword
+    };
+
+    return userResponse;
   } catch (error) {
-    console.error('Error registering user:', error);
+    // Log more specific details about the error
+    if (error instanceof Error) {
+      console.error(`Error during user registration for email ${userData.email}: ${error.message}`);
+      // Optionally log the stack trace for more details
+      console.error(error.stack);
+    } else {
+      // Log if the error is not a standard Error object
+      console.error('An unexpected error occurred during user registration:', error);
+    }
+    // Re-throw the error to be handled by the API route
     throw error;
   }
 }
@@ -66,6 +129,17 @@ export async function loginUser({ email, password }: UserCredentials) {
     // Find user
     const user = await prisma.user.findUnique({
       where: { email },
+      include: {
+        userRoles: { // Use the explicit relation field
+          include: {
+            role: { // Include the related Role
+              include: {
+                permissions: true // Include permissions from the Role
+              }
+            }
+          }
+        }
+      },
     });
 
     if (!user) {
@@ -78,12 +152,38 @@ export async function loginUser({ email, password }: UserCredentials) {
       throw new Error('Invalid credentials');
     }
 
+    // Extract role names and permission names using the new structure
+    const roles = user.userRoles.map(ur => ur.role.name);
+    const permissions = user.userRoles.flatMap(ur => 
+      ur.role.permissions.map(permission => permission.name)
+    );
+    const uniquePermissions = [...new Set(permissions)]; // Ensure unique permissions
+
     // Generate JWT token
     const token = sign(
-      { userId: user.id, email: user.email, role: user.role },
+      {
+        userId: user.id,
+        email: user.email,
+        roles: roles,
+        permissions: uniquePermissions,
+      },
       JWT_SECRET,
       { expiresIn: TOKEN_EXPIRY }
     );
+
+    // Prepare user data for response (excluding password and sensitive relation details)
+    // Prepare user data for response using the new structure
+    const rolesData = user.userRoles.map(ur => ({ id: ur.role.id, name: ur.role.name }));
+    const userResponse = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      roles: rolesData,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    };
+
+    return { user: userResponse, token };
 
     // Remove password from response
     const { password: _, ...userWithoutPassword } = user;
@@ -113,8 +213,35 @@ export function withAuth(handler: Function) {
       // Verify token
       const decoded = verify(token, JWT_SECRET) as TokenPayload;
 
-      // Add user to request
-      (req as any).user = decoded;
+      // Fetch user details from DB based on token to ensure freshness
+      const freshUser = await prisma.user.findUnique({
+        where: { id: decoded.userId },
+        include: {
+          roles: {
+            include: {
+              permissions: true,
+            },
+          },
+        },
+      });
+
+      if (!freshUser) {
+        throw new Error('User not found');
+      }
+
+      // Extract permissions using the new structure
+      const permissions = freshUser.userRoles.flatMap(ur => 
+        ur.role.permissions.map(permission => permission.name)
+      );
+      const uniquePermissions = [...new Set(permissions)];
+
+      // Add user details (including permissions) to request
+      (req as any).user = {
+        userId: freshUser.id,
+        email: freshUser.email,
+        roles: freshUser.userRoles.map(ur => ur.role.name),
+        permissions: uniquePermissions,
+      };
 
       // Call the handler
       return handler(req);
@@ -128,12 +255,18 @@ export function withAuth(handler: Function) {
   };
 }
 
-// Role-based authorization
-export function withRole(handler: Function, allowedRoles: string[]) {
+// Permission-based authorization
+export function withPermission(handler: Function, requiredPermissions: string[]) {
   return withAuth(async (req: NextRequest) => {
     const user = (req as any).user;
 
-    if (!allowedRoles.includes(user.role)) {
+    // Check if user has ALL required permissions
+    const hasAllPermissions = requiredPermissions.every(permission =>
+      user.permissions.includes(permission)
+    );
+
+    if (!hasAllPermissions) {
+      console.log(`Authorization failed for user ${user.email}. Required: ${requiredPermissions.join(', ')}, User has: ${user.permissions.join(', ')}`);
       return NextResponse.json(
         { error: 'Insufficient permissions' },
         { status: 403 }
@@ -173,12 +306,36 @@ export async function getCurrentUser() {
     
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
+      include: {
+        userRoles: { // Use the explicit relation field
+          include: {
+            role: { // Include the related Role
+              include: {
+                permissions: true // Include permissions from the Role
+              }
+            }
+          }
+        }
+      },
     });
 
     if (!user) return null;
 
-    const { password, ...userWithoutPassword } = user;
-    return userWithoutPassword;
+    // Prepare user data for response using the new structure
+    const rolesData = user.userRoles.map(ur => ({ id: ur.role.id, name: ur.role.name }));
+    const permissionsData = [...new Set(user.userRoles.flatMap(ur => ur.role.permissions.map(p => p.name)))];
+
+    // Remove password from the user object before creating the response
+    const { password: _, ...userWithoutPassword } = user;
+
+    const userResponse = {
+      ...userWithoutPassword, // Spread the user data without password
+      roles: rolesData, // Add the structured roles data
+      permissions: permissionsData, // Add the structured permissions data
+      // Note: userRoles relation data is implicitly excluded by spreading userWithoutPassword
+    };
+
+    return userResponse;
   } catch (error) {
     console.error('Error getting current user:', error);
     return null;

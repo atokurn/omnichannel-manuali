@@ -15,7 +15,8 @@ model User {
   email          String          @unique
   name           String
   password       String
-  role           Role            @default(USER)
+  // roles          Role[]          @relation("UserRoles") // Implicit relation removed
+  userRoles      UserRole[]      // Relation to the explicit join table
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   warehouses     Warehouse[]     @relation("WarehouseManagers")
@@ -23,11 +24,7 @@ model User {
   products       Product[]       @relation("ProductCreator")
 }
 
-enum Role {
-  ADMIN
-  MANAGER
-  USER
-}
+
 
 model Product {
   id             String          @id @default(uuid())
@@ -64,8 +61,40 @@ model Warehouse {
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   managers       User[]          @relation("WarehouseManagers")
-  inventories    Inventory[]
+  areas          Area[]          // Relation to Area
   transactions   Transaction[]   @relation("WarehouseTransactions")
+  inventoryItems Inventory[]     @relation("WarehouseInventory") // Added back for relation
+  shelves        Shelf[]         @relation("WarehouseShelves")   // Relation to Shelf
+}
+
+model Area {
+  id             String          @id @default(uuid())
+  name           String
+  description    String?
+  warehouse      Warehouse       @relation(fields: [warehouseId], references: [id])
+  warehouseId    String
+  shelves        Shelf[]         // Relation to Shelf
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@unique([name, warehouseId]) // Ensure area names are unique within a warehouse
+}
+
+model Shelf {
+  id             String          @id @default(uuid())
+  name           String
+  position       String?         // e.g., "Row 1, Column 3"
+  capacity       Int?            // Optional capacity limit
+  status         String          @default("Aktif") // e.g., Aktif, Nonaktif
+  area           Area            @relation(fields: [areaId], references: [id])
+  areaId         String
+  warehouse      Warehouse       @relation("WarehouseShelves", fields: [warehouseId], references: [id]) // Named relation
+  warehouseId    String
+  inventoryItems Inventory[]     // Stock items on this shelf
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@unique([name, areaId]) // Ensure shelf names are unique within an area
 }
 
 model Inventory {
@@ -73,11 +102,13 @@ model Inventory {
   quantity       Int
   product        Product         @relation(fields: [productId], references: [id])
   productId      String
-  warehouse      Warehouse       @relation(fields: [warehouseId], references: [id])
-  warehouseId    String
+  shelf          Shelf           @relation(fields: [shelfId], references: [id]) // Link inventory to a specific shelf
+  shelfId        String
+  warehouseId    String          // Keep warehouseId for potential direct queries/filtering
+  warehouse      Warehouse       @relation("WarehouseInventory", fields: [warehouseId], references: [id]) // Named relation
   lastUpdated    DateTime        @updatedAt
 
-  @@unique([productId, warehouseId])
+  @@unique([productId, shelfId]) // Each product should have one inventory record per shelf
 }
 
 model Transaction {
@@ -116,4 +147,37 @@ enum TransactionStatus {
   PENDING
   COMPLETED
   CANCELLED
+}
+
+// New models for Role-Based Access Control (RBAC)
+model Role {
+  id          String       @id @default(uuid())
+  name        String       @unique
+  description String?
+  // users       User[]       @relation("UserRoles") // Implicit relation removed
+  userRoles   UserRole[]   // Relation to the explicit join table
+  permissions Permission[] @relation("RolePermissions")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+// Explicit join table for User and Role (Many-to-Many)
+model UserRole {
+  userId String
+  roleId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  assignedAt DateTime @default(now())
+  assignedBy String? // Optional: track who assigned the role
+
+  @@id([userId, roleId]) // Composite primary key
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  name        String   @unique // e.g., manage_inventory, view_reports, manage_users
+  description String?
+  roles       Role[]   @relation("RolePermissions")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
