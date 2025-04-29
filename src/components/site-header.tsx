@@ -4,19 +4,19 @@ import { useState } from "react"
 import { SidebarIcon, X, Menu, Search } from "lucide-react"
 
 import { MainNav } from "@/components/main-nav"
+import { NavUser } from "@/components/nav-user" // <-- Impor NavUser
 import { ThemeToggle } from "@/components/theme-toggle"
 import { SearchForm } from "@/components/search-form"
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { useSidebar } from "@/components/ui/sidebar"
+
+// Data pengguna sementara (gantilah dengan data asli dari autentikasi)
+const userData = {
+  name: "guest",
+  email: "m@example.com",
+  avatar: "/avatars/shadcn.jpg",
+}
 
 export function SiteHeader() {
   const { toggleSidebar } = useSidebar()
@@ -51,6 +51,7 @@ export function SiteHeader() {
         <div className="ml-auto hidden md:flex items-center gap-2">
           <SearchForm />
           <ThemeToggle />
+          <NavUser user={userData} /> {/* <-- Tambahkan NavUser di sini */} 
         </div>
         
         {/* Mobile Navigation Overlay - Fullscreen */}

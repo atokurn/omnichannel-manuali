@@ -201,9 +201,6 @@ export function OrdersSidebar({ ...props }: React.ComponentProps<typeof Sidebar>
         <NavCategory title="Analytics" items={analyticsItems} />
         <NavCategory title="Settings" items={settingsItems} />
       </SidebarContent>
-      <SidebarFooter>
-        <NavUser user={data.user} />
-      </SidebarFooter>
     </Sidebar>
   )
 }

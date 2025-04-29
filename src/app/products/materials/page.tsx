@@ -2,14 +2,12 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { SiteHeader } from '@/components/site-header';
-import { AppSidebar } from "@/components/app-sidebar";
-import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'; // Assuming sidebar components are needed
 import { DataTable } from '@/components/stock/data-table'; // Assuming a data table will be used
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Eye, FileEdit, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import Link from 'next/link'; // Import Link
 
 // Define the structure for a Product Material
 interface ProductMaterial {
@@ -63,76 +61,61 @@ const dummyMaterialsData: ProductMaterial[] = [
 
 export default function ProductMaterialsPage() {
   const router = useRouter();
+  // Replace with actual data fetching and state management
   const [materials, setMaterials] = useState<ProductMaterial[]>(dummyMaterialsData);
 
   // Define columns for the DataTable
   const columns = [
     {
-      accessorKey: 'name',
-      header: 'Nama Material',
-      cell: ({ row }: any) => (
-        <div className="font-medium">{row.original.name}</div>
+      accessorKey: "name",
+      header: "Nama Material",
+    },
+    {
+      accessorKey: "code",
+      header: "Kode",
+    },
+    {
+      accessorKey: "unit",
+      header: "Satuan",
+    },
+    {
+      accessorKey: "stock",
+      header: "Stok",
+      cell: ({ row }: { row: any }) => formatNumber(row.getValue("stock")),
+    },
+    {
+      accessorKey: "description",
+      header: "Deskripsi",
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ row }: { row: any }) => (
+        <Badge variant={row.getValue("status") === 'Aktif' ? 'default' : 'secondary'}>
+          {row.getValue("status")}
+        </Badge>
       ),
     },
     {
-      accessorKey: 'code',
-      header: 'Kode',
+      accessorKey: "createdAt",
+      header: "Tanggal Dibuat",
+      cell: ({ row }: { row: any }) => new Date(row.getValue("createdAt")).toLocaleDateString('id-ID'),
     },
     {
-      accessorKey: 'unit',
-      header: 'Satuan',
-    },
-    {
-      accessorKey: 'stock',
-      header: 'Stok',
-      cell: ({ row }: any) => (
-        <div>{formatNumber(row.original.stock)}</div>
-      ),
-    },
-    {
-      accessorKey: 'description',
-      header: 'Deskripsi',
-      cell: ({ row }: any) => (
-        <div className="truncate max-w-[200px]">{row.original.description || '-'}</div>
-      ),
-    },
-    {
-      accessorKey: 'status',
-      header: 'Status',
-      cell: ({ row }: any) => {
-        const status = row.original.status;
-        let badgeVariant = 'secondary';
-        if (status === 'Aktif') badgeVariant = 'success';
-        if (status === 'Nonaktif') badgeVariant = 'destructive';
-        return <Badge variant={badgeVariant as any}>{status}</Badge>;
-      },
-    },
-    {
-      accessorKey: 'createdAt',
-      header: 'Dibuat Pada',
-      cell: ({ row }: any) => {
-        const date = new Date(row.original.createdAt);
-        return (
-          <div>
-            {date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
-          </div>
-        );
-      },
-    },
-    {
-      id: 'actions',
-      header: 'Aksi',
-      cell: ({ row }: any) => {
+      id: "actions",
+      header: "Aksi",
+      cell: ({ row }: { row: any }) => {
         const material = row.original;
         return (
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => console.log('View', material.id)}>
+          <div className="flex items-center gap-1">
+            {/* Add Tooltips for better UX */}
+            <Button variant="ghost" size="icon" onClick={() => router.push(`/products/materials/view/${material.id}`)}>
               <Eye className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={() => console.log('Edit', material.id)}>
+            <Button variant="ghost" size="icon" onClick={() => router.push(`/products/materials/edit/${material.id}`)}>
               <FileEdit className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={() => console.log('Delete', material.id)}>
+            <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700" onClick={() => handleDelete(material.id)}>
               <Trash2 className="h-4 w-4" />
             </Button>
           </div>
@@ -141,33 +124,33 @@ export default function ProductMaterialsPage() {
     },
   ];
 
+  // Placeholder for delete function
+  const handleDelete = (id: string) => {
+    console.log(`Delete material ${id}`);
+    // Implement deletion logic here (e.g., show confirmation dialog, call API)
+    setMaterials(materials.filter(m => m.id !== id));
+  };
+
   return (
-    <div className="[--header-height:calc(--spacing(14))]">
-      <SidebarProvider className="flex flex-col">
-        <SiteHeader />
-        <div className="flex flex-1">
-        <AppSidebar />
-          {/* Assuming a ProductSidebar component might exist or be created later */}
-          {/* <ProductSidebar /> */}
-          <div className="flex-1 p-4 pl-[--sidebar-width]">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>Material Produk</CardTitle>
-                  <CardDescription>Kelola daftar material yang digunakan dalam produk.</CardDescription>
-                </div>
-                <Button onClick={() => router.push('/products/materials/add')}> {/* Adjust route as needed */}
-                  {/*<Plus className="mr-2 h-4 w-4" />*/}
-                  Tambah Material
-                </Button>
-              </CardHeader>
-              <CardContent>
-                <DataTable columns={columns} data={materials} />
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </SidebarProvider>
+    <div className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-lg font-semibold md:text-2xl">Material Produk</h1>
+        <Link href="/products/materials/add" passHref>
+          <Button>
+            <Plus className="mr-2 h-4 w-4" /> Tambah Material
+          </Button>
+        </Link>
+      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Daftar Material</CardTitle>
+          <CardDescription>Kelola semua material produk Anda.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {/* Use DataTable component here */}
+          <DataTable columns={columns} data={materials} searchKey="name" />
+        </CardContent>
+      </Card>
     </div>
   );
 }

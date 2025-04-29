@@ -19,20 +19,36 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar"
 
-export function NavMain({
-  items,
-}: {
-  items: {
-    title: string
-    url: string
-    icon: LucideIcon
-    isActive?: boolean
-    items?: {
-      title: string
-      url: string
-    }[]
-  }[]
-}) {
+// Define a more flexible type for items
+type NavItem = {
+  title: string
+  url: string
+  icon: LucideIcon
+  isActive?: boolean
+  items?: NavItem[] // Allow nested items for the default case
+}
+
+export function NavMain({ items, isSettings, pathname }: { items: NavItem[]; isSettings?: boolean; pathname?: string }) {
+  if (isSettings) {
+    // Render a flat list for settings sidebar
+    return (
+      <SidebarMenu>
+        {items.map((item) => (
+          <SidebarMenuItem key={item.title}>
+            {/* Use pathname to determine isActive state */}
+            <SidebarMenuButton asChild tooltip={item.title} isActive={pathname === item.url}>
+              <a href={item.url}>
+                <item.icon />
+                <span>{item.title}</span>
+              </a>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        ))}
+      </SidebarMenu>
+    )
+  }
+
+  // Original rendering logic for non-settings sidebars
   return (
     <SidebarGroup>
       <SidebarGroupLabel>Platform</SidebarGroupLabel>

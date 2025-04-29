@@ -147,9 +147,6 @@ export function TransactionSidebar({ ...props }: React.ComponentProps<typeof Sid
         <NavProjects projects={data.projects} />
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
-      <SidebarFooter>
-        <NavUser user={data.user} />
-      </SidebarFooter>
     </Sidebar>
   )
 }

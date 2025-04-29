@@ -12,6 +12,7 @@ import { Eye, FileEdit, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatNumberWithSeparator } from "../../../lib/utils"; // Import fungsi utilitas
+import Link from 'next/link'; // Import Link
 
 // Definisi tipe data untuk Produk
 interface Product {
@@ -98,57 +99,44 @@ const dummyCategories = [
 ];
 
 export default function ProductManagementPage() {
-  const [filteredData, setFilteredData] = useState<Product[]>(dummyProductData);
-  
-  // Fungsi untuk filter berdasarkan kategori
-  const handleCategoryChange = (categoryId: string) => {
-    if (categoryId === "all") {
-      setFilteredData(dummyProductData);
-    } else {
-      setFilteredData(dummyProductData.filter(item => item.category === dummyCategories.find(cat => cat.id === categoryId)?.name));
-    }
+  // State untuk data produk (gantilah dengan data asli)
+  const [products, setProducts] = useState<Product[]>(dummyProductData);
+
+  // Fungsi untuk menangani aksi (contoh)
+  const handleView = (id: string) => {
+    console.log(`View product ${id}`);
+    // Navigasi ke halaman detail produk jika ada
+  };
+
+  const handleEdit = (id: string) => {
+    console.log(`Edit product ${id}`);
+    // Navigasi ke halaman edit produk
+  };
+
+  const handleDelete = (id: string) => {
+    console.log(`Delete product ${id}`);
+    // Tampilkan konfirmasi dan hapus produk
+    setProducts(products.filter(p => p.id !== id));
   };
 
   // Definisi kolom untuk DataTable
   const columns = [
     {
-      accessorKey: "sku",
-      header: "Informasi Produk",
-      cell: ({ row }: any) => (
-        <div className="flex items-center gap-3">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger>
-                <div className="relative h-12 w-12 overflow-hidden rounded-md cursor-pointer">
-                  <Image
-                    src="/placeholder.svg"
-                    alt={row.original.name}
-                    fill
-                    sizes="48px"
-                    className="object-cover"
-                  />
-                </div>
-              </TooltipTrigger>
-              <TooltipContent side="right" className="p-0 border-0 bg-transparent">
-                <div className="relative w-48 h-48 overflow-hidden rounded-md shadow-lg">
-                  <Image
-                    src="/placeholder.svg"
-                    alt={row.original.name}
-                    fill
-                    sizes="192px"
-                    className="object-cover"
-                    priority
-                  />
-                </div>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <div>
-            <div className="font-medium">{row.original.sku}</div>
-            <div className="text-sm text-muted-foreground">{row.original.name}</div>
+      accessorKey: "name",
+      header: "Nama Produk",
+      cell: ({ row }: { row: any }) => (
+        <div className="flex items-center gap-2">
+          {/* Ganti dengan Image jika ada URL gambar */}
+          <div className="w-10 h-10 bg-muted rounded-sm flex items-center justify-center text-xs">
+            IMG
           </div>
+          <span className="font-medium">{row.getValue("name")}</span>
         </div>
       ),
+    },
+    {
+      accessorKey: "sku",
+      header: "SKU",
     },
     {
       accessorKey: "category",
@@ -157,117 +145,103 @@ export default function ProductManagementPage() {
     {
       accessorKey: "price",
       header: "Harga Jual",
-      cell: ({ row }: any) => {
-        const product = row.original;
-        const hasDiscount = product.price < product.normalPrice;
-        const formattedPrice = `Rp${formatNumberWithSeparator(product.price)}`;
-        const formattedNormalPrice = `Rp${formatNumberWithSeparator(product.normalPrice)}`;
-
-        return (
-          <div>
-            <div className="flex items-center gap-1">
-              {formattedPrice}
-            </div>
-            {hasDiscount && (
-              <div className="text-sm text-muted-foreground">
-                Harga normal: {formattedNormalPrice}
-              </div>
-            )}
-          </div>
-        );
-      },
+      cell: ({ row }: { row: any }) => `Rp ${formatNumberWithSeparator(row.getValue("price"))}`,
+    },
+    {
+      accessorKey: "normalPrice",
+      header: "Harga Normal",
+      cell: ({ row }: { row: any }) => `Rp ${formatNumberWithSeparator(row.getValue("normalPrice"))}`,
     },
     {
       accessorKey: "salesCount",
-      header: "Penjualan",
-      cell: ({ row }: any) => formatNumberWithSeparator(row.original.salesCount),
+      header: "Terjual",
+      cell: ({ row }: { row: any }) => formatNumberWithSeparator(row.getValue("salesCount")),
     },
     {
       accessorKey: "stock",
       header: "Stok",
-      cell: ({ row }: any) => formatNumberWithSeparator(row.original.stock),
+      cell: ({ row }: { row: any }) => formatNumberWithSeparator(row.getValue("stock")),
     },
     {
       accessorKey: "status",
       header: "Status",
-      cell: ({ row }: any) => {
-        const status = row.original.status;
-        let badgeVariant = "secondary";
-        
-        if (status === "Aktif") badgeVariant = "success";
-        if (status === "Tidak Aktif") badgeVariant = "destructive";
-        
-        return <Badge variant={badgeVariant as any}>{status}</Badge>;
-      },
+      cell: ({ row }: { row: any }) => (
+        <Badge variant={row.getValue("status") === 'Aktif' ? 'default' : 'secondary'}>
+          {row.getValue("status")}
+        </Badge>
+      ),
     },
     {
       accessorKey: "lastUpdated",
       header: "Terakhir Diperbarui",
-      cell: ({ row }: any) => {
-        const date = new Date(row.original.lastUpdated);
-        return (
-          <div>
-            {date.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-            <div className="text-sm text-muted-foreground">
-              {date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
-            </div>
-          </div>
-        );
-      },
+      cell: ({ row }: { row: any }) => new Date(row.getValue("lastUpdated")).toLocaleDateString('id-ID'),
     },
     {
       id: "actions",
       header: "Aksi",
-      cell: ({ row }: any) => {
+      cell: ({ row }: { row: any }) => {
+        const product = row.original;
         return (
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon">
-              <Eye className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon">
-              <FileEdit className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon">
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
+          <TooltipProvider>
+            <div className="flex items-center gap-1">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" onClick={() => handleView(product.id)}>
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Lihat Detail</p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  {/* Arahkan ke halaman edit */}
+                  <Link href={`/products/management/edit/${product.id}`} passHref>
+                    <Button variant="ghost" size="icon">
+                      <FileEdit className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Ubah Produk</p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700" onClick={() => handleDelete(product.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Hapus Produk</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          </TooltipProvider>
         );
       },
     },
   ];
 
   return (
-    <div className="[--header-height:calc(--spacing(14))]">
-      <SidebarProvider className="flex flex-col">
-        <SiteHeader />
-        <div className="flex flex-1">
-          <AppSidebar />
-          <SidebarInset>
-            <div className="flex flex-1 flex-col gap-4 p-4">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle>Manajemen Produk</CardTitle>
-                    <CardDescription>Kelola data produk dalam sistem</CardDescription>
-                  </div>
-                  <Button asChild>
-                    <a href="/products/management/add">Tambah Produk</a>
-                  </Button>
-                </CardHeader>
-                <CardContent>
-                  <DataTable 
-                    columns={columns} 
-                    data={filteredData} 
-                    searchKey="name" 
-                    warehouses={dummyCategories}
-                    onWarehouseChange={handleCategoryChange}
-                  />
-                </CardContent>
-              </Card>
-            </div>
-          </SidebarInset>
-        </div>
-      </SidebarProvider>
+    <div className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-lg font-semibold md:text-2xl">Manajemen Produk</h1>
+        {/* Arahkan ke halaman tambah produk */}
+        <Link href="/products/management/add" passHref>
+          <Button>Tambah Produk</Button>
+        </Link>
+      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Daftar Produk</CardTitle>
+          <CardDescription>Kelola semua produk Anda di sini.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <DataTable columns={columns} data={products} searchKey="name" />
+        </CardContent>
+      </Card>
     </div>
   );
 }

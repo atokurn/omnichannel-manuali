@@ -236,9 +236,6 @@ export function InventorySidebar({ ...props }: React.ComponentProps<typeof Sideb
         {/* Use NavSecondary, placed at the bottom using mt-auto */}
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
-      <SidebarFooter>
-        <NavUser user={data.user} />
-      </SidebarFooter>
     </Sidebar>
   )
 }

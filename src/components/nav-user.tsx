@@ -8,6 +8,7 @@ import {
   LogOut,
   Sparkles,
 } from "lucide-react"
+import { useRouter } from "next/navigation" // <-- Tambahkan impor ini
 
 import {
   Avatar,
@@ -40,6 +41,24 @@ export function NavUser({
   }
 }) {
   const { isMobile } = useSidebar()
+  const router = useRouter() // <-- Inisialisasi router
+
+  // <-- Tambahkan fungsi handleLogout
+  const handleLogout = async () => {
+    try {
+      const response = await fetch("/api/auth/logout", { method: "POST" })
+      if (response.ok) {
+        router.push("/sign") // Arahkan ke halaman login
+        router.refresh() // Segarkan state
+      } else {
+        console.error("Logout failed:", response.statusText)
+        // Mungkin tampilkan pesan error ke pengguna
+      }
+    } catch (error) {
+      console.error("Error during logout:", error)
+      // Mungkin tampilkan pesan error ke pengguna
+    }
+  }
 
   return (
     <SidebarMenu>
@@ -102,7 +121,8 @@ export function NavUser({
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            {/* Tambahkan onClick ke item menu Logout */}
+            <DropdownMenuItem onClick={handleLogout}>
               <LogOut />
               Log out
             </DropdownMenuItem>
