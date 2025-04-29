@@ -1,16 +1,19 @@
 'use client';
 
+import React from 'react';
 import { useState } from 'react';
 import Image from 'next/image'; // Import Image component
-import { InventorySidebar } from "@/components/inventory-sidebar";
-import { SiteHeader } from "@/components/site-header";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import Link from 'next/link'; // Import Link component
 import { DataTable } from "@/components/stock/data-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Eye, FileEdit, Trash2 } from "lucide-react";
+import { Eye, FileEdit, Trash2, Plus, Search } from "lucide-react"; // Import Plus and Search icons
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"; // Import Tooltip components
+import { Input } from "@/components/ui/input"; // Import Input component
+import { Label } from "@/components/ui/label"; // Import Label component
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Import Select components
+import { formatNumberWithSeparator } from '@/lib/utils'; // Import fungsi format
 
 // Definisi tipe data untuk Stock Out
 interface StockOutItem {
@@ -122,14 +125,43 @@ const dummyWarehouses = [
 
 export default function StockOutPage() {
   const [filteredData, setFilteredData] = useState<StockOutItem[]>(dummyStockOutData);
-  
-  // Fungsi untuk filter berdasarkan warehouse
-  const handleWarehouseChange = (warehouseId: string) => {
-    if (warehouseId === "all") {
-      setFilteredData(dummyStockOutData);
-    } else {
-      setFilteredData(dummyStockOutData.filter(item => item.warehouse.id === warehouseId));
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [selectedWarehouse, setSelectedWarehouse] = useState<string>("all");
+
+  // Fungsi untuk filter data berdasarkan semua kriteria
+  const filterData = () => {
+    let filtered = [...dummyStockOutData];
+
+    // Filter berdasarkan warehouse
+    if (selectedWarehouse !== "all") {
+      filtered = filtered.filter(item => item.warehouse.id === selectedWarehouse);
     }
+
+    // Filter berdasarkan pencarian (SKU atau Nama Produk)
+    if (searchTerm) {
+      const lowerCaseSearchTerm = searchTerm.toLowerCase();
+      filtered = filtered.filter(item =>
+        item.sku.toLowerCase().includes(lowerCaseSearchTerm) ||
+        item.productName.toLowerCase().includes(lowerCaseSearchTerm)
+      );
+    }
+
+    setFilteredData(filtered);
+  };
+
+  // Panggil filterData saat searchTerm atau selectedWarehouse berubah
+  React.useEffect(() => {
+    filterData();
+  }, [searchTerm, selectedWarehouse]);
+
+  // Fungsi untuk handle perubahan warehouse
+  const handleWarehouseChange = (warehouseId: string) => {
+    setSelectedWarehouse(warehouseId);
+  };
+
+  // Fungsi untuk handle perubahan input pencarian
+  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(event.target.value);
   };
 
   // Definisi kolom untuk DataTable
@@ -194,6 +226,7 @@ export default function StockOutPage() {
     {
       accessorKey: "quantity",
       header: "Quantity",
+      cell: ({ row }: any) => <div className="text-right pr-4">{formatNumberWithSeparator(row.original.quantity)}</div>,
     },
     {
       accessorKey: "date",
@@ -236,37 +269,55 @@ export default function StockOutPage() {
   ];
 
   return (
-    <div className="[--header-height:calc(--spacing(14))]">
-      <SidebarProvider className="flex flex-col">
-        <SiteHeader />
-        <div className="flex flex-1">
-          <InventorySidebar />
-          <SidebarInset>
-            <div className="flex flex-1 flex-col gap-4 p-4">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle>Stock Out</CardTitle>
-                    <CardDescription>Kelola data barang keluar dari gudang</CardDescription>
-                  </div>
-                  <Button asChild>
-                    <a href="/inventory/stock/stock-out/add">Tambah Stock Out</a>
-                  </Button>
-                </CardHeader>
-                <CardContent>
-                  <DataTable 
-                    columns={columns} 
-                    data={filteredData} 
-                    searchKey="sku" 
-                    warehouses={dummyWarehouses}
-                    onWarehouseChange={handleWarehouseChange}
-                  />
-                </CardContent>
-              </Card>
+    <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Stock Out</CardTitle>
+            <CardDescription>Kelola stok keluar dari gudang.</CardDescription>
+          </div>
+          <Button asChild>
+            <Link href="/inventory/stock/stock-out/add">Tambah Stok Keluar
+            </Link>
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {/* Filter Section */}
+          <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div className="flex flex-col space-y-1.5">
+              <Label htmlFor="warehouse">Gudang</Label>
+              <Select onValueChange={handleWarehouseChange} defaultValue="all">
+                <SelectTrigger id="warehouse">
+                  <SelectValue placeholder="Pilih Gudang" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Gudang</SelectItem>
+                  {dummyWarehouses.map((warehouse) => (
+                    <SelectItem key={warehouse.id} value={warehouse.id}>
+                      {warehouse.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          </SidebarInset>
-        </div>
-      </SidebarProvider>
-    </div>
+            <div className="flex flex-col space-y-1.5 md:col-span-2">
+              <Label htmlFor="search">Pencarian</Label>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="search"
+                  type="search"
+                  placeholder="Cari berdasarkan SKU atau Nama Produk..."
+                  className="pl-8"
+                  value={searchTerm}
+                  onChange={handleSearchChange}
+                />
+              </div>
+            </div>
+          </div>
+          <DataTable columns={columns} data={filteredData} />
+        </CardContent>
+      </Card>
+    </main>
   );
 }

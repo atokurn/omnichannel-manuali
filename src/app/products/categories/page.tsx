@@ -1,9 +1,12 @@
-"use client";
-
-import { useState } from 'react';
+import { AppSidebar } from "@/components/app-sidebar";
+import { SiteHeader } from "@/components/site-header";
+import {
+  SidebarInset,
+  SidebarProvider,
+} from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { SearchIcon } from 'lucide-react'; // PlusCircleIcon tidak digunakan, bisa dihapus jika tidak perlu
+import { SearchIcon } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -32,63 +35,63 @@ const categories = [
 ];
 
 export default function CategoriesPage() {
-  // TODO: Ganti dengan state dan data fetching yang sebenarnya
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-
-  const filteredCategories = categories.filter(category =>
-    category.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // TODO: Implement state for categories, search, etc.
 
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold md:text-2xl">Kategori Produk</h1>
-        {/*<Button onClick={() => setIsAddDialogOpen(true)}>Tambah Kategori</Button>*/}
-        <AddCategoryDialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen} />
-
-      </div>
+    <div className="flex flex-1 flex-col gap-4 p-4">
       <Card>
-        <CardHeader>
-          <CardTitle>Daftar Kategori</CardTitle>
-          <CardDescription>Kelola kategori produk Anda.</CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Kategori Produk</CardTitle>
+            <CardDescription>
+              Kelola kategori untuk produk Anda.
+            </CardDescription>
+          </div>
+          {/* Tombol Tambah Kategori menggunakan Dialog */}
+          <AddCategoryDialog />
         </CardHeader>
         <CardContent>
-          <div className="mb-4">
-            <div className="relative">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="relative flex-1">
               <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
                 placeholder="Cari kategori..."
-                className="pl-8 sm:w-[300px]"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-8 sm:w-[300px] md:w-[200px] lg:w-[300px] bg-background"
+                // TODO: Add state and onChange handler for search
               />
             </div>
+            {/* Optional: Add filter or other actions here */}
           </div>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nama Kategori</TableHead>
-                <TableHead>Deskripsi</TableHead>
-                <TableHead>Tanggal Dibuat</TableHead>
-                {/* Tambahkan Aksi jika perlu */}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredCategories.map((category) => (
-                <TableRow key={category.id}>
-                  <TableCell className="font-medium">{category.name}</TableCell>
-                  <TableCell>{category.description}</TableCell>
-                  <TableCell>{new Date(category.createdAt).toLocaleDateString()}</TableCell>
-                  {/* Tambahkan sel Aksi jika perlu */}
+          <div className="border rounded-lg overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nama Kategori</TableHead>
+                  <TableHead>Deskripsi</TableHead>
+                  <TableHead>Tanggal Dibuat</TableHead>
+                  <TableHead className="text-right">Aksi</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {categories.map((category) => (
+                  <TableRow key={category.id}>
+                    <TableCell className="font-medium">{category.name}</TableCell>
+                    <TableCell>{category.description}</TableCell>
+                    <TableCell>{new Date(category.createdAt).toLocaleDateString('id-ID')}</TableCell>
+                    <TableCell className="text-right">
+                      {/* TODO: Add Edit and Delete actions */}
+                      <Button variant="ghost" size="sm">Edit</Button>
+                      <Button variant="ghost" size="sm" className="text-red-600">Hapus</Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          {/* TODO: Add pagination if needed */}
         </CardContent>
       </Card>
-      {/*<AddCategoryDialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen} />*/}
     </div>
   );
 }

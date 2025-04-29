@@ -2,9 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { InventorySidebar } from "@/components/inventory-sidebar";
-import { SiteHeader } from "@/components/site-header";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -125,125 +122,111 @@ export default function AddStockCountPage() {
   };
 
   return (
-    <div className="[--header-height:calc(--spacing(14))] min-h-screen bg-muted/40">
-      <SidebarProvider className="flex flex-col">
-        <SiteHeader />
-        <div className="flex flex-1">
-          <InventorySidebar />
-          <SidebarInset>
-            <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
-              <div className="flex items-center gap-4">
-                <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => router.back()}>
-                  <ArrowLeft className="h-4 w-4" />
-                  <span className="sr-only">Back</span>
-                </Button>
-                <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold tracking-tight sm:grow-0">
-                  Tambah Stock Count Baru
-                </h1>
-                {/* Optional: Badges or other info */}
-              </div>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Detail Stock Count</CardTitle>
-                  <CardDescription>Pilih gudang dan tipe perhitungan stok.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-6">
-                    {/* Warehouse Selection */}
-                    <div className="grid gap-3">
-                      <Label htmlFor="warehouse">Warehouse <span className="text-red-500">*</span></Label>
-                      <Select onValueChange={handleWarehouseChange} value={selectedWarehouse}>
-                        <SelectTrigger id="warehouse" aria-label="Pilih Gudang">
-                          <SelectValue placeholder="Pilih Gudang" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {dummyWarehouses.map((wh) => (
-                            <SelectItem key={wh.id} value={wh.id}>{wh.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {errors.warehouseId && <p className="text-sm text-red-500">{errors.warehouseId}</p>}
-                    </div>
+    // Removed wrapping div, SidebarProvider, SiteHeader, InventorySidebar, SidebarInset
+    <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
+      <div className="flex items-center gap-4">
+        <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => router.back()}>
+          <ArrowLeft className="h-4 w-4" />
+          <span className="sr-only">Back</span>
+        </Button>
+        <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold tracking-tight sm:grow-0">
+          Tambah Stock Count Baru
+        </h1>
+        {/* Optional: Badges or other info */}
+      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Detail Stock Count</CardTitle>
+          <CardDescription>Pilih gudang dan tipe perhitungan stok.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-6">
+            {/* Warehouse Selection */}
+            <div className="grid gap-3">
+              <Label htmlFor="warehouse">Warehouse <span className="text-red-500">*</span></Label>
+              <Select onValueChange={handleWarehouseChange} value={selectedWarehouse}>
+                <SelectTrigger id="warehouse" aria-label="Pilih Gudang">
+                  <SelectValue placeholder="Pilih Gudang" />
+                </SelectTrigger>
+                <SelectContent>
+                  {dummyWarehouses.map((wh) => (
+                    <SelectItem key={wh.id} value={wh.id}>{wh.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.warehouseId && <p className="text-sm text-red-500">{errors.warehouseId}</p>}
+            </div>
 
-                    {/* Count Type Selection */}
-                    <div className="grid gap-3">
-                      <Label>Count Type <span className="text-red-500">*</span></Label>
-                      <RadioGroup defaultValue="sku" value={countType} onValueChange={(value) => handleCountTypeChange(value as CountType)} className="flex space-x-4">
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="sku" id="sku" />
-                          <Label htmlFor="sku">By Merchant SKU</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="shelf" id="shelf" />
-                          <Label htmlFor="shelf">By Shelf</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="warehouse" id="warehouse-type" />
-                          <Label htmlFor="warehouse-type">By Warehouse</Label>
-                        </div>
-                      </RadioGroup>
-                      {errors.countType && <p className="text-sm text-red-500">{errors.countType}</p>}
-                    </div>
+            {/* Count Type Selection */}
+            <div className="grid gap-3">
+              <Label>Count Type <span className="text-red-500">*</span></Label>
+              <RadioGroup defaultValue="sku" value={countType} onValueChange={(value) => handleCountTypeChange(value as CountType)} className="flex space-x-4">
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="sku" id="sku" />
+                  <Label htmlFor="sku">By Merchant SKU</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="shelf" id="shelf" />
+                  <Label htmlFor="shelf">By Shelf</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="warehouse" id="warehouse-type" />
+                  <Label htmlFor="warehouse-type">By Warehouse</Label>
+                </div>
+              </RadioGroup>
+              {errors.countType && <p className="text-sm text-red-500">{errors.countType}</p>}
+            </div>
 
-                    {/* Conditional Item Selection Area */}
-                    {(countType === 'sku' || countType === 'shelf') && (
-                      <div className="grid gap-3">
-                        <Label>{countType === 'sku' ? 'Add Merchant SKU' : 'Add Shelf'} <span className="text-red-500">*</span></Label>
-                        <Card className="border-dashed">
-                          <CardContent className="p-6 flex flex-col items-center justify-center min-h-[150px]">
-                            {selectedItems.length === 0 ? (
-                              <Button variant="outline" onClick={handleSelectItem}>
-                                <Plus className="mr-2 h-4 w-4" /> {countType === 'sku' ? 'Select Merchant SKU' : 'Select Shelf'}
-                              </Button>
-                            ) : (
-                              <div className="w-full">
-                                <Table>
-                                  <TableHeader>
-                                    <TableRow>
-                                      <TableHead>{countType === 'sku' ? 'Merchant SKU' : 'Shelf Name'}</TableHead>
-                                      <TableHead className="text-right">Actions</TableHead>
-                                    </TableRow>
-                                  </TableHeader>
-                                  <TableBody>
-                                    {selectedItems.map((item) => (
-                                      <TableRow key={item.id}>
-                                        <TableCell>{item.name} ({item.id})</TableCell>
-                                        <TableCell className="text-right">
-                                          <Button variant="ghost" size="icon" onClick={() => handleRemoveItem(item.id)}>
-                                            <Trash2 className="h-4 w-4" />
-                                            <span className="sr-only">Remove</span>
-                                          </Button>
-                                        </TableCell>
-                                      </TableRow>
-                                    ))}
-                                  </TableBody>
-                                </Table>
-                                <div className="mt-4 flex justify-center">
-                                  <Button variant="outline" size="sm" onClick={handleSelectItem}>
-                                    <Plus className="mr-2 h-4 w-4" /> Add More
+            {/* Conditional Item Selection Area */}
+            {(countType === 'sku' || countType === 'shelf') && (
+              <div className="grid gap-3">
+                <Label>{countType === 'sku' ? 'Add Merchant SKU' : 'Add Shelf'} <span className="text-red-500">*</span></Label>
+                <Card className="border-dashed">
+                  <CardContent className="p-6 flex flex-col items-center justify-center min-h-[150px]">
+                    {selectedItems.length === 0 ? (
+                      <Button variant="outline" onClick={handleSelectItem}>
+                        <Plus className="mr-2 h-4 w-4" /> {countType === 'sku' ? 'Select Merchant SKU' : 'Select Shelf'}
+                      </Button>
+                    ) : (
+                      <div className="w-full">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>{countType === 'sku' ? 'Merchant SKU' : 'Shelf'}</TableHead>
+                              <TableHead className="text-right">Aksi</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {selectedItems.map((item) => (
+                              <TableRow key={item.id}>
+                                <TableCell>{item.name} ({item.id})</TableCell>
+                                <TableCell className="text-right">
+                                  <Button variant="ghost" size="icon" onClick={() => handleRemoveItem(item.id)}>
+                                    <Trash2 className="h-4 w-4" />
                                   </Button>
-                                </div>
-                              </div>
-                            )}
-                          </CardContent>
-                        </Card>
-                        {errors.items && <p className="text-sm text-red-500 mt-1">{errors.items}</p>}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                        <Button variant="outline" size="sm" onClick={handleSelectItem} className="mt-4">
+                          <Plus className="mr-2 h-4 w-4" /> Tambah Lagi
+                        </Button>
                       </div>
                     )}
-                    {errors.submit && <p className="text-sm text-red-500">{errors.submit}</p>} {/* Display submit error */}
-                  </div>
-                </CardContent>
-                <CardFooter className="border-t px-6 py-4">
-                  <div className="flex w-full justify-end gap-2">
-                    <Button variant="outline" onClick={() => router.back()}>Cancel</Button>
-                    <Button onClick={handleSubmit}>Import & Update</Button> {/* Changed button text for consistency if needed, or keep as is */} 
-                  </div>
-                </CardFooter>
-              </Card>
-            </main>
-          </SidebarInset>
-        </div>
-      </SidebarProvider>
-    </div>
+                  </CardContent>
+                </Card>
+                {errors.items && <p className="text-sm text-red-500 mt-1">{errors.items}</p>}
+              </div>
+            )}
+          </div>
+        </CardContent>
+        <CardFooter className="border-t px-6 py-4">
+          <Button onClick={handleSubmit}>Buat Tugas Stock Count</Button>
+          {errors.submit && <p className="text-sm text-red-500 ml-4">{errors.submit}</p>}
+        </CardFooter>
+      </Card>
+    </main> // End main tag
+    // Removed closing tags for SidebarInset, div, SidebarProvider, div
   );
 }

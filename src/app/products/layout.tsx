@@ -1,41 +1,39 @@
-"use client"; // Add this line
+"use client"
 
-import { AppSidebar } from "@/components/app-sidebar";
-import { SiteHeader } from "@/components/site-header";
-import {
-  SidebarInset,
-  SidebarProvider,
-} from "@/components/ui/sidebar";
-import React from "react";
+import * as React from "react"
 import { usePathname } from 'next/navigation'; // Import usePathname
 
-export default function ProductsLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const pathname = usePathname(); // Get the current path
+import { SiteHeader } from "@/components/site-header"
+import { AppSidebar } from "@/components/app-sidebar"
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 
-  // Check if the current path is the add product page
+interface ProductsLayoutProps {
+  children: React.ReactNode
+}
+
+export default function ProductsLayout({ children }: ProductsLayoutProps) {
+  const pathname = usePathname();
   const isAddProductPage = pathname === '/products/management/add';
 
-  // If it's the add product page, render only the children
-  if (isAddProductPage) {
-    return <>{children}</>;
-  }
-
-  // Otherwise, render the full layout
   return (
-    <div className="[--header-height:calc(--spacing(14))]">
+    <div className="[--header-height:calc(--spacing(14))] min-h-screen">
       <SidebarProvider className="flex flex-col">
-        <SiteHeader />
+        {!isAddProductPage && <SiteHeader />}
         <div className="flex flex-1">
-          <AppSidebar />
-          <SidebarInset>
-            {children}
-          </SidebarInset>
+          {!isAddProductPage && <AppSidebar/>}
+          {isAddProductPage ? (
+            <main className="flex w-full flex-col">
+              {children}
+            </main>
+          ) : (
+            <SidebarInset>
+              <main className="flex w-full flex-col overflow-hidden py-6">
+                {children}
+              </main>
+            </SidebarInset>
+          )}
         </div>
       </SidebarProvider>
     </div>
-  );
+  )
 }

@@ -2,17 +2,14 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { AppSidebar } from "@/components/app-sidebar";
-import { SiteHeader } from "@/components/site-header";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { DataTable } from "@/components/stock/data-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Eye, FileEdit, Trash2 } from "lucide-react";
+import { Eye, FileEdit, Trash2, Plus } from "lucide-react"; // Added Plus icon
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatNumberWithSeparator } from "../../../lib/utils"; // Import fungsi utilitas
-import Link from 'next/link'; // Import Link
+import { useRouter } from 'next/navigation'; // Added useRouter
 
 // Definisi tipe data untuk Produk
 interface Product {
@@ -32,213 +29,163 @@ interface Product {
 const dummyProductData: Product[] = [
   {
     id: "1",
-    sku: "PRD-001",
-    name: "Laptop Asus",
-    category: "Elektronik",
-    price: 11500000,
-    normalPrice: 12000000,
-    salesCount: 25,
-    stock: 10,
+    sku: "SKU001",
+    name: "Kaos Polos Hitam",
+    category: "Pakaian",
+    price: 75000,
+    normalPrice: 100000,
+    salesCount: 150,
+    stock: 500,
     status: "Aktif",
-    lastUpdated: "2023-10-15T08:30:00Z"
+    lastUpdated: "2024-07-20",
   },
   {
     id: "2",
-    sku: "PRD-002",
-    name: "Mouse Logitech",
-    category: "Aksesoris",
-    price: 350000,
-    normalPrice: 350000,
-    salesCount: 120,
-    stock: 50,
+    sku: "SKU002",
+    name: "Celana Jeans Biru",
+    category: "Pakaian",
+    price: 250000,
+    normalPrice: 300000,
+    salesCount: 80,
+    stock: 200,
     status: "Aktif",
-    lastUpdated: "2023-10-16T10:15:00Z"
+    lastUpdated: "2024-07-18",
   },
   {
     id: "3",
-    sku: "PRD-003",
-    name: "Keyboard Mechanical",
+    sku: "SKU003",
+    name: "Topi Baseball Merah",
     category: "Aksesoris",
-    price: 799000,
-    normalPrice: 850000,
-    salesCount: 45,
-    stock: 25,
-    status: "Aktif",
-    lastUpdated: "2023-10-17T14:45:00Z"
+    price: 50000,
+    normalPrice: 65000,
+    salesCount: 300,
+    stock: 1000,
+    status: "Nonaktif",
+    lastUpdated: "2024-07-15",
   },
-  {
-    id: "4",
-    sku: "PRD-004",
-    name: "Monitor LED 24\"",
-    category: "Elektronik",
-    price: 2500000,
-    normalPrice: 2500000,
-    salesCount: 18,
-    stock: 15,
-    status: "Aktif",
-    lastUpdated: "2023-10-18T09:20:00Z"
-  },
-  {
-    id: "5",
-    sku: "PRD-005",
-    name: "Headset Gaming",
-    category: "Aksesoris",
-    price: 599000,
-    normalPrice: 750000,
-    salesCount: 0,
-    stock: 30,
-    status: "Tidak Aktif",
-    lastUpdated: "2023-10-19T11:10:00Z"
-  }
+  // Tambahkan data dummy lainnya jika perlu
 ];
 
-// Data dummy untuk kategori
-const dummyCategories = [
-  { id: "1", name: "Elektronik" },
-  { id: "2", name: "Aksesoris" },
+// Definisi kolom untuk DataTable
+const columns = [
+  {
+    accessorKey: "sku",
+    header: "SKU",
+  },
+  {
+    accessorKey: "name",
+    header: "Nama Produk",
+    cell: ({ row }: { row: any }) => (
+      <div className="flex items-center gap-2">
+        {/* Placeholder for image - replace with actual Image component if available */}
+        {/* <Image src="/placeholder.svg" alt={row.original.name} width={32} height={32} className="rounded" /> */}
+        <span className="font-medium">{row.original.name}</span>
+      </div>
+    ),
+  },
+  {
+    accessorKey: "category",
+    header: "Kategori",
+  },
+  {
+    accessorKey: "price",
+    header: "Harga Jual",
+    cell: ({ row }: { row: any }) => `Rp ${formatNumberWithSeparator(row.original.price)}`,
+  },
+  {
+    accessorKey: "normalPrice",
+    header: "Harga Normal",
+    cell: ({ row }: { row: any }) => `Rp ${formatNumberWithSeparator(row.original.normalPrice)}`,
+  },
+  {
+    accessorKey: "salesCount",
+    header: "Terjual",
+    cell: ({ row }: { row: any }) => formatNumberWithSeparator(row.original.salesCount),
+  },
+  {
+    accessorKey: "stock",
+    header: "Stok",
+    cell: ({ row }: { row: any }) => formatNumberWithSeparator(row.original.stock),
+  },
+  {
+    accessorKey: "status",
+    header: "Status",
+    cell: ({ row }: { row: any }) => (
+      <Badge variant={row.original.status === "Aktif" ? "default" : "destructive"}>
+        {row.original.status}
+      </Badge>
+    ),
+  },
+  {
+    accessorKey: "lastUpdated",
+    header: "Terakhir Diperbarui",
+    cell: ({ row }: { row: any }) => new Date(row.original.lastUpdated).toLocaleDateString('id-ID'),
+  },
+  {
+    id: "actions",
+    header: "Aksi",
+    cell: ({ row }: { row: any }) => (
+      <TooltipProvider>
+        <div className="flex gap-1">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" size="icon" className="h-8 w-8">
+                <Eye className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Lihat Detail</p>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" size="icon" className="h-8 w-8">
+                <FileEdit className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Edit Produk</p>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" size="icon" className="h-8 w-8 text-red-500">
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Hapus Produk</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+      </TooltipProvider>
+    ),
+  },
 ];
 
 export default function ProductManagementPage() {
-  // State untuk data produk (gantilah dengan data asli)
+  const router = useRouter(); // Initialize router
   const [products, setProducts] = useState<Product[]>(dummyProductData);
 
-  // Fungsi untuk menangani aksi (contoh)
-  const handleView = (id: string) => {
-    console.log(`View product ${id}`);
-    // Navigasi ke halaman detail produk jika ada
-  };
-
-  const handleEdit = (id: string) => {
-    console.log(`Edit product ${id}`);
-    // Navigasi ke halaman edit produk
-  };
-
-  const handleDelete = (id: string) => {
-    console.log(`Delete product ${id}`);
-    // Tampilkan konfirmasi dan hapus produk
-    setProducts(products.filter(p => p.id !== id));
-  };
-
-  // Definisi kolom untuk DataTable
-  const columns = [
-    {
-      accessorKey: "name",
-      header: "Nama Produk",
-      cell: ({ row }: { row: any }) => (
-        <div className="flex items-center gap-2">
-          {/* Ganti dengan Image jika ada URL gambar */}
-          <div className="w-10 h-10 bg-muted rounded-sm flex items-center justify-center text-xs">
-            IMG
-          </div>
-          <span className="font-medium">{row.getValue("name")}</span>
-        </div>
-      ),
-    },
-    {
-      accessorKey: "sku",
-      header: "SKU",
-    },
-    {
-      accessorKey: "category",
-      header: "Kategori",
-    },
-    {
-      accessorKey: "price",
-      header: "Harga Jual",
-      cell: ({ row }: { row: any }) => `Rp ${formatNumberWithSeparator(row.getValue("price"))}`,
-    },
-    {
-      accessorKey: "normalPrice",
-      header: "Harga Normal",
-      cell: ({ row }: { row: any }) => `Rp ${formatNumberWithSeparator(row.getValue("normalPrice"))}`,
-    },
-    {
-      accessorKey: "salesCount",
-      header: "Terjual",
-      cell: ({ row }: { row: any }) => formatNumberWithSeparator(row.getValue("salesCount")),
-    },
-    {
-      accessorKey: "stock",
-      header: "Stok",
-      cell: ({ row }: { row: any }) => formatNumberWithSeparator(row.getValue("stock")),
-    },
-    {
-      accessorKey: "status",
-      header: "Status",
-      cell: ({ row }: { row: any }) => (
-        <Badge variant={row.getValue("status") === 'Aktif' ? 'default' : 'secondary'}>
-          {row.getValue("status")}
-        </Badge>
-      ),
-    },
-    {
-      accessorKey: "lastUpdated",
-      header: "Terakhir Diperbarui",
-      cell: ({ row }: { row: any }) => new Date(row.getValue("lastUpdated")).toLocaleDateString('id-ID'),
-    },
-    {
-      id: "actions",
-      header: "Aksi",
-      cell: ({ row }: { row: any }) => {
-        const product = row.original;
-        return (
-          <TooltipProvider>
-            <div className="flex items-center gap-1">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" onClick={() => handleView(product.id)}>
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Lihat Detail</p>
-                </TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  {/* Arahkan ke halaman edit */}
-                  <Link href={`/products/management/edit/${product.id}`} passHref>
-                    <Button variant="ghost" size="icon">
-                      <FileEdit className="h-4 w-4" />
-                    </Button>
-                  </Link>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Ubah Produk</p>
-                </TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700" onClick={() => handleDelete(product.id)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Hapus Produk</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
-          </TooltipProvider>
-        );
-      },
-    },
-  ];
+  // TODO: Implement actual data fetching
+  // TODO: Implement search/filter functionality
+  // TODO: Implement actions (view, edit, delete)
 
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold md:text-2xl">Manajemen Produk</h1>
-        {/* Arahkan ke halaman tambah produk */}
-        <Link href="/products/management/add" passHref>
-          <Button>Tambah Produk</Button>
-        </Link>
-      </div>
+    <div className="flex flex-1 flex-col gap-4 p-4">
       <Card>
-        <CardHeader>
-          <CardTitle>Daftar Produk</CardTitle>
-          <CardDescription>Kelola semua produk Anda di sini.</CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Manajemen Produk</CardTitle>
+            <CardDescription>
+              Kelola daftar produk Anda.
+            </CardDescription>
+          </div>
+          <Button onClick={() => router.push('/products/management/add')}>Tambah Produk
+          </Button>
         </CardHeader>
         <CardContent>
+          {/* TODO: Add search input and filter options here */}
           <DataTable columns={columns} data={products} searchKey="name" />
         </CardContent>
       </Card>

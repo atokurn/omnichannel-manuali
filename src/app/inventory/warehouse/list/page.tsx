@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react'; // Added useEffect
 import { InventorySidebar } from "@/components/inventory-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
@@ -183,6 +183,11 @@ export default function InventoryListPage() {
     setFilteredData(filtered);
   };
 
+  // Terapkan filter saat state berubah (Added useEffect)
+  useEffect(() => {
+    filterData();
+  }, [selectedWarehouse, selectedCategory, selectedStatus]);
+
   // Kolom untuk DataTable
   const columns = [
     {
@@ -294,106 +299,101 @@ export default function InventoryListPage() {
   ];
 
   return (
-    <div className="[--header-height:calc(--spacing(14))]">
-      <SidebarProvider className="flex flex-col">
-        <SiteHeader />
-        <div className="flex flex-1">
-          <InventorySidebar />
-          <SidebarInset>
-            <div className="flex flex-1 flex-col gap-4 p-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Daftar Inventaris</CardTitle>
-                  <CardDescription>
-                    Kelola dan pantau stok inventaris di semua gudang
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-4">
-                    <div>
-                      <Label>Gudang</Label>
-                      <Select
-                        value={selectedWarehouse}
-                        onValueChange={(value) => {
-                          setSelectedWarehouse(value);
-                          setTimeout(() => filterData(), 0);
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Pilih Gudang" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Semua Gudang</SelectItem>
-                          {dummyWarehouses.map((warehouse) => (
-                            <SelectItem key={warehouse.id} value={warehouse.id}>
-                              {warehouse.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>Kategori</Label>
-                      <Select
-                        value={selectedCategory}
-                        onValueChange={(value) => {
-                          setSelectedCategory(value);
-                          setTimeout(() => filterData(), 0);
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Pilih Kategori" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Semua Kategori</SelectItem>
-                          {dummyCategories.map((category) => (
-                            <SelectItem
-                              key={category.id}
-                              value={category.id}
-                            >
-                              {category.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>Status</Label>
-                      <Select
-                        value={selectedStatus}
-                        onValueChange={(value) => {
-                          setSelectedStatus(value);
-                          setTimeout(() => filterData(), 0);
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Pilih Status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Semua Status</SelectItem>
-                          {dummyStatuses.map((status) => (
-                            <SelectItem key={status.id} value={status.id}>
-                              {status.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>Pencarian</Label>
-                      <Input placeholder="Cari SKU atau nama produk" />
-                    </div>
-                  </div>
-                  <DataTable
-                    columns={columns}
-                    data={filteredData}
-                  />
-                </CardContent>
-              </Card>
+    // Removed wrapping div, SidebarProvider, SiteHeader, InventorySidebar, SidebarInset
+    <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6"> // Changed div to main and added lg:gap-6 lg:p-6
+      <Card>
+        <CardHeader>
+          <CardTitle>Daftar Inventaris</CardTitle>
+          <CardDescription>
+            Kelola dan pantau stok inventaris di semua gudang
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-4">
+            <div>
+              <Label>Gudang</Label>
+              <Select
+                value={selectedWarehouse}
+                onValueChange={(value) => {
+                  setSelectedWarehouse(value);
+                  // Removed setTimeout, directly call filterData
+                  filterData(); 
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih Gudang" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Gudang</SelectItem>
+                  {dummyWarehouses.map((warehouse) => (
+                    <SelectItem key={warehouse.id} value={warehouse.id}>
+                      {warehouse.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          </SidebarInset>
-        </div>
-      </SidebarProvider>
-    </div>
+            <div>
+              <Label>Kategori</Label>
+              <Select
+                value={selectedCategory}
+                onValueChange={(value) => {
+                  setSelectedCategory(value);
+                  // Removed setTimeout, directly call filterData
+                  filterData();
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih Kategori" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Kategori</SelectItem>
+                  {dummyCategories.map((category) => (
+                    <SelectItem
+                      key={category.id}
+                      value={category.id}
+                    >
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Status</Label>
+              <Select
+                value={selectedStatus}
+                onValueChange={(value) => {
+                  setSelectedStatus(value);
+                  // Removed setTimeout, directly call filterData
+                  filterData();
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Status</SelectItem>
+                  {dummyStatuses.map((status) => (
+                    <SelectItem key={status.id} value={status.id}>
+                      {status.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Pencarian</Label>
+              <Input placeholder="Cari SKU atau nama produk" />
+            </div>
+          </div>
+          <DataTable
+            columns={columns}
+            data={filteredData}
+          />
+        </CardContent>
+      </Card>
+    </main> // End main tag
+    // Removed closing tags for SidebarInset, div, SidebarProvider, div
   );
 }

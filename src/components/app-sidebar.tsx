@@ -54,7 +54,7 @@ const data = {
         },
         {
           title: "Komposisi Produk",
-          url: "#",
+          url: "/products/composition",
         },
       ],
     },

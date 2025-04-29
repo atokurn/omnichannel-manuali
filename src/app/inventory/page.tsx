@@ -1,31 +1,18 @@
-import { InventorySidebar } from "@/components/inventory-sidebar"
-import { SiteHeader } from "@/components/site-header"
-import {
-  SidebarInset,
-  SidebarProvider,
-} from "@/components/ui/sidebar"
+// Removed InventorySidebar, SiteHeader, SidebarInset, SidebarProvider imports
 
 export const description = "Inventory management page"
 
 export default function Page() {
   return (
-    <div className="[--header-height:calc(--spacing(14))]">
-      <SidebarProvider className="flex flex-col">
-        <SiteHeader />
-        <div className="flex flex-1">
-          <InventorySidebar />
-          <SidebarInset>
-            <div className="flex flex-1 flex-col gap-4 p-4">
-              <div className="grid auto-rows-min gap-4 md:grid-cols-3">
-                <div className="bg-muted/50 aspect-video rounded-xl" />
-                <div className="bg-muted/50 aspect-video rounded-xl" />
-                <div className="bg-muted/50 aspect-video rounded-xl" />
-              </div>
-              <div className="bg-muted/50 min-h-[100vh] flex-1 rounded-xl md:min-h-min" />
-            </div>
-          </SidebarInset>
-        </div>
-      </SidebarProvider>
+    // Removed wrapping div, SidebarProvider, SiteHeader, InventorySidebar, SidebarInset
+    <div className="flex flex-1 flex-col gap-4 p-4"> // Removed outer div and layout components
+      <div className="grid auto-rows-min gap-4 md:grid-cols-3">
+        <div className="bg-muted/50 aspect-video rounded-xl" />
+        <div className="bg-muted/50 aspect-video rounded-xl" />
+        <div className="bg-muted/50 aspect-video rounded-xl" />
+      </div>
+      <div className="bg-muted/50 min-h-[100vh] flex-1 rounded-xl md:min-h-min" />
     </div>
+    // Removed closing tags for SidebarInset, div, SidebarProvider, div
   )
 }

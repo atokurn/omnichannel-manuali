@@ -1,10 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // Added useEffect
 import Image from 'next/image'; // Import Image component
-import { InventorySidebar } from "@/components/inventory-sidebar";
-import { SiteHeader } from "@/components/site-header";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+// Removed InventorySidebar, SiteHeader, SidebarInset, SidebarProvider imports
 import { DataTable } from "@/components/stock/data-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -215,51 +213,54 @@ const movementTypes = [
 
 export default function AreaStockMovementPage() {
   const [filteredData, setFilteredData] = useState<AreaStockMovementItem[]>(dummyAreaStockMovementData);
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: undefined,
+    to: undefined,
+  });
+  const [selectedSourceWarehouse, setSelectedSourceWarehouse] = useState<string>("all");
+  const [selectedDestinationWarehouse, setSelectedDestinationWarehouse] = useState<string>("all");
   const [selectedType, setSelectedType] = useState<string>("all");
-  const [selectedWarehouse, setSelectedWarehouse] = useState<string>("all");
-  
-  // Fungsi untuk filter data berdasarkan semua kriteria
+
+  // Fungsi untuk filter data
   const filterData = () => {
     let filtered = [...dummyAreaStockMovementData];
-    
+
+    // Filter berdasarkan rentang tanggal
+    if (dateRange?.from && dateRange?.to) {
+      filtered = filtered.filter(item => {
+        const itemDate = new Date(item.date);
+        return itemDate >= dateRange.from! && itemDate <= dateRange.to!;
+      });
+    } else if (dateRange?.from) {
+      filtered = filtered.filter(item => new Date(item.date) >= dateRange.from!);
+    } else if (dateRange?.to) {
+      filtered = filtered.filter(item => new Date(item.date) <= dateRange.to!);
+    }
+
+    // Filter berdasarkan gudang sumber
+    if (selectedSourceWarehouse !== "all") {
+      filtered = filtered.filter(item => item.sourceArea.warehouse.id === selectedSourceWarehouse);
+    }
+
+    // Filter berdasarkan gudang tujuan
+    if (selectedDestinationWarehouse !== "all") {
+      filtered = filtered.filter(item => item.destinationArea.warehouse.id === selectedDestinationWarehouse);
+    }
+
     // Filter berdasarkan tipe
     if (selectedType !== "all") {
-      filtered = filtered.filter(item => {
-        const type = item.type.toLowerCase().replace(" ", "-");
-        return type === selectedType;
-      });
+      filtered = filtered.filter(item => item.type.toLowerCase().replace(/ /g, '-') === selectedType);
     }
-    
-    // Filter berdasarkan warehouse (source atau destination)
-    if (selectedWarehouse !== "all") {
-      filtered = filtered.filter(item => 
-        item.sourceArea.warehouse.id === selectedWarehouse || 
-        item.destinationArea.warehouse.id === selectedWarehouse
-      );
-    }
-    
-    // Filter berdasarkan tanggal
-    if (dateRange?.from) {
-      filtered = filtered.filter(item => new Date(item.date) >= dateRange.from);
-    }
-    
-    if (dateRange?.to) {
-      // Tambahkan 1 hari ke endDate untuk mencakup seluruh hari yang dipilih
-      const nextDay = new Date(dateRange.to);
-      nextDay.setDate(nextDay.getDate() + 1);
-      filtered = filtered.filter(item => new Date(item.date) < nextDay);
-    }
-    
+
     setFilteredData(filtered);
   };
-  
-  // Panggil filterData setiap kali filter berubah
-  React.useEffect(() => {
-    filterData();
-  }, [selectedType, selectedWarehouse, dateRange]);
 
-  // Definisi kolom untuk DataTable
+  // Terapkan filter saat state berubah
+  useEffect(() => {
+    filterData();
+  }, [dateRange, selectedSourceWarehouse, selectedDestinationWarehouse, selectedType]);
+
+  // Kolom untuk DataTable
   const columns = [
     {
       accessorKey: "sku",
@@ -387,83 +388,77 @@ export default function AreaStockMovementPage() {
   ];
 
   return (
-    <div className="[--header-height:calc(--spacing(14))]">
-      <SidebarProvider className="flex flex-col">
-        <SiteHeader />
-        <div className="flex flex-1">
-          <InventorySidebar />
-          <SidebarInset>
-            <div className="flex flex-1 flex-col gap-4 p-4">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle>Area Stock Movement Record</CardTitle>
-                    <CardDescription>Catatan pergerakan stok antar area di gudang</CardDescription>
-                  </div>
-                  <Button>
-                    Export Data
-                  </Button>
-                </CardHeader>
-                <CardContent>
-                  <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
-                    {/* Filter Tanggal */}
-                    <div className="space-y-2 md:col-span-1">
-                      <Label>Rentang Tanggal</Label>
-                      <DatePickerWithRange
-                        date={dateRange}
-                        onDateChange={setDateRange}
-                        placeholder="Pilih rentang tanggal"
-                      />
-                    </div>
-                    
-                    {/* Filter Tipe */}
-                    <div className="space-y-2">
-                      <Label>Tipe Movement</Label>
-                      <Select value={selectedType} onValueChange={setSelectedType}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Semua Tipe" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Semua Tipe</SelectItem>
-                          {movementTypes.map((type) => (
-                            <SelectItem key={type.id} value={type.id}>
-                              {type.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    {/* Filter Warehouse */}
-                    <div className="space-y-2">
-                      <Label>Warehouse</Label>
-                      <Select value={selectedWarehouse} onValueChange={setSelectedWarehouse}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Semua Warehouse" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Semua Warehouse</SelectItem>
-                          {dummyWarehouses.map((warehouse) => (
-                            <SelectItem key={warehouse.id} value={warehouse.id}>
-                              {warehouse.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  
-                  <DataTable 
-                    columns={columns} 
-                    data={filteredData} 
-                    searchKey="sku" 
-                  />
-                </CardContent>
-              </Card>
+    // Removed wrapping div, SidebarProvider, SiteHeader, InventorySidebar, SidebarInset
+    <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Area Stock Movement</CardTitle>
+          <CardDescription>
+            Lacak pergerakan stok antar area di dalam atau antar gudang.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-5">
+            {/* Filter Tanggal */}
+            <div>
+              <Label>Rentang Tanggal</Label>
+              <DatePickerWithRange date={dateRange} setDate={setDateRange} />
             </div>
-          </SidebarInset>
-        </div>
-      </SidebarProvider>
-    </div>
+            {/* Filter Gudang Sumber */}
+            <div>
+              <Label>Gudang Sumber</Label>
+              <Select value={selectedSourceWarehouse} onValueChange={setSelectedSourceWarehouse}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih Gudang Sumber" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Gudang</SelectItem>
+                  {dummyWarehouses.map((wh) => (
+                    <SelectItem key={wh.id} value={wh.id}>{wh.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {/* Filter Gudang Tujuan */}
+            <div>
+              <Label>Gudang Tujuan</Label>
+              <Select value={selectedDestinationWarehouse} onValueChange={setSelectedDestinationWarehouse}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih Gudang Tujuan" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Gudang</SelectItem>
+                  {dummyWarehouses.map((wh) => (
+                    <SelectItem key={wh.id} value={wh.id}>{wh.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {/* Filter Tipe */}
+            <div>
+              <Label>Tipe Pergerakan</Label>
+              <Select value={selectedType} onValueChange={setSelectedType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih Tipe" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Tipe</SelectItem>
+                  {dummyMovementTypes.map((type) => (
+                    <SelectItem key={type.id} value={type.id}>{type.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {/* Filter Pencarian */}
+            <div>
+              <Label>Pencarian</Label>
+              <Input placeholder="Cari SKU atau nama produk" />
+            </div>
+          </div>
+          <DataTable columns={columns} data={filteredData} />
+        </CardContent>
+      </Card>
+    </main> // End main tag
+    // Removed closing tags for SidebarInset, div, SidebarProvider, div
   );
 }
