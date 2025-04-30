@@ -51,11 +51,18 @@ const AddProductPage = () => {
   const basicInfoRef = useRef<HTMLDivElement>(null);
   const detailProductRef = useRef<HTMLDivElement>(null);
   const costPriceRef = useRef<HTMLDivElement>(null); // Ref for Harga Modal
+  const skuMappingRef = useRef<HTMLDivElement>(null); // Ref for SKU Mapping
   const salesInfoRef = useRef<HTMLDivElement>(null);
   const shippingRef = useRef<HTMLDivElement>(null);
   const [activeSection, setActiveSection] = useState<string>("Informasi dasar"); // State to track active section
   const [addVariant, setAddVariant] = useState(false); // State for Add Variant switch
   const [purchaseLimit, setPurchaseLimit] = useState(false); // State for Purchase Limit switch
+  const [enableSkuMapping, setEnableSkuMapping] = useState(true); // State for SKU Mapping toggle
+  const [skuMappingOption, setSkuMappingOption] = useState<"all" | "channel" | "store">("all"); // State for SKU Mapping option
+  const [showChannelDialog, setShowChannelDialog] = useState(false); // State for Channel dialog
+  const [showStoreDialog, setShowStoreDialog] = useState(false); // State for Store dialog
+  const [selectedChannels, setSelectedChannels] = useState<string[]>([]); // State for selected channels
+  const [selectedStores, setSelectedStores] = useState<string[]>([]); // State for selected stores
   const [variants, setVariants] = useState<Variant[]>([]); // State for variants
   const [variantTableData, setVariantTableData] = useState<VariantCombinationData[]>([]); // State for table data
   const [showManualCostPrice, setShowManualCostPrice] = useState(false); // State for manual cost price toggle
@@ -259,6 +266,7 @@ const AddProductPage = () => {
     { title: "Harga Modal", ref: costPriceRef }, // Added Harga Modal
     { title: "Info penjualan", ref: salesInfoRef },
     { title: "Pengiriman", ref: shippingRef },
+    { title: "SKU Mapping", ref: skuMappingRef }, // Moved SKU Mapping to bottom
   ];
 
   return (
@@ -977,6 +985,268 @@ const AddProductPage = () => {
                   </div>
                 </CardContent>
               </Card>
+              {/* End Pengiriman */}
+
+              {/* SKU Mapping Ecommerce */}
+              <Card ref={skuMappingRef} id="sku-mapping">
+                <CardHeader>
+                  <CardTitle>SKU Mapping Ecommerce</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* SKU Mapping Toggle Switch */}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label htmlFor="sku-mapping-switch" className="font-medium">Aktifkan SKU Mapping</Label>
+                      <p className="text-xs text-muted-foreground">Aktifkan untuk memetakan SKU produk ke berbagai platform e-commerce.</p>
+                    </div>
+                    <Switch id="sku-mapping-switch" checked={enableSkuMapping} onCheckedChange={setEnableSkuMapping} />
+                  </div>
+                  
+                  {enableSkuMapping && <>
+                    {/* SKU Mapping Options */}
+                    <div className="space-y-3 p-4 border rounded-md bg-muted/20">
+                      <Label className="font-medium">Opsi Aktivasi SKU Mapping</Label>
+                      <RadioGroup value={skuMappingOption} onValueChange={(value) => setSkuMappingOption(value as "all" | "channel" | "store")} className="space-y-2">
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="all" id="sku-mapping-all" />
+                          <Label htmlFor="sku-mapping-all" className="font-normal">Aktifkan Semua Toko</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="channel" id="sku-mapping-channel" />
+                          <Label htmlFor="sku-mapping-channel" className="font-normal">Aktifkan Berdasarkan Channel</Label>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => setShowChannelDialog(true)}
+                            className="ml-2 h-7 text-xs"
+                            disabled={skuMappingOption !== "channel"}
+                          >
+                            Pilih Channel
+                          </Button>
+                          {selectedChannels.length > 0 && (
+                            <span className="text-xs text-muted-foreground ml-2">
+                              {selectedChannels.length} channel dipilih
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="store" id="sku-mapping-store" />
+                          <Label htmlFor="sku-mapping-store" className="font-normal">Aktifkan Berdasarkan Toko</Label>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => setShowStoreDialog(true)}
+                            className="ml-2 h-7 text-xs"
+                            disabled={skuMappingOption !== "store"}
+                          >
+                            Pilih Toko
+                          </Button>
+                          {selectedStores.length > 0 && (
+                            <span className="text-xs text-muted-foreground ml-2">
+                              {selectedStores.length} toko dipilih
+                            </span>
+                          )}
+                        </div>
+                      </RadioGroup>
+                    </div>
+
+                    {/* Channel Selection Dialog */}
+                    {showChannelDialog && (
+                      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                        <div className="bg-background rounded-lg shadow-lg w-full max-w-md p-6">
+                          <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-semibold">Pilih Channel</h3>
+                            <Button variant="ghost" size="icon" onClick={() => setShowChannelDialog(false)}>
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          <div className="space-y-2 max-h-80 overflow-y-auto py-2">
+                            {["Shopee", "Tokopedia", "TikTok Shop", "Lazada", "Bukalapak", "Blibli"].map((channel) => (
+                              <div key={channel} className="flex items-center space-x-2 p-2 hover:bg-muted rounded-md">
+                                <Checkbox 
+                                  id={`channel-${channel}`} 
+                                  checked={selectedChannels.includes(channel)}
+                                  onCheckedChange={(checked) => {
+                                    if (checked) {
+                                      setSelectedChannels([...selectedChannels, channel]);
+                                    } else {
+                                      setSelectedChannels(selectedChannels.filter(c => c !== channel));
+                                    }
+                                  }}
+                                />
+                                <Label htmlFor={`channel-${channel}`} className="font-normal cursor-pointer flex-1">{channel}</Label>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="flex justify-end space-x-2 mt-4 pt-2 border-t">
+                            <Button variant="outline" onClick={() => setShowChannelDialog(false)}>Batal</Button>
+                            <Button onClick={() => setShowChannelDialog(false)}>Simpan</Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Store Selection Dialog */}
+                    {showStoreDialog && (
+                      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                        <div className="bg-background rounded-lg shadow-lg w-full max-w-md p-6">
+                          <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-semibold">Pilih Toko</h3>
+                            <Button variant="ghost" size="icon" onClick={() => setShowStoreDialog(false)}>
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          <div className="space-y-2 max-h-80 overflow-y-auto py-2">
+                            {["Toko Utama Shopee", "Toko Cabang Shopee", "Toko Utama Tokopedia", "Toko Cabang Tokopedia", "TikTok Shop Official", "Lazada Official Store"].map((store) => (
+                              <div key={store} className="flex items-center space-x-2 p-2 hover:bg-muted rounded-md">
+                                <Checkbox 
+                                  id={`store-${store}`} 
+                                  checked={selectedStores.includes(store)}
+                                  onCheckedChange={(checked) => {
+                                    if (checked) {
+                                      setSelectedStores([...selectedStores, store]);
+                                    } else {
+                                      setSelectedStores(selectedStores.filter(s => s !== store));
+                                    }
+                                  }}
+                                />
+                                <Label htmlFor={`store-${store}`} className="font-normal cursor-pointer flex-1">{store}</Label>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="flex justify-end space-x-2 mt-4 pt-2 border-t">
+                            <Button variant="outline" onClick={() => setShowStoreDialog(false)}>Batal</Button>
+                            <Button onClick={() => setShowStoreDialog(false)}>Simpan</Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="grid gap-4">
+                      <div className="pt-2">
+                        <p className="text-sm text-muted-foreground">
+                          Mapping SKU membantu menghubungkan produk ini dengan SKU yang sama di berbagai platform e-commerce untuk sinkronisasi stok dan pesanan.
+                        </p>
+                      </div>
+                      
+                      {/* Channel-specific additional details */}
+                      {skuMappingOption === "channel" && (
+                        <>
+                          {/* TikTok Shop specific details */}
+                          {selectedChannels.includes("TikTok Shop") && (
+                            <div className="space-y-4 mt-2">
+                              <Separator className="my-2" />
+                              <h4 className="font-medium text-sm">Detail Tambahan TikTok Shop</h4>
+                              
+                              {/* Kondisi Produk */}
+                              <div className="space-y-2">
+                                <Label htmlFor="tiktok-product-condition">Kondisi Produk</Label>
+                                <Select defaultValue="new">
+                                  <SelectTrigger id="tiktok-product-condition">
+                                    <SelectValue placeholder="Pilih kondisi produk" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="new">Baru</SelectItem>
+                                    <SelectItem value="used">Bekas</SelectItem>
+                                    <SelectItem value="refurbished">Refurbished</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              
+                              {/* Asuransi */}
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <Label htmlFor="tiktok-insurance-switch">Asuransi Pengiriman</Label>
+                                  <Switch id="tiktok-insurance-switch" />
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                  Aktifkan asuransi pengiriman untuk melindungi produk dari kerusakan atau kehilangan selama pengiriman.
+                                </p>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Shopee specific details */}
+                          {selectedChannels.includes("Shopee") && (
+                            <div className="space-y-4 mt-2">
+                              <Separator className="my-2" />
+                              <h4 className="font-medium text-sm">Detail Tambahan Shopee</h4>
+                              
+                              {/* Program Gratis Ongkir */}
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <Label htmlFor="shopee-free-shipping-switch">Program Gratis Ongkir</Label>
+                                  <Switch id="shopee-free-shipping-switch" />
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                  Ikut serta dalam program gratis ongkir Shopee untuk meningkatkan daya tarik produk.
+                                </p>
+                              </div>
+                              
+                              {/* Garansi Produk */}
+                              <div className="space-y-2">
+                                <Label htmlFor="shopee-warranty">Garansi Produk</Label>
+                                <Select defaultValue="none">
+                                  <SelectTrigger id="shopee-warranty">
+                                    <SelectValue placeholder="Pilih jenis garansi" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="none">Tidak Ada Garansi</SelectItem>
+                                    <SelectItem value="7days">7 Hari</SelectItem>
+                                    <SelectItem value="14days">14 Hari</SelectItem>
+                                    <SelectItem value="30days">30 Hari</SelectItem>
+                                    <SelectItem value="1year">1 Tahun</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Tokopedia specific details */}
+                          {selectedChannels.includes("Tokopedia") && (
+                            <div className="space-y-4 mt-2">
+                              <Separator className="my-2" />
+                              <h4 className="font-medium text-sm">Detail Tambahan Tokopedia</h4>
+                              
+                              {/* Power Merchant */}
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <Label htmlFor="tokopedia-power-merchant-switch">Power Merchant</Label>
+                                  <Switch id="tokopedia-power-merchant-switch" />
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                  Aktifkan untuk menampilkan produk ini di program Power Merchant Tokopedia.
+                                </p>
+                              </div>
+                              
+                              {/* Preorder */}
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <Label htmlFor="tokopedia-preorder-switch">Preorder</Label>
+                                  <Switch id="tokopedia-preorder-switch" />
+                                </div>
+                                <div className="pt-2">
+                                  <Label htmlFor="tokopedia-preorder-days" className="text-xs mb-1 block">Lama Pengiriman (Hari)</Label>
+                                  <Input 
+                                    id="tokopedia-preorder-days" 
+                                    type="number" 
+                                    min="1" 
+                                    max="30" 
+                                    placeholder="1-30 hari" 
+                                    className="h-8" 
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </>
+                  }
+                </CardContent>
+              </Card>
+              {/* End SKU Mapping Ecommerce */}
             </div>
           </ScrollArea>
         </main>
