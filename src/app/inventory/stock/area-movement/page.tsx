@@ -205,8 +205,8 @@ const dummyWarehouses = [
   { id: "2", name: "Gudang Cabang" },
 ];
 
-// Data dummy untuk tipe movement
-const movementTypes = [
+// Data dummy untuk tipe movement (sesuaikan jika perlu)
+const dummyMovementTypes = [
   { id: "internal-transfer", name: "Internal Transfer" },
   { id: "external-transfer", name: "External Transfer" },
 ];
@@ -220,6 +220,11 @@ export default function AreaStockMovementPage() {
   const [selectedSourceWarehouse, setSelectedSourceWarehouse] = useState<string>("all");
   const [selectedDestinationWarehouse, setSelectedDestinationWarehouse] = useState<string>("all");
   const [selectedType, setSelectedType] = useState<string>("all");
+
+  // Handler for movement type selection change
+  const handleTypeChange = (value: string) => {
+    setSelectedType(value);
+  };
 
   // Fungsi untuk filter data
   const filterData = () => {
@@ -401,12 +406,12 @@ export default function AreaStockMovementPage() {
           <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-5">
             {/* Filter Tanggal */}
             <div>
-              <Label>Rentang Tanggal</Label>
-              <DatePickerWithRange date={dateRange} setDate={setDateRange} />
+              <Label className="mb-1 block text-sm font-medium">Rentang Tanggal</Label>
+              <DatePickerWithRange date={dateRange} onDateChange={setDateRange} />
             </div>
             {/* Filter Gudang Sumber */}
             <div>
-              <Label>Gudang Sumber</Label>
+              <Label className="mb-1 block text-sm font-medium">Gudang Sumber</Label>
               <Select value={selectedSourceWarehouse} onValueChange={setSelectedSourceWarehouse}>
                 <SelectTrigger>
                   <SelectValue placeholder="Pilih Gudang Sumber" />
@@ -421,7 +426,7 @@ export default function AreaStockMovementPage() {
             </div>
             {/* Filter Gudang Tujuan */}
             <div>
-              <Label>Gudang Tujuan</Label>
+              <Label className="mb-1 block text-sm font-medium">Gudang Tujuan</Label>
               <Select value={selectedDestinationWarehouse} onValueChange={setSelectedDestinationWarehouse}>
                 <SelectTrigger>
                   <SelectValue placeholder="Pilih Gudang Tujuan" />
@@ -436,22 +441,24 @@ export default function AreaStockMovementPage() {
             </div>
             {/* Filter Tipe */}
             <div>
-              <Label>Tipe Pergerakan</Label>
-              <Select value={selectedType} onValueChange={setSelectedType}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Pilih Tipe" />
+              <Label className="mb-1 block text-sm font-medium">Tipe Pergerakan</Label>
+              <Select value={selectedType} onValueChange={handleTypeChange}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Pilih Tipe Movement" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Semua Tipe</SelectItem>
                   {dummyMovementTypes.map((type) => (
-                    <SelectItem key={type.id} value={type.id}>{type.name}</SelectItem>
+                    <SelectItem key={type.id} value={type.id}>
+                      {type.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             {/* Filter Pencarian */}
             <div>
-              <Label>Pencarian</Label>
+              <Label className="mb-1 block text-sm font-medium">Pencarian</Label>
               <Input placeholder="Cari SKU atau nama produk" />
             </div>
           </div>

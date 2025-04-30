@@ -12,7 +12,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { DatePicker } from '@/components/ui/date-picker';
 import { DataTable } from '@/components/stock/data-table';
+import { DataTableSkeleton } from '@/components/stock/data-table-skeleton'; // Import skeleton
 import { PlusCircle, Trash2, ScanLine, Loader2 } from 'lucide-react'; // Added Loader2
+import { FormattedMaterial } from '@/lib/types'; // Assuming this type is used or needed
 
 // Define types for the form and items (adjust as needed)
 interface ReceiveAddItem {
@@ -403,4 +405,124 @@ export default function AddReceiveStockPage() {
       </SidebarProvider>
     </div>
   );
+}
+
+// --- Fetch Materials --- (Assuming a function like this exists or needs to be added)
+useEffect(() => {
+  const fetchMaterials = async () => {
+    setIsLoadingMaterials(true);
+    setMaterialError(null);
+    try {
+      const params = new URLSearchParams({
+        page: pagination.page.toString(),
+        limit: pagination.limit.toString(),
+        search: searchTerm, // Add search term if applicable
+        status: 'AKTIF', // Fetch only active materials
+      });
+      const response = await fetch(`/api/products/materials?${params.toString()}`);
+      if (!response.ok) {
+        throw new Error('Gagal memuat data material');
+      }
+      const data = await response.json();
+      setMaterials(data.data || []);
+      setPagination(prev => ({ ...prev, totalPages: data.totalPages }));
+    } catch (err: any) {
+      setMaterialError(err.message);
+      toast.error('Error', { description: err.message });
+    } finally {
+      setIsLoadingMaterials(false);
+    }
+  };
+  fetchMaterials();
+}, [pagination.page, pagination.limit, searchTerm]);
+
+// --- Material Table Columns --- (Define columns for material selection table)
+const materialColumns: ColumnDef<FormattedMaterial>[] = useMemo(() => [
+// Define columns: e.g., Checkbox, Name, Code, Unit
+{
+id: 'select',
+header: ({ table }) => (
+<Checkbox
+checked={table.getIsAllPageRowsSelected()}
+onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+aria-label="Select all"
+/>
+),
+cell: ({ row }) => (
+<Checkbox
+checked={row.getIsSelected()}
+onCheckedChange={(value) => row.toggleSelected(!!value)}
+aria-label="Select row"
+/>
+),
+enableSorting: false,
+enableHiding: false,
+},
+{ accessorKey: 'name', header: 'Nama Material' },
+{ accessorKey: 'code', header: 'Kode' },
+{ accessorKey: 'unit', header: 'Satuan' },
+// Add other relevant columns
+], []);
+
+// State for material table row selection
+const [materialRowSelection, setMaterialRowSelection] = useState({});
+
+// Handler for material page change
+const handleMaterialPageChange = (newPage: number) => {
+setPagination(prev => ({ ...prev, page: newPage }));
+};
+
+// Handler for material page size change
+const handleMaterialPageSizeChange = (newPageSize: number) => {
+setPagination(prev => ({ ...prev, limit: newPageSize, page: 1 }));
+};
+
+return (
+<div className="flex flex-1 flex-col gap-4 p-4">
+{/* ... existing Card for Receive Details ... */}
+
+{/* --- Card for Selecting Materials --- */}
+<Card>
+<CardHeader>
+<CardTitle>Pilih Material</CardTitle>
+<CardDescription>Cari dan pilih material yang diterima.</CardDescription>
+{/* Add Search Input here */}
+<Input 
+placeholder="Cari material (nama/kode)..."
+value={searchTerm}
+onChange={(e) => setSearchTerm(e.target.value)}
+className="mt-2 max-w-sm"
+/>
+</CardHeader>
+<CardContent>
+{isLoadingMaterials ? (
+<DataTableSkeleton 
+columnCount={materialColumns.length} 
+rowCount={pagination.limit}
+showToolbar={false} // Search is in CardHeader
+/>
+) : materialError ? (
+<div className="text-center text-red-600 py-4">{materialError}</div>
+) : (
+<DataTable
+columns={materialColumns}
+data={materials}
+pageCount={pagination.totalPages}
+currentPage={pagination.page}
+onPageChange={handleMaterialPageChange}
+pageSize={pagination.limit}
+onPageSizeChange={handleMaterialPageSizeChange}
+rowSelection={materialRowSelection}
+onRowSelectionChange={setMaterialRowSelection}
+// Add other necessary props
+/>
+)}
+</CardContent>
+</Card>
+
+{/* ... Card for Selected Items Summary ... */}
+
+{/* ... Action Buttons ... */}
+</div>
+);
 }

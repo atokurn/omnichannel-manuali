@@ -7,33 +7,38 @@ import { SiteHeader } from "@/components/site-header"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 
-interface ProductsLayoutProps {
-  children: React.ReactNode
-}
-
-export default function ProductsLayout({ children }: ProductsLayoutProps) {
-  const pathname = usePathname();
-  const isAddProductPage = pathname === '/products/management/add';
-
-  return (
-    <div className="[--header-height:calc(--spacing(14))] min-h-screen">
-      <SidebarProvider className="flex flex-col">
-        {!isAddProductPage && <SiteHeader />}
-        <div className="flex flex-1">
-          {!isAddProductPage && <AppSidebar/>}
-          {isAddProductPage ? (
-            <main className="flex w-full flex-col">
-              {children}
-            </main>
-          ) : (
+export default function ProductsLayout({
+    children,
+  }: {
+    children: React.ReactNode;
+  }) {
+    const pathname = usePathname();
+  
+    // Daftar path yang tidak menggunakan layout ini
+    const excludedPaths = [
+      '/products/management/add',
+    ];
+  
+    // Periksa apakah path saat ini termasuk dalam daftar pengecualian
+    const useLayout = !excludedPaths.includes(pathname);
+  
+    if (!useLayout) {
+      // Jika path dikecualikan, render children saja
+      return <>{children}</>;
+    }
+  
+    // Jika path tidak dikecualikan, render layout lengkap
+    return (
+      <div className="[--header-height:calc(--spacing(14))] min-h-screen bg-muted/40">
+        <SidebarProvider className="flex flex-col">
+          <SiteHeader />
+          <div className="flex flex-1">
+            <AppSidebar />
             <SidebarInset>
-              <main className="flex w-full flex-col overflow-hidden py-6">
-                {children}
-              </main>
+              {children}
             </SidebarInset>
-          )}
-        </div>
-      </SidebarProvider>
-    </div>
-  )
-}
+          </div>
+        </SidebarProvider>
+      </div>
+    );
+  }

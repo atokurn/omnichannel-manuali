@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,129 +8,184 @@ datasource db {
 }
 
 model User {
-  id             String          @id @default(uuid())
-  email          String          @unique
-  name           String
-  password       String
-  // roles          Role[]          @relation("UserRoles") // Implicit relation removed
-  userRoles      UserRole[]      // Relation to the explicit join table
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  warehouses     Warehouse[]     @relation("WarehouseManagers")
-  transactions   Transaction[]   @relation("TransactionCreator")
-  products       Product[]       @relation("ProductCreator")
+  id           String        @id @default(uuid())
+  email        String        @unique
+  name         String
+  password     String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  products     Product[]     @relation("ProductCreator")
+  transactions Transaction[] @relation("TransactionCreator")
+  userRoles    UserRole[]
+  warehouses   Warehouse[]   @relation("WarehouseManagers")
 }
 
-
-
 model Product {
-  id             String          @id @default(uuid())
-  name           String
-  description    String?
-  sku            String          @unique
-  price          Float
-  cost           Float
-  minStockLevel  Int             @default(0)
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  createdBy      User            @relation("ProductCreator", fields: [createdById], references: [id])
-  createdById    String
-  category       Category?       @relation(fields: [categoryId], references: [id])
-  categoryId     String?
-  inventories    Inventory[]
+  id               String            @id @default(uuid())
+  name             String
+  description      String?
+  sku              String            @unique
+  price            Float
+  cost             Float
+  minStockLevel    Int               @default(0)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  createdById      String
+  categoryId       String?
+  inventories      Inventory[]
+  category         Category?         @relation(fields: [categoryId], references: [id])
+  createdBy        User              @relation("ProductCreator", fields: [createdById], references: [id])
   transactionItems TransactionItem[]
 }
 
 model Category {
-  id             String          @id @default(uuid())
-  name           String          @unique
-  description    String?
-  products       Product[]
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  id          String    @id @default(uuid())
+  name        String    @unique
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  products    Product[]
 }
 
 model Warehouse {
-  id             String          @id @default(uuid())
+  id             String        @id @default(uuid())
   name           String
   location       String
   description    String?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  managers       User[]          @relation("WarehouseManagers")
-  areas          Area[]          // Relation to Area
-  transactions   Transaction[]   @relation("WarehouseTransactions")
-  inventoryItems Inventory[]     @relation("WarehouseInventory") // Added back for relation
-  shelves        Shelf[]         @relation("WarehouseShelves")   // Relation to Shelf
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  areas          Area[]
+  inventoryItems Inventory[]   @relation("WarehouseInventory")
+  shelves        Shelf[]       @relation("WarehouseShelves")
+  transactions   Transaction[] @relation("WarehouseTransactions")
+  managers       User[]        @relation("WarehouseManagers")
 }
 
 model Area {
-  id             String          @id @default(uuid())
-  name           String
-  description    String?
-  warehouse      Warehouse       @relation(fields: [warehouseId], references: [id])
-  warehouseId    String
-  shelves        Shelf[]         // Relation to Shelf
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  id          String    @id @default(uuid())
+  name        String
+  description String?
+  warehouseId String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+  shelves     Shelf[]
 
-  @@unique([name, warehouseId]) // Ensure area names are unique within a warehouse
+  @@unique([name, warehouseId])
 }
 
 model Shelf {
-  id             String          @id @default(uuid())
+  id             String      @id @default(uuid())
   name           String
-  position       String?         // e.g., "Row 1, Column 3"
-  capacity       Int?            // Optional capacity limit
-  status         String          @default("Aktif") // e.g., Aktif, Nonaktif
-  area           Area            @relation(fields: [areaId], references: [id])
+  position       String?
+  capacity       Int?
+  status         String      @default("Aktif")
   areaId         String
-  warehouse      Warehouse       @relation("WarehouseShelves", fields: [warehouseId], references: [id]) // Named relation
   warehouseId    String
-  inventoryItems Inventory[]     // Stock items on this shelf
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  inventoryItems Inventory[]
+  area           Area        @relation(fields: [areaId], references: [id])
+  warehouse      Warehouse   @relation("WarehouseShelves", fields: [warehouseId], references: [id])
 
-  @@unique([name, areaId]) // Ensure shelf names are unique within an area
+  @@unique([name, areaId])
 }
 
 model Inventory {
-  id             String          @id @default(uuid())
-  quantity       Int
-  product        Product         @relation(fields: [productId], references: [id])
-  productId      String
-  shelf          Shelf           @relation(fields: [shelfId], references: [id]) // Link inventory to a specific shelf
-  shelfId        String
-  warehouseId    String          // Keep warehouseId for potential direct queries/filtering
-  warehouse      Warehouse       @relation("WarehouseInventory", fields: [warehouseId], references: [id]) // Named relation
-  lastUpdated    DateTime        @updatedAt
+  id          String    @id @default(uuid())
+  quantity    Int
+  productId   String
+  shelfId     String
+  warehouseId String
+  lastUpdated DateTime  @updatedAt
+  product     Product   @relation(fields: [productId], references: [id])
+  shelf       Shelf     @relation(fields: [shelfId], references: [id])
+  warehouse   Warehouse @relation("WarehouseInventory", fields: [warehouseId], references: [id])
 
-  @@unique([productId, shelfId]) // Each product should have one inventory record per shelf
+  @@unique([productId, shelfId])
 }
 
 model Transaction {
-  id             String          @id @default(uuid())
-  type           TransactionType
-  status         TransactionStatus @default(PENDING)
-  date           DateTime        @default(now())
-  notes          String?
-  createdBy      User            @relation("TransactionCreator", fields: [createdById], references: [id])
-  createdById    String
-  warehouse      Warehouse       @relation("WarehouseTransactions", fields: [warehouseId], references: [id])
-  warehouseId    String
-  items          TransactionItem[]
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  id          String            @id @default(uuid())
+  type        TransactionType
+  status      TransactionStatus @default(PENDING)
+  date        DateTime          @default(now())
+  notes       String?
+  createdById String
+  warehouseId String
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  createdBy   User              @relation("TransactionCreator", fields: [createdById], references: [id])
+  warehouse   Warehouse         @relation("WarehouseTransactions", fields: [warehouseId], references: [id])
+  items       TransactionItem[]
 }
 
 model TransactionItem {
-  id             String          @id @default(uuid())
-  quantity       Int
-  price          Float
-  product        Product         @relation(fields: [productId], references: [id])
-  productId      String
-  transaction    Transaction     @relation(fields: [transactionId], references: [id])
-  transactionId  String
+  id            String      @id @default(uuid())
+  quantity      Int
+  price         Float
+  productId     String
+  transactionId String
+  product       Product     @relation(fields: [productId], references: [id])
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
+}
+
+model Role {
+  id          String       @id @default(uuid())
+  name        String       @unique
+  description String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  userRoles   UserRole[]
+  permissions Permission[] @relation("RolePermissions")
+}
+
+model Material {
+  id             String                 @id @default(uuid())
+  name           String
+  code           String                 @unique
+  unit           String
+  initialStock   Int                    @default(0)
+  basePrice      Float
+  description    String?
+  status         MaterialStatus         @default(AKTIF)
+  isDynamicPrice Boolean                @default(false)
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  imageUrl       String?
+  dynamicPrices  MaterialDynamicPrice[]
+}
+
+model MaterialDynamicPrice {
+  id         String   @id @default(uuid())
+  supplier   String
+  price      Float
+  materialId String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  material   Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+
+  @@unique([materialId, supplier])
+}
+
+model UserRole {
+  userId     String
+  roleId     String
+  assignedAt DateTime @default(now())
+  assignedBy String?
+  role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  roles       Role[]   @relation("RolePermissions")
 }
 
 enum TransactionType {
@@ -149,35 +201,7 @@ enum TransactionStatus {
   CANCELLED
 }
 
-// New models for Role-Based Access Control (RBAC)
-model Role {
-  id          String       @id @default(uuid())
-  name        String       @unique
-  description String?
-  // users       User[]       @relation("UserRoles") // Implicit relation removed
-  userRoles   UserRole[]   // Relation to the explicit join table
-  permissions Permission[] @relation("RolePermissions")
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-}
-
-// Explicit join table for User and Role (Many-to-Many)
-model UserRole {
-  userId String
-  roleId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  assignedAt DateTime @default(now())
-  assignedBy String? // Optional: track who assigned the role
-
-  @@id([userId, roleId]) // Composite primary key
-}
-
-model Permission {
-  id          String   @id @default(uuid())
-  name        String   @unique // e.g., manage_inventory, view_reports, manage_users
-  description String?
-  roles       Role[]   @relation("RolePermissions")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+enum MaterialStatus {
+  AKTIF
+  NONAKTIF
 }

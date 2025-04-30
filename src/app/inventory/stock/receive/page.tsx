@@ -2,9 +2,7 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image'; // Import Image component
-import { InventorySidebar } from "@/components/inventory-sidebar";
-import { SiteHeader } from "@/components/site-header";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+// Removed InventorySidebar, SiteHeader, SidebarInset, SidebarProvider imports
 import { DataTable } from "@/components/stock/data-table"; // Assuming a similar table structure
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -156,33 +154,20 @@ export default function ReceiveStockPage() {
   ];
 
   return (
-    <div className="[--header-height:calc(--spacing(14))]">
-      <SidebarProvider className="flex flex-col">
-        <SiteHeader />
-        <div className="flex flex-1">
-          <InventorySidebar />
-      <SidebarInset>
-      <div className="flex flex-1 flex-col gap-4 p-4">
-            <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle>Recieve</CardTitle>
-                    <CardDescription>Kelola data barang masuk ke gudang</CardDescription>
-                  </div>
-                  <Button asChild>
-                    <a href="/inventory/stock/receive/add">Tambah Recieved</a>
-                  </Button>
-                </CardHeader>
-              <CardContent>
-                {/* Placeholder for Filters and Add Button */}
-                <DataTable columns={columns} data={filteredData} />
-              </CardContent>
-            </Card>
+    <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Receive Stock</CardTitle>
+            <CardDescription>Manage incoming stock from purchase orders or transfers.</CardDescription>
           </div>
-        </SidebarInset>
-
-      </div>
-        </SidebarProvider>
-    </div>
+          {/* Add Button for creating new receive if needed */}
+        </CardHeader>
+        <CardContent>
+          {/* Placeholder for Filter */}
+          <DataTable columns={columns} data={filteredData} />
+        </CardContent>
+      </Card>
+    </main>
   );
 }

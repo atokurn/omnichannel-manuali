@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input"; // Import Input component
 import { Label } from "@/components/ui/label"; // Import Label component
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Import Select components
 import { formatNumberWithSeparator } from '@/lib/utils'; // Import fungsi format
+import { ProductImageTooltip } from "@/components/ui/image-tooltip";
 
 // Definisi tipe data untuk Stock Out
 interface StockOutItem {
@@ -171,33 +172,13 @@ export default function StockOutPage() {
       header: "SKU Information",
       cell: ({ row }: any) => (
         <div className="flex items-center gap-3">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger>
-                <div className="relative h-12 w-12 overflow-hidden rounded-md cursor-pointer">
-                  <Image
-                    src="/placeholder.svg"
-                    alt={row.original.productName}
-                    fill
-                    sizes="48px"
-                    className="object-cover"
-                  />
-                </div>
-              </TooltipTrigger>
-              <TooltipContent side="right" className="p-0 border-0 bg-transparent">
-                <div className="relative w-48 h-48 overflow-hidden rounded-md shadow-lg">
-                  <Image
-                    src="/placeholder.svg"
-                    alt={row.original.productName}
-                    fill
-                    sizes="192px"
-                    className="object-cover"
-                    priority
-                  />
-                </div>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <ProductImageTooltip
+            imageUrl="/placeholder.svg"
+            alt={row.original.productName}
+            thumbnailSize={48}
+            previewSize={192}
+            side="right"
+          />
           <div>
             <div className="font-medium">{row.original.sku}</div>
             <div className="text-sm text-muted-foreground">{row.original.productName}</div>
@@ -283,7 +264,7 @@ export default function StockOutPage() {
         </CardHeader>
         <CardContent>
           {/* Filter Section */}
-          <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="flex flex-col space-y-1.5">
               <Label htmlFor="warehouse">Gudang</Label>
               <Select onValueChange={handleWarehouseChange} defaultValue="all">
@@ -300,14 +281,14 @@ export default function StockOutPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex flex-col space-y-1.5 md:col-span-2">
-              <Label htmlFor="search">Pencarian</Label>
+            <div className="w-full">
+            <Label htmlFor="search" className="mb-1 block text-sm font-medium">Pencarian</Label>
               <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="search"
                   type="search"
-                  placeholder="Cari berdasarkan SKU atau Nama Produk..."
+                  placeholder="Cari SKU atau Nama Produk"
                   className="pl-8"
                   value={searchTerm}
                   onChange={handleSearchChange}

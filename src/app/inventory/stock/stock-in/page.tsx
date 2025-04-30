@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input"; // Import Input component
 import { Label } from "@/components/ui/label"; // Import Label component
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Import Select components
 import { formatNumberWithSeparator } from '@/lib/utils'; // Import fungsi format
+import { ProductImageTooltip } from "@/components/ui/image-tooltip";
 
 
 
@@ -169,33 +170,13 @@ export default function StockInPage() {
       header: "SKU Information",
       cell: ({ row }: any) => (
         <div className="flex items-center gap-3">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger>
-                <div className="relative h-12 w-12 overflow-hidden rounded-md cursor-pointer">
-                  <Image
-                    src="/placeholder.svg"
-                    alt={row.original.productName}
-                    fill
-                    sizes="48px"
-                    className="object-cover"
-                  />
-                </div>
-              </TooltipTrigger>
-              <TooltipContent side="right" className="p-0 border-0 bg-transparent">
-                <div className="relative w-48 h-48 overflow-hidden rounded-md shadow-lg">
-                  <Image
-                    src="/placeholder.svg"
-                    alt={row.original.productName}
-                    fill
-                    sizes="192px"
-                    className="object-cover"
-                    priority
-                  />
-                </div>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <ProductImageTooltip
+            imageUrl="/placeholder.svg"
+            alt={row.original.productName}
+            thumbnailSize={48}
+            previewSize={192}
+            side="right"
+          />
           <div>
             <div className="font-medium">{row.original.sku}</div>
             <div className="text-sm text-muted-foreground">{row.original.productName}</div>
@@ -284,8 +265,8 @@ export default function StockInPage() {
         </CardHeader>
         <CardContent>
           <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
-              <Label htmlFor="warehouse-filter" className="mb-1 block text-sm font-medium text-gray-700">Gudang</Label>
+          <div className="w-full">
+              <Label htmlFor="warehouse-filter" className="mb-1 block text-sm font-medium">Gudang</Label>
               <Select onValueChange={handleWarehouseChange} defaultValue="all">
                 <SelectTrigger id="warehouse-filter">
                   <SelectValue placeholder="Pilih Gudang" />
@@ -301,13 +282,13 @@ export default function StockInPage() {
               </Select>
             </div>
             <div>
-              <Label htmlFor="search" className="mb-1 block text-sm font-medium text-gray-700">Pencarian</Label>
+              <Label htmlFor="search" className="mb-1 block text-sm font-medium">Pencarian</Label>
               <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="text"
                   id="search"
-                  placeholder="Cari SKU atau nama produk"
+                  placeholder="Cari SKU atau Nama Produk"
                   className="pl-8"
                   value={searchTerm}
                   onChange={handleSearchChange}

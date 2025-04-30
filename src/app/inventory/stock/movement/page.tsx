@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // Added useEffect
 import Image from 'next/image'; // Import Image component
 import { InventorySidebar } from "@/components/inventory-sidebar";
 import { SiteHeader } from "@/components/site-header";
@@ -166,6 +166,21 @@ export default function StockMovementPage() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [selectedType, setSelectedType] = useState<string>("all");
   const [selectedWarehouse, setSelectedWarehouse] = useState<string>("all");
+
+  // Handler for date range change
+  const handleDateChange = (newDateRange: DateRange | undefined) => {
+    setDateRange(newDateRange);
+  };
+
+  // Handler for warehouse selection change
+  const handleWarehouseChange = (value: string) => {
+    setSelectedWarehouse(value);
+  };
+
+  // Handler for movement type selection change
+  const handleTypeChange = (value: string) => {
+    setSelectedType(value);
+  };
   
   // Fungsi untuk filter data berdasarkan semua kriteria
   const filterData = () => {
@@ -346,83 +361,55 @@ export default function StockMovementPage() {
   ];
 
   return (
-    <div className="[--header-height:calc(--spacing(14))]">
-      <SidebarProvider className="flex flex-col">
-        <SiteHeader />
-        <div className="flex flex-1">
-          <InventorySidebar />
-          <SidebarInset>
-            <div className="flex flex-1 flex-col gap-4 p-4">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle>Stock Movement Record</CardTitle>
-                    <CardDescription>Catatan pergerakan stok di semua gudang</CardDescription>
-                  </div>
-                  <Button>
-                    Export Data
-                  </Button>
-                </CardHeader>
-                <CardContent>
-                  <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
-                    {/* Filter Tanggal */}
-                    <div className="space-y-2 md:col-span-1">
-                      <Label>Rentang Tanggal</Label>
-                      <DatePickerWithRange
-                        date={dateRange}
-                        onDateChange={setDateRange}
-                        placeholder="Pilih rentang tanggal"
-                      />
-                    </div>
-                    
-                    {/* Filter Tipe */}
-                    <div className="space-y-2">
-                      <Label>Tipe Movement</Label>
-                      <Select value={selectedType} onValueChange={setSelectedType}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Semua Tipe" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Semua Tipe</SelectItem>
-                          {movementTypes.map((type) => (
-                            <SelectItem key={type.id} value={type.id}>
-                              {type.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    {/* Filter Warehouse */}
-                    <div className="space-y-2">
-                      <Label>Warehouse</Label>
-                      <Select value={selectedWarehouse} onValueChange={setSelectedWarehouse}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Semua Warehouse" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Semua Warehouse</SelectItem>
-                          {dummyWarehouses.map((warehouse) => (
-                            <SelectItem key={warehouse.id} value={warehouse.id}>
-                              {warehouse.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  
-                  <DataTable 
-                    columns={columns} 
-                    data={filteredData} 
-                    searchKey="sku" 
-                  />
-                </CardContent>
-              </Card>
+    <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Stock Movement</CardTitle>
+          <CardDescription>Track all stock movements including in, out, and transfers.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="mb-4 flex flex-col gap-4 md:flex-row md:items-end">
+            {/* Filters */}
+            <div className="grid gap-2">
+              <Label htmlFor="date-range">Date Range</Label>
+              <DatePickerWithRange date={dateRange} onDateChange={handleDateChange} />
             </div>
-          </SidebarInset>
-        </div>
-      </SidebarProvider>
-    </div>
+            <div className="grid gap-2">
+              <Label htmlFor="warehouse-filter">Warehouse</Label>
+              <Select value={selectedWarehouse} onValueChange={handleWarehouseChange}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Select Warehouse" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Warehouses</SelectItem>
+                  {dummyWarehouses.map(warehouse => (
+                    <SelectItem key={warehouse.id} value={warehouse.id}>
+                      {warehouse.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="type-filter">Movement Type</Label>
+              <Select value={selectedType} onValueChange={handleTypeChange}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Select Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  {movementTypes.map(type => (
+                    <SelectItem key={type.id} value={type.id}>
+                      {type.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DataTable columns={columns} data={filteredData} />
+        </CardContent>
+      </Card>
+    </main>
   );
 }
