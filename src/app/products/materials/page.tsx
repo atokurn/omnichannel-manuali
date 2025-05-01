@@ -101,7 +101,7 @@ const getColumns = (refetchData: () => void): ColumnDef<ProductMaterial>[] => [
             imageUrl={imageUrl}
             alt={material.name}
             thumbnailSize={40}
-            previewSize={160}
+            previewSize={360}
             side="right"
           />
           <div>

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useRef, useState } from 'react'; // Import useState
+import React, { useRef, useState, useCallback } from 'react'; // Import useState
 import { useRouter } from 'next/navigation'; // Import useRouter
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +18,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"; // Add
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn, formatNumberWithSeparator } from '@/lib/utils'; // Import cn utility and format function
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"; // Import Table components
+import { toast } from "sonner"; // Import toast from sonner
 
 // Interface for Variant Option
 interface VariantOption {
@@ -46,6 +47,9 @@ interface VariantCombinationData {
   weightUnit: 'g' | 'kg'; // Add weight unit
 }
 
+// Import SkuMappingCard
+import SkuMappingCard from './sku-mapping-card';
+
 const AddProductPage = () => {
   const router = useRouter(); // Initialize router
   const basicInfoRef = useRef<HTMLDivElement>(null);
@@ -66,10 +70,372 @@ const AddProductPage = () => {
   const [variants, setVariants] = useState<Variant[]>([]); // State for variants
   const [variantTableData, setVariantTableData] = useState<VariantCombinationData[]>([]); // State for table data
   const [showManualCostPrice, setShowManualCostPrice] = useState(false); // State for manual cost price toggle
+  const [productId, setProductId] = useState<string>("temp-product-id"); // Menambahkan state untuk productId
+
+  const [productName, setProductName] = useState<string>(""); // State for product name
+  const [productDescription, setProductDescription] = useState<string>(""); // State for product description
+  const [defaultPrice, setDefaultPrice] = useState<string>(""); // State for default price when no variants
+  const [selectedPreviewOptionId, setSelectedPreviewOptionId] = useState<string | null>(null); // State for selected variant option in preview
+
+  const [mainImage, setMainImage] = useState<File | null>(null);
+  const [mainImagePreview, setMainImagePreview] = useState<string | null>(null);
+  const [additionalImages, setAdditionalImages] = useState<{[key: string]: File | null}>({});
+  const [additionalImagePreviews, setAdditionalImagePreviews] = useState<{[key: string]: string | null}>({});
+  const [isDraggingMain, setIsDraggingMain] = useState(false);
+  const [isDraggingAdditional, setIsDraggingAdditional] = useState<string | null>(null);
+
+  // Fungsi untuk menangani pengiriman formulir
+  const handleSubmit = async () => {
+    // Validasi data formulir
+    if (!mainImage) {
+      console.error('Gambar utama produk wajib diisi');
+      toast.error('Gambar utama produk wajib diisi');
+      return;
+    }
+
+    // Validasi nama produk
+    if (!productName.trim()) {
+      toast.error('Nama produk wajib diisi');
+      return;
+    }
+
+    // Validasi deskripsi produk
+    if (!productDescription.trim()) {
+      toast.error('Deskripsi produk wajib diisi');
+      return;
+    }
+
+    // Validasi harga
+    if (!addVariant && !defaultPrice.trim()) {
+      toast.error('Harga produk wajib diisi');
+      return;
+    }
+
+    // Validasi varian jika diaktifkan
+    if (addVariant) {
+      // Validasi apakah ada varian yang dibuat
+      if (variants.length === 0) {
+        toast.error('Minimal satu varian harus ditambahkan');
+        return;
+      }
+
+      // Validasi apakah semua varian memiliki nama
+      const unnamedVariant = variants.find(v => !v.name.trim());
+      if (unnamedVariant) {
+        toast.error('Semua varian harus memiliki nama');
+        return;
+      }
+
+      // Validasi apakah semua kombinasi varian memiliki harga dan kuantitas
+      const invalidCombination = variantTableData.find(combo => !combo.price.trim() || !combo.quantity.trim() || !combo.weight.trim());
+      if (invalidCombination) {
+        toast.error('Semua kombinasi varian harus memiliki harga, kuantitas, dan berat');
+        return;
+      }
+    }
+
+    // Menampilkan loading state
+    toast.loading('Sedang mengunggah gambar dan menyimpan produk...');
+    
+    try {
+      // 1. Unggah gambar terlebih dahulu
+      const imageUrls = await uploadImages();
+      
+      // 2. Siapkan data produk dengan URL gambar
+      const productData = {
+        productName: productName,
+        productDescription: productDescription,
+        defaultPrice: defaultPrice ? defaultPrice.replace(/[.,]/g, '') : '0', // Convert string to number
+        addVariant: addVariant,
+        variants: await processVariantsWithImages(variants),
+        variantCombinations: variantTableData,
+        skuMapping: enableSkuMapping ? {
+          option: skuMappingOption,
+          channels: selectedChannels,
+          stores: selectedStores
+        } : null,
+        purchaseLimit: purchaseLimit,
+        mainImage: imageUrls.main,
+        additionalImages: imageUrls.additional
+      };
+
+      console.log('Mengirim data produk ke API:', productData);
+
+      // 3. Kirim data ke API
+      const response = await fetch('/api/products', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(productData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('Produk berhasil dibuat:', result);
+      toast.dismiss(); // Dismiss loading toast
+      toast.success('Produk berhasil ditambahkan!');
+      router.push('/products/management'); // Redirect on success
+
+    } catch (error) {
+      console.error('Gagal mengirim data produk:', error);
+      toast.dismiss(); // Dismiss loading toast
+      let errorMessage = 'Gagal menambahkan produk. Silakan coba lagi.';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      toast.error(`Error: ${errorMessage}`);
+    }
+  };
+
+  // Fungsi untuk mengunggah gambar
+  const uploadImages = async () => {
+    const imageUrls = {
+      main: '',
+      additional: {} as Record<string, string>
+    };
+    
+    // Unggah gambar utama
+    if (mainImage) {
+      const mainImageUrl = await uploadImage(mainImage, 'main');
+      imageUrls.main = mainImageUrl;
+    }
+    
+    // Unggah gambar tambahan
+    for (const [key, file] of Object.entries(additionalImages)) {
+      if (file) {
+        const additionalImageUrl = await uploadImage(file, `additional-${key}`);
+        imageUrls.additional[key] = additionalImageUrl;
+      }
+    }
+    
+    return imageUrls;
+  };
+  
+  // Fungsi untuk mengunggah satu gambar
+  const uploadImage = async (file: File, prefix: string) => {
+    // Buat FormData untuk mengunggah file
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('prefix', prefix);
+    formData.append('productId', productId);
+    
+    // Kirim file ke endpoint upload
+    const response = await fetch('/api/upload', {
+      method: 'POST',
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Gagal mengunggah gambar');
+    }
+    
+    const data = await response.json();
+    return data.url; // URL gambar yang sudah diunggah
+  };
+
+  // Fungsi untuk memproses varian dengan gambar
+  const processVariantsWithImages = async (variants: Variant[]) => {
+    const processedVariants = [...variants];
+    
+    // Proses setiap varian
+    for (let i = 0; i < processedVariants.length; i++) {
+      const variant = processedVariants[i];
+      
+      // Proses setiap opsi dalam varian
+      for (let j = 0; j < variant.options.length; j++) {
+        const option = variant.options[j];
+        
+        // Jika opsi memiliki gambar, unggah gambar
+        if (option.image) {
+          try {
+            const imageUrl = await uploadImage(option.image, `variant-${variant.id}-option-${option.id}`);
+            // Ganti objek File dengan URL gambar
+            processedVariants[i].options[j].image = null; // Hapus objek File
+            // @ts-ignore - Tambahkan properti imageUrl
+            processedVariants[i].options[j].imageUrl = imageUrl;
+          } catch (error) {
+            console.error(`Gagal mengunggah gambar untuk opsi ${option.value}:`, error);
+          }
+        }
+      }
+    }
+    
+    return processedVariants;
+  };
 
   const scrollToRef = (ref: React.RefObject<HTMLDivElement>, title: string) => {
     ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     setActiveSection(title); // Update active section on click
+  };
+
+  // Handle main image upload
+  const handleMainImageUpload = (file: File) => {
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+    if (!validTypes.includes(file.type)) {
+      // Tambahkan notifikasi error jika diperlukan
+      console.error('Format file tidak didukung. Gunakan JPG, JPEG, atau PNG.');
+      toast.error('Format file tidak didukung. Gunakan JPG, JPEG, atau PNG.');
+      return;
+    }
+    
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      console.error('Ukuran file terlalu besar. Maksimal 5MB.');
+      toast.error('Ukuran file terlalu besar. Maksimal 5MB.');
+      return;
+    }
+    
+    setMainImage(file);
+    
+    // Create preview URL
+    const reader = new FileReader();
+    reader.onload = () => {
+      setMainImagePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+  
+  // Handle additional image upload
+  const handleAdditionalImageUpload = (label: string, file: File) => {
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+    if (!validTypes.includes(file.type)) {
+      console.error('Format file tidak didukung. Gunakan JPG, JPEG, atau PNG.');
+      toast.error('Format file tidak didukung. Gunakan JPG, JPEG, atau PNG.');
+      return;
+    }
+    
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      console.error('Ukuran file terlalu besar. Maksimal 5MB.');
+      toast.error('Ukuran file terlalu besar. Maksimal 5MB.');
+      return;
+    }
+    
+    setAdditionalImages(prev => ({
+      ...prev,
+      [label]: file
+    }));
+    
+    // Create preview URL
+    const reader = new FileReader();
+    reader.onload = () => {
+      setAdditionalImagePreviews(prev => ({
+        ...prev,
+        [label]: reader.result as string
+      }));
+    };
+    reader.readAsDataURL(file);
+  };
+  
+  // Handle drag events for main image
+  const handleDragEnterMain = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingMain(true);
+  }, []);
+  
+  const handleDragLeaveMain = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingMain(false);
+  }, []);
+  
+  const handleDragOverMain = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isDraggingMain) {
+      setIsDraggingMain(true);
+    }
+  }, [isDraggingMain]);
+  
+  const handleDropMain = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingMain(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      handleMainImageUpload(file);
+      e.dataTransfer.clearData();
+    }
+  }, []);
+  
+  // Handle drag events for additional images
+  const handleDragEnterAdditional = useCallback((e: React.DragEvent, label: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingAdditional(label);
+  }, []);
+  
+  const handleDragLeaveAdditional = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingAdditional(null);
+  }, []);
+  
+  const handleDragOverAdditional = useCallback((e: React.DragEvent, label: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isDraggingAdditional !== label) {
+      setIsDraggingAdditional(label);
+    }
+  }, [isDraggingAdditional]);
+  
+  const handleDropAdditional = useCallback((e: React.DragEvent, label: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingAdditional(null);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      handleAdditionalImageUpload(label, file);
+      e.dataTransfer.clearData();
+    }
+  }, []);
+  
+  // Handle file input change for main image
+  const handleMainImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      handleMainImageUpload(file);
+    }
+  };
+  
+  // Handle file input change for additional images
+  const handleAdditionalImageChange = (e: React.ChangeEvent<HTMLInputElement>, label: string) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      handleAdditionalImageUpload(label, file);
+    }
+  };
+  
+  // Remove main image
+  const handleRemoveMainImage = () => {
+    setMainImage(null);
+    setMainImagePreview(null);
+  };
+  
+  // Remove additional image
+  const handleRemoveAdditionalImage = (label: string) => {
+    setAdditionalImages(prev => {
+      const newImages = {...prev};
+      delete newImages[label];
+      return newImages;
+    });
+    
+    setAdditionalImagePreviews(prev => {
+      const newPreviews = {...prev};
+      delete newPreviews[label];
+      return newPreviews;
+    });
   };
 
   // --- Variant Management Functions ---
@@ -283,7 +649,7 @@ const AddProductPage = () => {
         <div className="ml-auto flex items-center gap-2">
           <Button variant="outline" size="sm"><HelpCircle className="h-4 w-4 mr-1"/> Bantuan</Button>
           <Button variant="outline" size="sm"><Save className="h-4 w-4 mr-1"/> Simpan sebagai draf</Button>
-          <Button size="sm"><SendHorizonal className="h-4 w-4 mr-1"/> Kirim</Button>
+          <Button size="sm" onClick={handleSubmit}><SendHorizonal className="h-4 w-4 mr-1"/> Kirim</Button>
         </div>
       </header>
 
@@ -334,28 +700,106 @@ const AddProductPage = () => {
                   <div className="space-y-2 max-w-3xl mx-auto">
                     <Label htmlFor="product-image" className="flex items-center"><span className="text-red-500 mr-1">*</span>Gambar</Label>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {/* Main Image Upload */}
-                      <div className="md:col-span-1 border-2 border-dashed rounded-lg flex flex-col items-center justify-center p-6 aspect-square text-center hover:border-primary cursor-pointer bg-muted/20">
-                        <Upload className="h-8 w-8 text-muted-foreground mb-2" />
-                        <span className="text-sm font-medium">Unggah gambar utama</span>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          - Dimensi: 600 x 600 px.<br/>
-                          - Ukuran file maks.: 5 MB.<br/>
-                          - Format: JPG, JPEG, PNG.
-                        </p>
+                      {/* Main Image Upload with Drag & Drop */}
+                      <div 
+                        className={cn(
+                          "md:col-span-1 border-2 border-dashed rounded-lg flex flex-col items-center justify-center p-6 aspect-square text-center hover:border-primary cursor-pointer bg-muted/20",
+                          isDraggingMain ? "border-primary bg-primary/5" : "",
+                          mainImagePreview ? "relative" : ""
+                        )}
+                        onDragEnter={handleDragEnterMain}
+                        onDragLeave={handleDragLeaveMain}
+                        onDragOver={handleDragOverMain}
+                        onDrop={handleDropMain}
+                        onClick={() => document.getElementById('main-image-upload')?.click()}
+                      >
+                        {mainImagePreview ? (
+                          <>
+                            <img 
+                              src={mainImagePreview} 
+                              alt="Preview" 
+                              className="object-contain w-full h-full rounded-md" 
+                            />
+                            <button 
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemoveMainImage();
+                              }}
+                              className="absolute top-2 right-2 bg-destructive text-destructive-foreground rounded-full p-1 shadow-sm hover:bg-destructive/90 transition-colors"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="h-8 w-8 text-muted-foreground mb-2" />
+                            <span className="text-sm font-medium">Unggah gambar utama</span>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              - Dimensi: 600 x 600 px.<br/>
+                              - Ukuran file maks.: 5 MB.<br/>
+                              - Format: JPG, JPEG, PNG.<br/>
+                              - Seret & lepas gambar di sini
+                            </p>
+                          </>
+                        )}
                         {/* Hidden file input */}
-                        <Input id="main-image-upload" type="file" className="hidden" accept=".jpg,.jpeg,.png" />
-                        {/* Add preview logic later */}
+                        <Input 
+                          id="main-image-upload" 
+                          type="file" 
+                          className="hidden" 
+                          accept=".jpg,.jpeg,.png" 
+                          onChange={handleMainImageChange}
+                        />
                       </div>
-                      {/* Additional Image Placeholders */}
+                      {/* Additional Image Placeholders with Drag & Drop */}
                       <div className="md:col-span-2 grid grid-cols-4 gap-2">
                         {['Depan', 'Samping', 'Berbagai sisi', 'Saat diguna...', 'Variasi', 'Dengan latar...', 'Close-up', 'Ukuran & Sk...'].map((label) => (
-                          <div key={label} className="border rounded-lg flex flex-col items-center justify-center p-2 aspect-square bg-muted/50 text-center cursor-pointer hover:border-primary">
-                            {/* Placeholder Icon - replace with actual image preview later */}
-                            <ImageIcon className="h-6 w-6 text-muted-foreground mb-1" />
-                            <span className="text-[10px] text-muted-foreground leading-tight">{label}</span>
+                          <div 
+                            key={label} 
+                            className={cn(
+                              "border rounded-lg flex flex-col items-center justify-center p-2 aspect-square bg-muted/50 text-center cursor-pointer hover:border-primary",
+                              isDraggingAdditional === label ? "border-primary bg-primary/5" : "",
+                              additionalImagePreviews[label] ? "relative" : ""
+                            )}
+                            onDragEnter={(e) => handleDragEnterAdditional(e, label)}
+                            onDragLeave={handleDragLeaveAdditional}
+                            onDragOver={(e) => handleDragOverAdditional(e, label)}
+                            onDrop={(e) => handleDropAdditional(e, label)}
+                            onClick={() => document.getElementById(`image-upload-${label}`)?.click()}
+                          >
+                            {additionalImagePreviews[label] ? (
+                              <>
+                                <img 
+                                  src={additionalImagePreviews[label] || ''} 
+                                  alt={label} 
+                                  className="object-contain w-full h-full rounded-md" 
+                                />
+                                <button 
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleRemoveAdditionalImage(label);
+                                  }}
+                                  className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 shadow-sm hover:bg-destructive/90 transition-colors"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <ImageIcon className="h-6 w-6 text-muted-foreground mb-1" />
+                                <span className="text-[10px] text-muted-foreground leading-tight">{label}</span>
+                              </>
+                            )}
                             {/* Hidden file input for each */}
-                            <Input id={`image-upload-${label}`} type="file" className="hidden" accept=".jpg,.jpeg,.png" />
+                            <Input 
+                              id={`image-upload-${label}`} 
+                              type="file" 
+                              className="hidden" 
+                              accept=".jpg,.jpeg,.png" 
+                              onChange={(e) => handleAdditionalImageChange(e, label)}
+                            />
                           </div>
                         ))}
                       </div>
@@ -363,8 +807,14 @@ const AddProductPage = () => {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="product-name" className="flex items-center"><span className="text-red-500 mr-1">*</span>Nama produk</Label>
-                    <Input id="product-name" placeholder="[Merek] + [Konten] + [Lingkup penggunaan] + [Tipe produk] + [Fungsi/Fitur Utama]" maxLength={255} />
-                    <p className="text-xs text-muted-foreground text-right">0/255</p>
+                    <Input 
+                      id="product-name" 
+                      placeholder="[Merek] + [Konten] + [Lingkup penggunaan] + [Tipe produk] + [Fungsi/Fitur Utama]" 
+                      maxLength={255} 
+                      value={productName} // Bind value to state
+                      onChange={(e) => setProductName(e.target.value)} // Update state on change
+                    />
+                    <p className="text-xs text-muted-foreground text-right">{productName.length}/255</p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="product-category" className="flex items-center"><span className="text-red-500 mr-1">*</span>Kategori</Label>
@@ -390,7 +840,13 @@ const AddProductPage = () => {
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="product-description" className="flex items-center"><span className="text-red-500 mr-1">*</span>Deskripsi produk</Label>
-                    <Textarea id="product-description" placeholder="Masukkan deskripsi produk yang menarik..." rows={8} />
+                    <Textarea 
+                      id="product-description" 
+                      placeholder="Masukkan deskripsi produk yang menarik..." 
+                      rows={8} 
+                      value={productDescription} 
+                      onChange={(e) => setProductDescription(e.target.value)}
+                    />
                   </div>
                   {/* Add more fields like attributes, brand, etc. here */}
                 </CardContent>
@@ -507,7 +963,14 @@ const AddProductPage = () => {
                           </Label>
                           <div className="relative">
                             <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-sm text-muted-foreground">Rp</span>
-                            <Input id="product-price" type="number" placeholder="0" className="pl-8" />
+                            <Input 
+                              id="product-price" 
+                              type="number" 
+                              placeholder="0" 
+                              className="pl-8" 
+                              value={defaultPrice} // Bind value to state
+                              onChange={(e) => setDefaultPrice(e.target.value)} // Update state on change
+                            />
                           </div>
                         </div>
                         <div className="space-y-1">
@@ -768,8 +1231,7 @@ const AddProductPage = () => {
                                     <TableCell key={`${combination.combinationId}-${variant.id}`}>
                                       {combination.options[variant.name] || '-'}
                                     </TableCell>
-                                  ))}
-                                  {/* Input Fields */}
+                                  ))}{/* Input Fields */}
                                   <TableCell>
                                     <div className="relative">
                                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">Rp</span>
@@ -987,266 +1449,16 @@ const AddProductPage = () => {
               </Card>
               {/* End Pengiriman */}
 
-              {/* SKU Mapping Ecommerce */}
-              <Card ref={skuMappingRef} id="sku-mapping">
-                <CardHeader>
-                  <CardTitle>SKU Mapping Ecommerce</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* SKU Mapping Toggle Switch */}
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label htmlFor="sku-mapping-switch" className="font-medium">Aktifkan SKU Mapping</Label>
-                      <p className="text-xs text-muted-foreground">Aktifkan untuk memetakan SKU produk ke berbagai platform e-commerce.</p>
-                    </div>
-                    <Switch id="sku-mapping-switch" checked={enableSkuMapping} onCheckedChange={setEnableSkuMapping} />
+                  {/* SKU Mapping Card */}
+                  <div ref={skuMappingRef} id="sku-mapping">
+                    <SkuMappingCard 
+                      productId={productId} 
+                      selectedChannels={selectedChannels}
+                      skuMappingOption={skuMappingOption}
+                      enableSkuMapping={enableSkuMapping}
+                    />
                   </div>
-                  
-                  {enableSkuMapping && <>
-                    {/* SKU Mapping Options */}
-                    <div className="space-y-3 p-4 border rounded-md bg-muted/20">
-                      <Label className="font-medium">Opsi Aktivasi SKU Mapping</Label>
-                      <RadioGroup value={skuMappingOption} onValueChange={(value) => setSkuMappingOption(value as "all" | "channel" | "store")} className="space-y-2">
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="all" id="sku-mapping-all" />
-                          <Label htmlFor="sku-mapping-all" className="font-normal">Aktifkan Semua Toko</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="channel" id="sku-mapping-channel" />
-                          <Label htmlFor="sku-mapping-channel" className="font-normal">Aktifkan Berdasarkan Channel</Label>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={() => setShowChannelDialog(true)}
-                            className="ml-2 h-7 text-xs"
-                            disabled={skuMappingOption !== "channel"}
-                          >
-                            Pilih Channel
-                          </Button>
-                          {selectedChannels.length > 0 && (
-                            <span className="text-xs text-muted-foreground ml-2">
-                              {selectedChannels.length} channel dipilih
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="store" id="sku-mapping-store" />
-                          <Label htmlFor="sku-mapping-store" className="font-normal">Aktifkan Berdasarkan Toko</Label>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={() => setShowStoreDialog(true)}
-                            className="ml-2 h-7 text-xs"
-                            disabled={skuMappingOption !== "store"}
-                          >
-                            Pilih Toko
-                          </Button>
-                          {selectedStores.length > 0 && (
-                            <span className="text-xs text-muted-foreground ml-2">
-                              {selectedStores.length} toko dipilih
-                            </span>
-                          )}
-                        </div>
-                      </RadioGroup>
-                    </div>
 
-                    {/* Channel Selection Dialog */}
-                    {showChannelDialog && (
-                      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                        <div className="bg-background rounded-lg shadow-lg w-full max-w-md p-6">
-                          <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-lg font-semibold">Pilih Channel</h3>
-                            <Button variant="ghost" size="icon" onClick={() => setShowChannelDialog(false)}>
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                          <div className="space-y-2 max-h-80 overflow-y-auto py-2">
-                            {["Shopee", "Tokopedia", "TikTok Shop", "Lazada", "Bukalapak", "Blibli"].map((channel) => (
-                              <div key={channel} className="flex items-center space-x-2 p-2 hover:bg-muted rounded-md">
-                                <Checkbox 
-                                  id={`channel-${channel}`} 
-                                  checked={selectedChannels.includes(channel)}
-                                  onCheckedChange={(checked) => {
-                                    if (checked) {
-                                      setSelectedChannels([...selectedChannels, channel]);
-                                    } else {
-                                      setSelectedChannels(selectedChannels.filter(c => c !== channel));
-                                    }
-                                  }}
-                                />
-                                <Label htmlFor={`channel-${channel}`} className="font-normal cursor-pointer flex-1">{channel}</Label>
-                              </div>
-                            ))}
-                          </div>
-                          <div className="flex justify-end space-x-2 mt-4 pt-2 border-t">
-                            <Button variant="outline" onClick={() => setShowChannelDialog(false)}>Batal</Button>
-                            <Button onClick={() => setShowChannelDialog(false)}>Simpan</Button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Store Selection Dialog */}
-                    {showStoreDialog && (
-                      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                        <div className="bg-background rounded-lg shadow-lg w-full max-w-md p-6">
-                          <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-lg font-semibold">Pilih Toko</h3>
-                            <Button variant="ghost" size="icon" onClick={() => setShowStoreDialog(false)}>
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                          <div className="space-y-2 max-h-80 overflow-y-auto py-2">
-                            {["Toko Utama Shopee", "Toko Cabang Shopee", "Toko Utama Tokopedia", "Toko Cabang Tokopedia", "TikTok Shop Official", "Lazada Official Store"].map((store) => (
-                              <div key={store} className="flex items-center space-x-2 p-2 hover:bg-muted rounded-md">
-                                <Checkbox 
-                                  id={`store-${store}`} 
-                                  checked={selectedStores.includes(store)}
-                                  onCheckedChange={(checked) => {
-                                    if (checked) {
-                                      setSelectedStores([...selectedStores, store]);
-                                    } else {
-                                      setSelectedStores(selectedStores.filter(s => s !== store));
-                                    }
-                                  }}
-                                />
-                                <Label htmlFor={`store-${store}`} className="font-normal cursor-pointer flex-1">{store}</Label>
-                              </div>
-                            ))}
-                          </div>
-                          <div className="flex justify-end space-x-2 mt-4 pt-2 border-t">
-                            <Button variant="outline" onClick={() => setShowStoreDialog(false)}>Batal</Button>
-                            <Button onClick={() => setShowStoreDialog(false)}>Simpan</Button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="grid gap-4">
-                      <div className="pt-2">
-                        <p className="text-sm text-muted-foreground">
-                          Mapping SKU membantu menghubungkan produk ini dengan SKU yang sama di berbagai platform e-commerce untuk sinkronisasi stok dan pesanan.
-                        </p>
-                      </div>
-                      
-                      {/* Channel-specific additional details */}
-                      {skuMappingOption === "channel" && (
-                        <>
-                          {/* TikTok Shop specific details */}
-                          {selectedChannels.includes("TikTok Shop") && (
-                            <div className="space-y-4 mt-2">
-                              <Separator className="my-2" />
-                              <h4 className="font-medium text-sm">Detail Tambahan TikTok Shop</h4>
-                              
-                              {/* Kondisi Produk */}
-                              <div className="space-y-2">
-                                <Label htmlFor="tiktok-product-condition">Kondisi Produk</Label>
-                                <Select defaultValue="new">
-                                  <SelectTrigger id="tiktok-product-condition">
-                                    <SelectValue placeholder="Pilih kondisi produk" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="new">Baru</SelectItem>
-                                    <SelectItem value="used">Bekas</SelectItem>
-                                    <SelectItem value="refurbished">Refurbished</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              
-                              {/* Asuransi */}
-                              <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                  <Label htmlFor="tiktok-insurance-switch">Asuransi Pengiriman</Label>
-                                  <Switch id="tiktok-insurance-switch" />
-                                </div>
-                                <p className="text-xs text-muted-foreground">
-                                  Aktifkan asuransi pengiriman untuk melindungi produk dari kerusakan atau kehilangan selama pengiriman.
-                                </p>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Shopee specific details */}
-                          {selectedChannels.includes("Shopee") && (
-                            <div className="space-y-4 mt-2">
-                              <Separator className="my-2" />
-                              <h4 className="font-medium text-sm">Detail Tambahan Shopee</h4>
-                              
-                              {/* Program Gratis Ongkir */}
-                              <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                  <Label htmlFor="shopee-free-shipping-switch">Program Gratis Ongkir</Label>
-                                  <Switch id="shopee-free-shipping-switch" />
-                                </div>
-                                <p className="text-xs text-muted-foreground">
-                                  Ikut serta dalam program gratis ongkir Shopee untuk meningkatkan daya tarik produk.
-                                </p>
-                              </div>
-                              
-                              {/* Garansi Produk */}
-                              <div className="space-y-2">
-                                <Label htmlFor="shopee-warranty">Garansi Produk</Label>
-                                <Select defaultValue="none">
-                                  <SelectTrigger id="shopee-warranty">
-                                    <SelectValue placeholder="Pilih jenis garansi" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="none">Tidak Ada Garansi</SelectItem>
-                                    <SelectItem value="7days">7 Hari</SelectItem>
-                                    <SelectItem value="14days">14 Hari</SelectItem>
-                                    <SelectItem value="30days">30 Hari</SelectItem>
-                                    <SelectItem value="1year">1 Tahun</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Tokopedia specific details */}
-                          {selectedChannels.includes("Tokopedia") && (
-                            <div className="space-y-4 mt-2">
-                              <Separator className="my-2" />
-                              <h4 className="font-medium text-sm">Detail Tambahan Tokopedia</h4>
-                              
-                              {/* Power Merchant */}
-                              <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                  <Label htmlFor="tokopedia-power-merchant-switch">Power Merchant</Label>
-                                  <Switch id="tokopedia-power-merchant-switch" />
-                                </div>
-                                <p className="text-xs text-muted-foreground">
-                                  Aktifkan untuk menampilkan produk ini di program Power Merchant Tokopedia.
-                                </p>
-                              </div>
-                              
-                              {/* Preorder */}
-                              <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                  <Label htmlFor="tokopedia-preorder-switch">Preorder</Label>
-                                  <Switch id="tokopedia-preorder-switch" />
-                                </div>
-                                <div className="pt-2">
-                                  <Label htmlFor="tokopedia-preorder-days" className="text-xs mb-1 block">Lama Pengiriman (Hari)</Label>
-                                  <Input 
-                                    id="tokopedia-preorder-days" 
-                                    type="number" 
-                                    min="1" 
-                                    max="30" 
-                                    placeholder="1-30 hari" 
-                                    className="h-8" 
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </>
-                  }
-                </CardContent>
-              </Card>
-              {/* End SKU Mapping Ecommerce */}
             </div>
           </ScrollArea>
         </main>
@@ -1257,36 +1469,109 @@ const AddProductPage = () => {
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium flex items-center justify-between">
                 Pratinjau
-                <HelpCircle className="h-4 w-4 text-muted-foreground cursor-pointer" />
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="h-4 w-4 text-muted-foreground cursor-pointer" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Pratinjau ini akan diperbarui secara otomatis saat Anda mengisi formulir.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {/* Placeholder Preview Content */}
+              {/* Dynamic Preview Content */}
               <div className="border rounded-md p-4 space-y-3 bg-muted/20">
                 <div className="flex justify-between items-center mb-2">
                    <p className="text-sm font-medium">Detail produk</p>
+                   {/* Icons can be made dynamic later if needed */}
                    <div className="flex gap-2 text-muted-foreground">
                       <ImageIcon className="h-4 w-4 cursor-pointer hover:text-primary"/>
                       <Package className="h-4 w-4 cursor-pointer hover:text-primary"/>
                       <Truck className="h-4 w-4 cursor-pointer hover:text-primary"/>
                    </div>
                 </div>
-                <div className="aspect-square bg-muted rounded-md flex items-center justify-center mb-3">
-                  <ImageIcon className="h-12 w-12 text-muted-foreground/30" />
-                  <span className="absolute text-xs text-muted-foreground/50">Tambahkan gambar</span>
+                {/* Main Image Preview */}
+                <div className="aspect-square bg-muted rounded-md flex items-center justify-center mb-3 relative overflow-hidden">
+                  {mainImagePreview ? (
+                    <img src={mainImagePreview} alt="Pratinjau Gambar Utama" className="object-contain w-full h-full" />
+                  ) : (
+                    <>
+                      <ImageIcon className="h-12 w-12 text-muted-foreground/30" />
+                      <span className="absolute text-xs text-muted-foreground/50">Gambar utama</span>
+                    </>
+                  )}
                 </div>
-                <div className="h-4 bg-muted rounded w-full"></div>
-                <div className="h-4 bg-muted rounded w-5/6"></div>
-                <div className="h-6 bg-muted rounded w-1/3 mt-2"></div>
+                {/* Product Name Preview */}
+                <div className="h-auto text-sm font-medium truncate" title={productName || "Nama Produk Akan Muncul di Sini"}>
+                  {productName || <span className="text-muted-foreground">Nama Produk...</span>}
+                </div>
+                {/* Product Description Preview */}
+                <div className="h-auto text-xs text-muted-foreground truncate" title={productDescription || "Deskripsi Singkat Akan Muncul di Sini"}>
+                  {productDescription || <span className="text-muted-foreground">Deskripsi singkat...</span>}
+                </div>
+                {/* Price Preview (Handles default or variant price) */}
+                <div className="text-lg font-semibold mt-1">
+                  {(() => {
+                    if (addVariant && variants.length > 0 && variantTableData.length > 0) {
+                      let priceToShow = variantTableData[0]?.price; // Default to first combination's price
+                      if (selectedPreviewOptionId) {
+                        // Find the combination matching the selected preview option (assuming it's from the first variant)
+                        const firstVariantName = variants[0]?.name;
+                        const selectedOption = variants[0]?.options.find(opt => opt.id === selectedPreviewOptionId);
+                        if (firstVariantName && selectedOption) {
+                          const matchingCombination = variantTableData.find(combo => combo.options[firstVariantName] === selectedOption.value);
+                          if (matchingCombination) {
+                            priceToShow = matchingCombination.price;
+                          }
+                        }
+                      }
+                      return priceToShow ? `Rp ${formatNumberWithSeparator(priceToShow)}` : <span className="text-muted-foreground">Rp ...</span>;
+                    } else if (!addVariant && defaultPrice) {
+                      return `Rp ${formatNumberWithSeparator(defaultPrice)}`;
+                    } else {
+                      return <span className="text-muted-foreground">Rp ...</span>;
+                    }
+                  })()}
+                </div>
                 <Separator className="my-4"/>
-                <div className="flex justify-between items-center">
-                    <span className="text-xs text-muted-foreground">Pilih opsi</span>
-                    <span className="text-xs text-primary cursor-pointer hover:underline">Spesifikasi &gt;</span>
-                </div>
-                <div className="border rounded p-2 text-xs text-center text-muted-foreground bg-background">Default</div>
+                {/* Variant Selection Preview (Basic structure) */}
+                {addVariant && variants.length > 0 && (
+                  <>
+                    <div className="flex justify-between items-center">
+                        <span className="text-xs text-muted-foreground">Pilih {variants[0]?.name || 'varian'}</span>
+                        {/* Link to spec can be added later */}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {variants[0]?.options.filter(opt => opt.value).slice(0, 5).map(opt => (
+                        <Button 
+                          key={opt.id} 
+                          variant={selectedPreviewOptionId === opt.id ? "default" : "outline"} // Highlight selected
+                          size="sm" 
+                          className="text-xs h-7 px-2"
+                          onClick={() => setSelectedPreviewOptionId(opt.id)} // Set selected on click
+                        >
+                          {opt.value}
+                        </Button>
+                      ))}
+                      {variants[0]?.options.length > 5 && <span className="text-xs text-muted-foreground self-center">...</span>}
+                    </div>
+                  </>
+                )}
+                {!addVariant && (
+                  <>
+                    <div className="flex justify-between items-center">
+                        <span className="text-xs text-muted-foreground">Pilih opsi</span>
+                        <span className="text-xs text-primary cursor-pointer hover:underline">Spesifikasi &gt;</span>
+                    </div>
+                    <div className="border rounded p-2 text-xs text-center text-muted-foreground bg-background">Default</div>
+                  </>
+                )}
                  <div className="flex gap-2 mt-4">
-                    <Button variant="outline" size="sm" className="flex-1" disabled>Tambah ke...</Button>
-                    <Button size="sm" className="flex-1 bg-gray-300 hover:bg-gray-300" disabled>Beli sekarang</Button>
+                    <Button variant="outline" size="sm" className="flex-1 text-xs h-7 px-2">Tambah ke Keranjang</Button>
+                    <Button size="sm" className="flex-1 text-xs h-7 px-2">Beli sekarang</Button>
                  </div>
               </div>
             </CardContent>

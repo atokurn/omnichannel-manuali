@@ -21,21 +21,87 @@ model User {
 }
 
 model Product {
-  id               String            @id @default(uuid())
+  id               String                     @id @default(uuid())
   name             String
   description      String?
-  sku              String            @unique
-  price            Float
-  cost             Float
-  minStockLevel    Int               @default(0)
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  sku              String?                    // Optional now, can be generated or set per variant
+  price            Float                      // Price for the main product if no variants
+  cost             Float?                     // Cost for the main product if no variants
+  minStockLevel    Int                        @default(0)
+  weight           Float?                     // Weight for the main product if no variants
+  weightUnit       String?                    // e.g., 'g', 'kg'
+  packageLength    Float?                     // Package dimensions
+  packageWidth     Float? 
+  packageHeight    Float?
+  isPreorder       Boolean                    @default(false)
+  preorderDays     Int?
+  purchaseLimit    Int?                       // Max quantity per purchase
+  hasVariants      Boolean                    @default(false)
+  mainImage        String?                    // URL to main product image
+  createdAt        DateTime                   @default(now())
+  updatedAt        DateTime                   @updatedAt
   createdById      String
   categoryId       String?
+  
   inventories      Inventory[]
-  category         Category?         @relation(fields: [categoryId], references: [id])
-  createdBy        User              @relation("ProductCreator", fields: [createdById], references: [id])
+  category         Category?                  @relation(fields: [categoryId], references: [id])
+  createdBy        User                       @relation("ProductCreator", fields: [createdById], references: [id])
   transactionItems TransactionItem[]
+  variants         ProductVariant[]           // Relation to product variants
+  images           ProductImage[]             // Relation to additional product images
+  variantCombos    ProductVariantCombination[] // Relation to variant combinations
+}
+
+model ProductVariant {
+  id          String                @id @default(uuid())
+  name        String                // e.g., "Color", "Size"
+  productId   String
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  
+  product     Product               @relation(fields: [productId], references: [id], onDelete: Cascade)
+  options     ProductVariantOption[] // Relation to variant options
+}
+
+model ProductVariantOption {
+  id          String         @id @default(uuid())
+  value       String         // e.g., "Red", "Blue", "S", "M"
+  image       String?        // Optional image URL for this option
+  variantId   String
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  
+  variant     ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+}
+
+model ProductVariantCombination {
+  id          String  @id @default(uuid())
+  productId   String
+  combinationId String // Unique identifier for this combination (e.g., "option1-option2")
+  options     Json    // Stored as JSON: { "Color": "Red", "Size": "M" }
+  price       Float
+  quantity    Int
+  sku         String?
+  weight      Float?
+  weightUnit  String? // e.g., 'g', 'kg'
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  product     Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  @@unique([productId, combinationId])
+}
+
+model ProductImage {
+  id          String   @id @default(uuid())
+  url         String   // URL to the image
+  productId   String
+  isMain      Boolean  @default(false)
+  position    Int      @default(0) // For ordering images
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
 model Category {

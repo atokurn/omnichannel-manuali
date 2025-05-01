@@ -28,7 +28,7 @@ interface ImageTooltipProps {
   
   /**
    * Ukuran gambar preview dalam tooltip (width dan height)
-   * @default 160
+   * @default 360
    */
   previewSize?: number;
   
@@ -58,7 +58,7 @@ export function ImageTooltip({
   alt,
   children,
   thumbnailSize = 40,
-  previewSize = 160,
+  previewSize = 360,
   side = "right",
   thumbnailClassName,
   previewClassName,
@@ -99,7 +99,7 @@ export function ProductImageTooltip({
   imageUrl,
   alt,
   thumbnailSize = 40,
-  previewSize = 160,
+  previewSize = 360,
   side = "right",
   thumbnailClassName,
   previewClassName,
