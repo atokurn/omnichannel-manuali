@@ -176,7 +176,7 @@ export default function StockOutPage() {
             imageUrl="/placeholder.svg"
             alt={row.original.productName}
             thumbnailSize={48}
-            previewSize={192}
+            previewSize={300}
             side="right"
           />
           <div>

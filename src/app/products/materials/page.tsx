@@ -29,13 +29,15 @@ import Link from 'next/link'; // Added Link
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"; // Import Tooltip components
 import { ProductImageTooltip } from "@/components/ui/image-tooltip";
 
-// Interface remains the same
+// Interface dengan penambahan basePrice dan totalValue
 interface ProductMaterial {
   id: string;
   name: string;
   code: string;
   unit: string;
   stock: number;
+  basePrice?: number; // Harga dasar material
+  totalValue?: number; // Nilai total (stock * basePrice)
   status: MaterialStatus;
   createdAt: string;
   imageUrl?: string | null; // Tambahkan imageUrl (opsional)
@@ -101,7 +103,7 @@ const getColumns = (refetchData: () => void): ColumnDef<ProductMaterial>[] => [
             imageUrl={imageUrl}
             alt={material.name}
             thumbnailSize={40}
-            previewSize={360}
+            previewSize={300}
             side="right"
           />
           <div>
@@ -120,6 +122,48 @@ const getColumns = (refetchData: () => void): ColumnDef<ProductMaterial>[] => [
     accessorKey: 'stock',
     header: 'Stok',
     cell: ({ row }) => formatNumber(row.original.stock),
+  },
+  {
+    accessorKey: 'basePrice',
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+      >
+        Harga
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
+    cell: ({ row }) => {
+      const amount = row.original.basePrice || 0;
+      const formatted = new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        minimumFractionDigits: 0,
+      }).format(amount);
+      return <div className="text-right font-medium">{formatted}</div>;
+    },
+  },
+  {
+    accessorKey: 'totalValue',
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+      >
+        Nilai Total
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
+    cell: ({ row }) => {
+      const amount = row.original.totalValue || 0;
+      const formatted = new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        minimumFractionDigits: 0,
+      }).format(amount);
+      return <div className="text-right font-medium">{formatted}</div>;
+    },
   },
   {
     accessorKey: 'status',
@@ -406,7 +450,15 @@ export default function ProductMaterialsPage() {
         throw new Error('Gagal mengambil data material');
       }
       const result: ApiResponse = await response.json();
-      setMaterials(result.data);
+      
+      // Tambahkan kalkulasi totalValue berdasarkan basePrice dan stock
+      const materialsWithTotalValue = result.data.map(material => ({
+        ...material,
+        basePrice: material.basePrice || 0,
+        totalValue: (material.basePrice || 0) * (material.stock || 0)
+      }));
+      
+      setMaterials(materialsWithTotalValue);
       setPagination(result.pagination);
       setRowSelection({}); // Reset selection on data fetch
     } catch (err: any) {

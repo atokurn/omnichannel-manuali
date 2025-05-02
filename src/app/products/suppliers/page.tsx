@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { DataTable } from '@/components/stock/data-table';
 import { Button } from '@/components/ui/button';
@@ -31,15 +31,17 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 
-// Interface untuk supplier
+// Interface untuk supplier (sesuai dengan model Prisma)
 interface Supplier {
   id: string;
   name: string;
-  contact: string;
-  email: string;
+  contactPerson: string; // Mengganti 'contact'
   phone: string;
+  email: string;
   address: string;
+  status: string; // Menambahkan 'status'
   createdAt: string;
+  updatedAt: string; // Menambahkan 'updatedAt'
 }
 
 // Interface for API response with pagination
@@ -53,13 +55,7 @@ interface ApiResponse {
     };
 }
 
-// Placeholder data - replace with actual data fetching
-// TODO: Ganti dengan state dan data fetching yang sebenarnya
-const dummySuppliers: Supplier[] = [
-  { id: 'sup1', name: 'PT Elektronik Jaya', contact: 'John Doe', email: 'john@elektronikjaya.com', phone: '081234567890', address: 'Jakarta', createdAt: new Date().toISOString() },
-  { id: 'sup2', name: 'CV Textile Nusantara', contact: 'Jane Smith', email: 'jane@textilenusantara.com', phone: '087654321098', address: 'Bandung', createdAt: new Date().toISOString() },
-  { id: 'sup3', name: 'UD Furniture Berkah', contact: 'Ahmad Rizki', email: 'ahmad@furnitureberkah.com', phone: '089876543210', address: 'Surabaya', createdAt: new Date().toISOString() },
-];
+// Gunakan state untuk menyimpan data supplier dari API
 
 // Define columns with Checkbox and updated Actions
 const getColumns = (refetchData: () => void): ColumnDef<Supplier>[] => [
@@ -103,8 +99,8 @@ const getColumns = (refetchData: () => void): ColumnDef<Supplier>[] => [
     },
   },
   {
-    accessorKey: 'contact',
-    header: 'Kontak',
+    accessorKey: 'contactPerson',
+    header: 'Kontak Person',
   },
   {
     accessorKey: 'email',
@@ -117,6 +113,18 @@ const getColumns = (refetchData: () => void): ColumnDef<Supplier>[] => [
   {
     accessorKey: 'address',
     header: 'Alamat',
+  },
+  {
+    accessorKey: 'status',
+    header: 'Status',
+    cell: ({ row }) => {
+      const status = row.original.status;
+      return (
+        <Badge variant={status === 'Aktif' ? 'default' : 'secondary'}>
+          {status}
+        </Badge>
+      );
+    },
   },
   {
     id: 'actions',
@@ -147,11 +155,18 @@ const getColumns = (refetchData: () => void): ColumnDef<Supplier>[] => [
           //   throw new Error(errorData.message || 'Gagal menghapus supplier');
           // }
           
-          // Untuk demo, hapus dari state lokal
-          const remainingSuppliers = dummySuppliers.filter(s => s.id !== supplierId);
-          setSuppliers(remainingSuppliers);
+          // Panggil API untuk menghapus supplier
+          const response = await fetch(`/api/products/suppliers?ids=${supplierId}`, {
+            method: 'DELETE',
+          });
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Gagal menghapus supplier');
+          }
           
-          toast.success('Sukses', { description: 'Supplier berhasil dihapus.' });
+          const result = await response.json();
+          
+          toast.success('Sukses', { description: result.message || 'Supplier berhasil dihapus.' });
           refetchData(); // Refetch data after delete
         } catch (err: any) {
           toast.error('Error', { description: err.message || 'Gagal menghapus supplier.' });
@@ -199,35 +214,54 @@ const getColumns = (refetchData: () => void): ColumnDef<Supplier>[] => [
 
 export default function SuppliersPage() {
   const router = useRouter();
-  const [suppliers, setSuppliers] = useState<Supplier[]>(dummySuppliers);
-  const [isLoading, setIsLoading] = useState(false);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10, // Default items per page (pageSize)
-    totalItems: dummySuppliers.length,
+    totalItems: 0,
     totalPages: 1,
   });
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
+  // Ambil data supplier saat komponen dimuat atau pagination berubah
+  useEffect(() => {
+    fetchSuppliers(pagination.page, pagination.limit);
+  }, [pagination.page, pagination.limit]);
+
   const fetchSuppliers = async (page = pagination.page, limit = pagination.limit) => {
-    // Simulasi loading untuk demo
     setIsLoading(true);
     setError(null);
     
-    // Simulasi API call untuk demo
-    setTimeout(() => {
-      setSuppliers(dummySuppliers);
+    try {
+      // Panggil API untuk mendapatkan data supplier
+      const response = await fetch(`/api/products/suppliers?page=${page}&limit=${limit}`);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Gagal mengambil data supplier');
+      }
+      
+      const data: ApiResponse = await response.json();
+      
+      setSuppliers(data.data);
       setPagination({
-        page,
-        limit,
-        totalItems: dummySuppliers.length,
-        totalPages: Math.ceil(dummySuppliers.length / limit),
+        page: data.pagination.page,
+        limit: data.pagination.limit,
+        totalItems: data.pagination.totalItems,
+        totalPages: data.pagination.totalPages,
       });
       setRowSelection({}); // Reset selection on data fetch
+    } catch (err) {
+      console.error('Error fetching suppliers:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Terjadi kesalahan saat mengambil data supplier';
+      setError(errorMessage);
+      toast.error('Error', { description: errorMessage });
+    } finally {
       setIsLoading(false);
-    }, 500);
+    }
   };
 
   const handlePageChange = (newPage: number) => {
@@ -240,7 +274,8 @@ export default function SuppliersPage() {
   };
 
   // Memoize columns to prevent recreation on every render
-  const columns = useMemo(() => getColumns(fetchSuppliers), []);
+  // Pass fetchSuppliers with current pagination to refetch correctly
+  const columns = useMemo(() => getColumns(() => fetchSuppliers(pagination.page, pagination.limit)), [pagination.page, pagination.limit]);
 
   const selectedRowCount = Object.keys(rowSelection).length;
   const selectedRowIds = useMemo(() => {
@@ -260,12 +295,21 @@ export default function SuppliersPage() {
           //     throw new Error(errorData.message || 'Gagal menghapus supplier terpilih');
           // }
           
-          // Untuk demo, hapus dari state lokal
-          const remainingSuppliers = suppliers.filter(s => !selectedRowIds.includes(s.id));
-          setSuppliers(remainingSuppliers);
+          // Panggil API untuk menghapus supplier terpilih
+          const response = await fetch(`/api/products/suppliers?ids=${selectedRowIds.join(',')}`, {
+              method: 'DELETE',
+          });
+          if (!response.ok) {
+              const errorData = await response.json();
+              throw new Error(errorData.message || 'Gagal menghapus supplier terpilih');
+          }
           
-          toast.success('Sukses', { description: `${selectedRowCount} supplier berhasil dihapus.` });
-          fetchSuppliers(1); // Refetch data from page 1 after bulk delete
+          const result = await response.json();
+          
+          toast.success('Sukses', { description: result.message || `${selectedRowCount} supplier berhasil dihapus.` });
+          // Refetch data from current page or page 1 if current page becomes empty
+          const newTotalPages = Math.ceil((pagination.totalItems - selectedRowCount) / pagination.limit);
+          fetchSuppliers(pagination.page > newTotalPages ? Math.max(1, newTotalPages) : pagination.page);
       } catch (err: any) {
           toast.error('Error', { description: err.message || 'Gagal menghapus supplier terpilih.' });
       } finally {

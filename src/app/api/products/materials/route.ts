@@ -20,6 +20,9 @@ const MaterialSchema = z.object({
   initialStock: z.string().refine((val) => !isNaN(parseInt(val)) && parseInt(val) >= 0, {
     message: 'Stok awal harus berupa angka positif',
   }),
+  minStockLevel: z.string().refine((val) => !isNaN(parseInt(val)) && parseInt(val) >= 0, {
+    message: 'Minimal stok harus berupa angka positif',
+  }),
   basePrice: z.string().refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) >= 0, {
     message: 'Harga dasar harus berupa angka positif',
   }),
@@ -27,6 +30,7 @@ const MaterialSchema = z.object({
   status: z.enum([MaterialStatus.AKTIF, MaterialStatus.NONAKTIF]),
   isDynamicPrice: z.boolean(),
   imageUrl: z.string().optional(), // Tambahkan validasi untuk imageUrl
+  categoryId: z.string().min(1, { message: 'Kategori harus dipilih' }),
   dynamicPrices: z.array(DynamicPriceSchema).optional(),
 });
 
@@ -61,9 +65,18 @@ export async function GET(request: NextRequest) {
           code: true,
           unit: true,
           initialStock: true,
+          minStockLevel: true, // Tambahkan minStockLevel
+          basePrice: true, // Tambahkan basePrice untuk estimasi harga
           status: true,
           createdAt: true,
-          imageUrl: true, // Tambahkan imageUrl
+          imageUrl: true,
+          categoryId: true,
+          category: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
         },
         orderBy: {
           createdAt: 'desc',
@@ -74,16 +87,20 @@ export async function GET(request: NextRequest) {
       prisma.material.count(),
     ]);
 
-    // Format data seperti sebelumnya
+    // Format data dengan menambahkan basePrice untuk estimasi harga dan kategori
     const formattedMaterials = materials.map(material => ({
         id: material.id,
         name: material.name,
         code: material.code,
         unit: material.unit,
         stock: material.initialStock,
+        minStockLevel: material.minStockLevel, // Tambahkan minStockLevel
+        basePrice: material.basePrice, // Tambahkan basePrice untuk estimasi harga
         status: material.status,
         createdAt: material.createdAt.toISOString(),
-        imageUrl: material.imageUrl, // Tambahkan imageUrl
+        imageUrl: material.imageUrl,
+        categoryId: material.categoryId,
+        category: material.category ? material.category.name : null,
     }));
 
     const totalPages = Math.ceil(totalMaterials / limit);

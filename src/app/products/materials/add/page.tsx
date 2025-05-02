@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, DragEvent } from 'react'; // Import DragEvent
+import { useState, DragEvent, useEffect } from 'react'; // Import DragEvent and useEffect
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,6 +16,7 @@ import { toast } from 'sonner'; // Import toast from sonner
 import { MaterialStatus } from '@prisma/client'; // Import MaterialStatus
 import Image from 'next/image'; // Import Image component
 import { cn } from '@/lib/utils'; // Import cn for conditional classes
+import { Combobox } from "@/components/ui/combobox";
 
 // Interface untuk data form material
 interface MaterialFormData {
@@ -23,11 +24,13 @@ interface MaterialFormData {
   code: string;
   unit: string;
   initialStock: string; // Keep as string for input, convert on submit
+  minStockLevel: string; // Minimal stock level
   basePrice: string; // Keep as string for input, convert on submit
   description: string;
   status: MaterialStatus; // Use enum type
   isDynamicPrice: boolean;
   imageUrl?: string; // Add optional imageUrl
+  categoryId: string; // Add category field
 }
 
 // Data dummy untuk satuan
@@ -40,6 +43,14 @@ const unitOptions = [
   { id: 'box', name: 'Box' },
   { id: 'pack', name: 'Pack' },
 ];
+
+// Interface untuk kategori
+interface Category {
+  id: string;
+  name: string;
+  description: string;
+  createdAt: string;
+}
 
 // Interface untuk harga dinamis
 interface DynamicPrice {
@@ -54,11 +65,13 @@ interface FormErrors {
   code?: string[];
   unit?: string[];
   initialStock?: string[];
+  minStockLevel?: string[];
   basePrice?: string[];
   description?: string[];
   status?: string[];
   isDynamicPrice?: string[];
   imageUrl?: string[]; // Add imageUrl errors
+  categoryId?: string[]; // Add categoryId errors
   dynamicPrices?: { [key: number]: { supplier?: string[]; price?: string[] } };
   general?: string; // For general errors like API failure
 }
@@ -71,18 +84,44 @@ export default function AddMaterialPage() {
     code: '',
     unit: '',
     initialStock: '',
+    minStockLevel: '0', // Default to 0
     basePrice: '',
     description: '',
     status: MaterialStatus.AKTIF, // Default to AKTIF enum
     isDynamicPrice: false,
     imageUrl: '', // Initialize imageUrl
+    categoryId: '', // Initialize categoryId
   });
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(false);
   const [dynamicPrices, setDynamicPrices] = useState<DynamicPrice[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [formErrors, setFormErrors] = useState<FormErrors>({}); // State for errors
   const [imagePreview, setImagePreview] = useState<string | null>(null); // State for image preview
   const [imageFile, setImageFile] = useState<File | null>(null); // State for the image file
   const [isDragging, setIsDragging] = useState(false); // State for drag-and-drop
+
+  // Fetch categories when component mounts
+  useEffect(() => {
+    const fetchCategories = async () => {
+      setIsLoadingCategories(true);
+      try {
+        const response = await fetch('/api/products/categories?limit=100');
+        if (!response.ok) {
+          throw new Error('Gagal mengambil data kategori');
+        }
+        const result = await response.json();
+        setCategories(result.data);
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+        toast.error('Error', { description: 'Gagal mengambil data kategori' });
+      } finally {
+        setIsLoadingCategories(false);
+      }
+    };
+
+    fetchCategories();
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -358,7 +397,7 @@ export default function AddMaterialPage() {
                     />
                     {formErrors.name && <p className="text-sm text-red-500">{formErrors.name[0]}</p>}
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-3 gap-3">
                     <div className="grid gap-3">
                       <Label htmlFor="code">Kode Material</Label>
                       <Input
@@ -373,36 +412,61 @@ export default function AddMaterialPage() {
                       />
                       {formErrors.code && <p className="text-sm text-red-500">{formErrors.code[0]}</p>}
                     </div>
-                    <div className="grid gap-3">
+                    <div className="grid gap-3 justify-center">
                       <Label htmlFor="unit">Satuan</Label>
-                      <Select name="unit" onValueChange={(value) => handleSelectChange('unit', value)} value={formData.unit} required>
-                        <SelectTrigger id="unit" aria-label="Pilih Satuan" className={`${formErrors.unit ? 'border-red-500' : ''}`}>
-                          <SelectValue placeholder="Pilih Satuan" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {unitOptions.map((option) => (
-                            <SelectItem key={option.id} value={option.id}>
-                              {option.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Combobox
+                        options={unitOptions.map(unit => ({ value: unit.id, label: unit.name }))}
+                        value={formData.unit}
+                        onValueChange={(value) => handleSelectChange('unit', value)}
+                        placeholder="Pilih satuan"
+                        emptyMessage="Tidak ada satuan yang ditemukan"
+                        searchPlaceholder="Cari satuan..."
+                      />
                       {formErrors.unit && <p className="text-sm text-red-500">{formErrors.unit[0]}</p>}
                     </div>
-                  </div>
-                   <div className="grid gap-3">
-                      <Label htmlFor="initialStock">Stok Awal</Label>
-                      <Input
-                        id="initialStock"
-                        name="initialStock"
-                        type="number"
-                        placeholder="Masukkan jumlah stok awal"
-                        className={`${formErrors.initialStock ? 'border-red-500' : ''}`}
-                        value={formData.initialStock}
-                        onChange={handleInputChange}
-                        required
+                    <div className="grid gap-3">
+                      <Label htmlFor="categoryId">Kategori</Label>
+                      <Combobox
+                        options={categories.map(category => ({ value: category.id, label: category.name }))}
+                        value={formData.categoryId}
+                        onValueChange={(value) => handleSelectChange('categoryId', value)}
+                        placeholder="Pilih kategori"
+                        emptyMessage="Tidak ada kategori yang ditemukan"
+                        searchPlaceholder="Cari kategori..."
+                        disabled={isLoadingCategories}
                       />
-                      {formErrors.initialStock && <p className="text-sm text-red-500">{formErrors.initialStock[0]}</p>}
+                      {formErrors.categoryId && <p className="text-sm text-red-500">{formErrors.categoryId[0]}</p>}
+                    </div>
+                  </div>
+                   <div className="grid grid-cols-2 gap-3">
+                      <div className="grid gap-3">
+                        <Label htmlFor="initialStock">Stok Awal</Label>
+                        <Input
+                          id="initialStock"
+                          name="initialStock"
+                          type="number"
+                          placeholder="Masukkan jumlah stok awal"
+                          className={`${formErrors.initialStock ? 'border-red-500' : ''}`}
+                          value={formData.initialStock}
+                          onChange={handleInputChange}
+                          required
+                        />
+                        {formErrors.initialStock && <p className="text-sm text-red-500">{formErrors.initialStock[0]}</p>}
+                      </div>
+                      <div className="grid gap-3">
+                        <Label htmlFor="minStockLevel">Minimal Stok</Label>
+                        <Input
+                          id="minStockLevel"
+                          name="minStockLevel"
+                          type="number"
+                          placeholder="Masukkan jumlah minimal stok"
+                          className={`${formErrors.minStockLevel ? 'border-red-500' : ''}`}
+                          value={formData.minStockLevel}
+                          onChange={handleInputChange}
+                          required
+                        />
+                        {formErrors.minStockLevel && <p className="text-sm text-red-500">{formErrors.minStockLevel[0]}</p>}
+                      </div>
                     </div>
                   <div className="grid gap-3">
                     <Label htmlFor="description">Deskripsi (Opsional)</Label>

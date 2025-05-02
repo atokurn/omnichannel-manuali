@@ -121,7 +121,7 @@ const getColumns = (refetchData: () => void): ColumnDef<Product>[] => [
           imageUrl="/placeholder.svg"
           alt={row.original.name}
           thumbnailSize={40}
-          previewSize={160}
+          previewSize={300}
         />
         <div className="flex flex-col">
           <span className="font-medium">{row.original.name}</span>

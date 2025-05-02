@@ -74,16 +74,42 @@ export default function AddSupplierPage() {
     setIsLoading(true);
     console.log('Submitting Supplier Data:', formData);
 
-    // TODO: Implement API call to save the supplier data
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      console.log('Supplier saved successfully!');
+      const response = await fetch('/api/products/suppliers', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        // Tampilkan error spesifik dari API jika ada
+        if (errorData.errors) {
+          const apiErrors: Partial<Record<keyof NewSupplierData, string>> = {};
+          for (const field in errorData.errors) {
+            apiErrors[field as keyof NewSupplierData] = errorData.errors[field].join(', ');
+          }
+          setErrors(apiErrors);
+        } else {
+          setErrors({ name: errorData.message || 'Gagal menyimpan supplier. Silakan coba lagi.' });
+        }
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('Supplier saved successfully!', result);
+      // Tampilkan notifikasi sukses (misalnya menggunakan toast)
+      // import { toast } from 'sonner'; // Pastikan sudah diimport
+      // toast.success('Sukses', { description: 'Supplier berhasil ditambahkan.' });
       router.push('/products/suppliers'); // Redirect to suppliers list page
     } catch (error) {
       console.error('Failed to save supplier:', error);
-      // TODO: Show error message to the user (e.g., using a toast notification)
-      setErrors({ name: 'Gagal menyimpan supplier. Silakan coba lagi.' }); // Example generic error
+      // Error umum jika bukan dari API response
+      if (!errors.name && !errors.contactPerson && !errors.phone && !errors.email && !errors.address) {
+         setErrors({ name: 'Terjadi kesalahan saat menyimpan supplier. Periksa koneksi Anda.' });
+      }
     } finally {
       setIsLoading(false);
     }

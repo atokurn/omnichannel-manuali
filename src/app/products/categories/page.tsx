@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { DataTable } from '@/components/stock/data-table';
 import { Button } from '@/components/ui/button';
@@ -30,6 +30,18 @@ interface Category {
   name: string;
   description: string;
   createdAt: string;
+  updatedAt?: string;
+}
+
+interface ApiResponse {
+  data: Category[];
+  pagination: {
+    page: number;
+    limit: number;
+    totalItems: number;
+    totalPages: number;
+  };
+  message?: string;
 }
 
 // Interface for API response with pagination
@@ -43,13 +55,7 @@ interface ApiResponse {
     };
 }
 
-// Placeholder data - replace with actual data fetching
-// TODO: Ganti dengan state dan data fetching yang sebenarnya
-const dummyCategories: Category[] = [
-  { id: 'cat1', name: 'Electronics', description: 'Gadgets and devices', createdAt: new Date().toISOString() },
-  { id: 'cat2', name: 'Clothing', description: 'Apparel and accessories', createdAt: new Date().toISOString() },
-  { id: 'cat3', name: 'Home Goods', description: 'Items for household use', createdAt: new Date().toISOString() },
-];
+// Gunakan state untuk menyimpan data kategori dari API
 
 // Define columns with Checkbox and updated Actions
 const getColumns = (refetchData: () => void): ColumnDef<Category>[] => [
@@ -121,19 +127,16 @@ const getColumns = (refetchData: () => void): ColumnDef<Category>[] => [
       const handleDelete = async () => {
         setIsDeleting(true);
         try {
-          // Simulasi API call untuk demo
-          // const response = await fetch(`/api/products/categories?ids=${categoryId}`, {
-          //   method: 'DELETE',
-          // });
-          // if (!response.ok) {
-          //   const errorData = await response.json();
-          //   throw new Error(errorData.message || 'Gagal menghapus kategori');
-          // }
+          // Panggil API untuk menghapus kategori
+          const response = await fetch(`/api/products/categories?ids=${categoryId}`, {
+            method: 'DELETE',
+          });
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Gagal menghapus kategori');
+          }
           
-          // Untuk demo, hapus dari state lokal
-          const remainingCategories = dummyCategories.filter(c => c.id !== categoryId);
-          setCategories(remainingCategories);
-          
+          const result = await response.json();
           toast.success('Sukses', { description: 'Kategori berhasil dihapus.' });
           refetchData(); // Refetch data after delete
         } catch (err: any) {
@@ -182,35 +185,54 @@ const getColumns = (refetchData: () => void): ColumnDef<Category>[] => [
 
 export default function CategoriesPage() {
   const router = useRouter();
-  const [categories, setCategories] = useState<Category[]>(dummyCategories);
-  const [isLoading, setIsLoading] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10, // Default items per page (pageSize)
-    totalItems: dummyCategories.length,
+    totalItems: 0,
     totalPages: 1,
   });
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  
+  // Ambil data kategori saat komponen dimuat
+  useEffect(() => {
+    fetchCategories(pagination.page, pagination.limit);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pagination.page, pagination.limit]);
 
   const fetchCategories = async (page = pagination.page, limit = pagination.limit) => {
-    // Simulasi loading untuk demo
     setIsLoading(true);
     setError(null);
     
-    // Simulasi API call untuk demo
-    setTimeout(() => {
-      setCategories(dummyCategories);
+    try {
+      // Panggil API untuk mendapatkan data kategori
+      const response = await fetch(`/api/products/categories?page=${page}&limit=${limit}`);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Gagal mengambil data kategori');
+      }
+      
+      const data: ApiResponse = await response.json();
+      
+      setCategories(data.data);
       setPagination({
-        page,
-        limit,
-        totalItems: dummyCategories.length,
-        totalPages: Math.ceil(dummyCategories.length / limit),
+        page: data.pagination.page,
+        limit: data.pagination.limit,
+        totalItems: data.pagination.totalItems,
+        totalPages: data.pagination.totalPages,
       });
       setRowSelection({}); // Reset selection on data fetch
+    } catch (err) {
+      console.error('Error fetching categories:', err);
+      setError(err instanceof Error ? err.message : 'Terjadi kesalahan saat mengambil data kategori');
+      toast.error('Error', { description: err instanceof Error ? err.message : 'Terjadi kesalahan saat mengambil data kategori' });
+    } finally {
       setIsLoading(false);
-    }, 500);
+    }
   };
 
   const handlePageChange = (newPage: number) => {
@@ -234,20 +256,17 @@ export default function CategoriesPage() {
       if (selectedRowCount === 0) return;
       setIsBulkDeleting(true);
       try {
-          // Simulasi API call untuk demo
-          // const response = await fetch(`/api/products/categories?ids=${selectedRowIds.join(',')}`, {
-          //     method: 'DELETE',
-          // });
-          // if (!response.ok) {
-          //     const errorData = await response.json();
-          //     throw new Error(errorData.message || 'Gagal menghapus kategori terpilih');
-          // }
+          // Panggil API untuk menghapus kategori terpilih
+          const response = await fetch(`/api/products/categories?ids=${selectedRowIds.join(',')}`, {
+              method: 'DELETE',
+          });
+          if (!response.ok) {
+              const errorData = await response.json();
+              throw new Error(errorData.message || 'Gagal menghapus kategori terpilih');
+          }
           
-          // Untuk demo, hapus dari state lokal
-          const remainingCategories = categories.filter(c => !selectedRowIds.includes(c.id));
-          setCategories(remainingCategories);
-          
-          toast.success('Sukses', { description: `${selectedRowCount} kategori berhasil dihapus.` });
+          const result = await response.json();
+          toast.success('Sukses', { description: result.message || `${selectedRowCount} kategori berhasil dihapus.` });
           fetchCategories(1); // Refetch data from page 1 after bulk delete
       } catch (err: any) {
           toast.error('Error', { description: err.message || 'Gagal menghapus kategori terpilih.' });
@@ -292,7 +311,7 @@ export default function CategoriesPage() {
                     </AlertDialogContent>
                 </AlertDialog>
             )}
-            <AddCategoryDialog />
+            <AddCategoryDialog onSuccess={() => fetchCategories()} />
           </div>
         </CardHeader>
         <CardContent>

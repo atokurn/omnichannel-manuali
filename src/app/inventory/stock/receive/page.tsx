@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Eye, FileEdit, Trash2, PackageCheck } from "lucide-react"; // Added PackageCheck
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { ProductImageTooltip } from "@/components/ui/image-tooltip";
 
 // Definisi tipe data untuk Receive Item (sesuaikan sesuai kebutuhan)
 interface ReceiveItem {
@@ -82,10 +83,13 @@ export default function ReceiveStockPage() {
       header: "SKU Information",
       cell: ({ row }: any) => (
         <div className="flex items-center gap-3">
-          {/* Placeholder for Image Tooltip */}
-          <div className="relative h-12 w-12 overflow-hidden rounded-md bg-muted flex items-center justify-center">
-             <PackageCheck className="h-6 w-6 text-muted-foreground" />
-          </div>
+          <ProductImageTooltip
+            imageUrl="/placeholder.svg"
+            alt={row.original.productName}
+            thumbnailSize={48}
+            previewSize={300}
+            side="right"
+          />
           <div>
             <div className="font-medium">{row.original.sku}</div>
             <div className="text-sm text-muted-foreground">{row.original.productName}</div>

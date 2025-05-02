@@ -1,9 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { InventorySidebar } from "@/components/inventory-sidebar";
-import { SiteHeader } from "@/components/site-header";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+
 import { DataTable } from "@/components/stock/data-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -122,54 +120,44 @@ export default function AreasPage() {
   ];
 
   return (
-    <div className="[--header-height:calc(--spacing(14))]">
-      <SidebarProvider className="flex flex-col">
-        <SiteHeader />
-        <div className="flex flex-1">
-          <InventorySidebar />
-          <SidebarInset>
-            <div className="flex flex-1 flex-col gap-4 p-4">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle>Areas</CardTitle>
-                    <CardDescription>Kelola area penyimpanan dalam gudang</CardDescription>
-                  </div>
-                  <AddAreaDialog onAddArea={(newArea) => {
-                    // Menambahkan area baru ke daftar area
-                    setFilteredData(prev => [newArea, ...prev]);
-                  }} />
-                </CardHeader>
-                <CardContent>
-                  <div className="mb-4">
-                    <Select
-                      value={selectedWarehouse || "all"}
-                      onValueChange={handleWarehouseChange}
-                    >
-                      <SelectTrigger className="w-[280px]">
-                        <SelectValue placeholder="Pilih Gudang" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Semua Gudang</SelectItem>
-                        {dummyWarehousesData.map(warehouse => (
-                          <SelectItem key={warehouse.id} value={warehouse.id}>
-                            {warehouse.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <DataTable 
-                    columns={columns} 
-                    data={filteredData} 
-                    searchKey="name" 
-                  />
-                </CardContent>
-              </Card>
-            </div>
-          </SidebarInset>
-        </div>
-      </SidebarProvider>
-    </div>
+    <main className="flex flex-1 flex-col gap-4 p-4">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Areas</CardTitle>
+            <CardDescription>Kelola area penyimpanan dalam gudang</CardDescription>
+          </div>
+          <AddAreaDialog onAddArea={(newArea) => {
+            // Menambahkan area baru ke daftar area
+            setFilteredData(prev => [newArea, ...prev]);
+          }} />
+        </CardHeader>
+        <CardContent>
+          <div className="mb-4">
+            <Select
+              value={selectedWarehouse || "all"}
+              onValueChange={handleWarehouseChange}
+            >
+              <SelectTrigger className="w-[280px]">
+                <SelectValue placeholder="Pilih Gudang" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Gudang</SelectItem>
+                {dummyWarehousesData.map(warehouse => (
+                  <SelectItem key={warehouse.id} value={warehouse.id}>
+                    {warehouse.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DataTable 
+            columns={columns} 
+            data={filteredData} 
+            searchKey="name" 
+          />
+        </CardContent>
+      </Card>
+    </main>
   );
 }

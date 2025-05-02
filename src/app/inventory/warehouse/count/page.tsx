@@ -1,9 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { InventorySidebar } from "@/components/inventory-sidebar";
-import { SiteHeader } from "@/components/site-header";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+
 import { DataTable } from "@/components/stock/data-table"; // Asumsi menggunakan DataTable yang sama
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -157,34 +155,24 @@ export default function StockCountListPage() {
   ];
 
   return (
-    <div className="[--header-height:calc(--spacing(14))] min-h-screen bg-muted/40">
-      <SidebarProvider className="flex flex-col">
-        <SiteHeader />
-        <div className="flex flex-1">
-          <InventorySidebar />
-          <SidebarInset>
-            <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle>Stock Count</CardTitle>
-                    <CardDescription>Kelola hasil perhitungan stok gudang.</CardDescription>
-                  </div>
-                  <Button asChild>
-                    <a href="/inventory/warehouse/count/add">
-                      <Plus className="mr-2 h-4 w-4" /> Tambah Stock Count
-                    </a>
-                  </Button>
-                </CardHeader>
-                <CardContent>
-                  {/* Placeholder untuk Filter */} 
-                  <DataTable columns={columns} data={filteredData} />
-                </CardContent>
-              </Card>
-            </main>
-          </SidebarInset>
-        </div>
-      </SidebarProvider>
-    </div>
+    <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Stock Count</CardTitle>
+            <CardDescription>Kelola hasil perhitungan stok gudang.</CardDescription>
+          </div>
+          <Button asChild>
+            <a href="/inventory/warehouse/count/add">
+              <Plus className="mr-2 h-4 w-4" /> Tambah Stock Count
+            </a>
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {/* Placeholder untuk Filter */} 
+          <DataTable columns={columns} data={filteredData} />
+        </CardContent>
+      </Card>
+    </main>
   );
 }

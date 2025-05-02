@@ -18,6 +18,7 @@ import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { DateRange } from "react-day-picker";
 import { DatePickerWithRange } from "@/components/ui/date-range-picker";
+import { ProductImageTooltip } from "@/components/ui/image-tooltip";
 
 // Definisi tipe data untuk Area Stock Movement
 interface AreaStockMovementItem {
@@ -272,33 +273,13 @@ export default function AreaStockMovementPage() {
       header: "SKU Information",
       cell: ({ row }: any) => (
         <div className="flex items-center gap-3">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger>
-                <div className="relative h-12 w-12 overflow-hidden rounded-md cursor-pointer">
-                  <Image
-                    src="/placeholder.svg"
-                    alt={row.original.productName}
-                    fill
-                    sizes="48px"
-                    className="object-cover"
-                  />
-                </div>
-              </TooltipTrigger>
-              <TooltipContent side="right" className="p-0 border-0 bg-transparent">
-                <div className="relative w-48 h-48 overflow-hidden rounded-md shadow-lg">
-                  <Image
-                    src="/placeholder.svg"
-                    alt={row.original.productName}
-                    fill
-                    sizes="192px"
-                    className="object-cover"
-                    priority
-                  />
-                </div>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <ProductImageTooltip
+            imageUrl="/placeholder.svg"
+            alt={row.original.productName}
+            thumbnailSize={48}
+            previewSize={300}
+            side="right"
+          />
           <div>
             <div className="font-medium">{row.original.sku}</div>
             <div className="text-sm text-muted-foreground">{row.original.productName}</div>

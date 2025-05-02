@@ -2,9 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { InventorySidebar } from "@/components/inventory-sidebar";
-import { SiteHeader } from "@/components/site-header";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+
 import { DataTable } from "@/components/stock/data-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -138,66 +136,60 @@ export default function ShelvesPage() {
     : dummyAreasData;
 
   return (
-    <div className="[--header-height:calc(--spacing(14))]">
-      <SidebarProvider className="flex flex-col">
-        <SiteHeader />
-        <div className="flex flex-1">
-          <InventorySidebar />
-          <SidebarInset>
-            <div className="flex flex-1 flex-col gap-4 p-4">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle>Shelves</CardTitle>
-                    <CardDescription>Kelola rak penyimpanan dalam area gudang</CardDescription>
-                  </div>
-                  <div className="flex gap-2">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button>
-                          <Plus className="mr-2 h-4 w-4" />
-                          Tambah Rak
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => router.push('/inventory/warehouse/shelves/add')}>
-                          Tambah Rak Single
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => router.push('/inventory/warehouse/shelves/add-bulk')}>
-                          Tambah Rak Bulk
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="mb-4 flex gap-4">
-                    <Select
-                      value={selectedWarehouse || "all"}
-                      onValueChange={handleWarehouseChange}
-                    >
-                      <SelectTrigger className="w-[280px]">
-                        <SelectValue placeholder="Pilih Gudang" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Semua Gudang</SelectItem>
-                        {dummyWarehousesData.map(warehouse => (
-                          <SelectItem key={warehouse.id} value={warehouse.id}>
-                            {warehouse.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+    <main className="flex flex-1 flex-col gap-4 p-4">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Shelves</CardTitle>
+            <CardDescription>Kelola rak penyimpanan dalam area gudang</CardDescription>
+          </div>
+          <div className="flex gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Tambah Rak
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => router.push('/inventory/warehouse/shelves/add')}>
+                  Tambah Rak Single
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.push('/inventory/warehouse/shelves/add-bulk')}>
+                  Tambah Rak Bulk
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="mb-4 flex gap-4">
+            <Select
+              value={selectedWarehouse || "all"}
+              onValueChange={handleWarehouseChange}
+            >
+              <SelectTrigger className="w-[280px]">
+                <SelectValue placeholder="Pilih Gudang" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Gudang</SelectItem>
+                {dummyWarehousesData.map(warehouse => (
+                  <SelectItem key={warehouse.id} value={warehouse.id}>
+                    {warehouse.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-                    <Select
-                      value={selectedArea || "all"}
-                      onValueChange={handleAreaChange}
-                    >
-                      <SelectTrigger className="w-[280px]">
-                        <SelectValue placeholder="Pilih Area" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Semua Area</SelectItem>
+            <Select
+              value={selectedArea || "all"}
+              onValueChange={handleAreaChange}
+            >
+              <SelectTrigger className="w-[280px]">
+                <SelectValue placeholder="Pilih Area" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Area</SelectItem>
                         {filteredAreas.map(area => (
                           <SelectItem key={area.id} value={area.id}>
                             {area.name}
@@ -213,10 +205,6 @@ export default function ShelvesPage() {
                   />
                 </CardContent>
               </Card>
-            </div>
-          </SidebarInset>
-        </div>
-      </SidebarProvider>
-    </div>
+    </main>
   );
 }

@@ -134,7 +134,28 @@ export async function POST(request: Request) {
   }
 }
 
-// Optional: Add GET handler if needed later
-// export async function GET() {
-//   // ... logic to fetch products
-// }
+// GET handler untuk mengambil daftar produk
+export async function GET() {
+  try {
+    const products = await prisma.product.findMany({
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        price: true,
+        sku: true,
+        mainImage: true,
+        hasVariants: true,
+        createdAt: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return NextResponse.json(products);
+  } catch (error) {
+    console.error('Error fetching products:', error);
+    return NextResponse.json({ error: 'Gagal mengambil data produk' }, { status: 500 });
+  }
+}

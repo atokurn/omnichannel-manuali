@@ -196,7 +196,10 @@ export function DataTable<TData, TValue>({
             ) : (
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-24 text-center">
-                  Tidak ada data
+                  <div className="flex flex-col items-center justify-center gap-2 py-8">
+                    <h3 className="text-lg font-semibold">Tidak ada data</h3>
+                    <p className="text-sm text-muted-foreground">Belum ada data yang tersedia untuk ditampilkan.</p>
+                  </div>
                 </TableCell>
               </TableRow>
             )}

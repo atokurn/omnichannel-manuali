@@ -215,7 +215,7 @@ export function InventorySidebar({ ...props }: React.ComponentProps<typeof Sideb
         <SidebarMenu>
           <SidebarMenuItem>
             {/* Match the header style of app-sidebar.tsx but use Inventory icon/text */}
-            <SidebarMenuButton size="lg" asChild>
+            <SidebarMenuButton size="lg" asChild isActive={pathname === "/inventory"}>
               <a href="/inventory"> {/* Link to inventory root or dashboard */}
                 <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
                   <Warehouse className="size-4" /> {/* Inventory Icon */}
@@ -230,8 +230,8 @@ export function InventorySidebar({ ...props }: React.ComponentProps<typeof Sideb
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        {/* Use NavMain with the structured inventory data */}
-        <NavMain items={data.navMain} />
+        {/* Use NavMain with the structured inventory data and pass pathname */}
+        <NavMain items={data.navMain} pathname={pathname} />
         {/* No NavProjects needed based on app-sidebar structure */}
         {/* Use NavSecondary, placed at the bottom using mt-auto */}
         <NavSecondary items={data.navSecondary} className="mt-auto" />

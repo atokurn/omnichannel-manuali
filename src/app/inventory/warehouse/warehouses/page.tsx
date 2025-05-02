@@ -1,9 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { InventorySidebar } from "@/components/inventory-sidebar";
-import { SiteHeader } from "@/components/site-header";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+
 import { DataTable } from "@/components/stock/data-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -187,14 +185,8 @@ export default function WarehousesPage() {
   ];
 
   return (
-    <div className="[--header-height:calc(--spacing(14))]">
-      <SidebarProvider className="flex flex-col">
-        <SiteHeader />
-        <div className="flex flex-1">
-          <InventorySidebar />
-          <SidebarInset>
-            <div className="flex flex-1 flex-col gap-4 p-4">
-              <Card>
+    <main className="flex flex-1 flex-col gap-4 p-4">
+      <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                   <div>
                     <CardTitle>Warehouses</CardTitle>
@@ -212,11 +204,7 @@ export default function WarehousesPage() {
                     searchKey="name" 
                   />
                 </CardContent>
-              </Card>
-            </div>
-          </SidebarInset>
-        </div>
-      </SidebarProvider>
-    </div>
+      </Card>
+    </main>
   );
 }

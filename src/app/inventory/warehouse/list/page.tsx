@@ -1,9 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react'; // Added useEffect
-import { InventorySidebar } from "@/components/inventory-sidebar";
-import { SiteHeader } from "@/components/site-header";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+
 import { DataTable } from "@/components/stock/data-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -300,7 +298,7 @@ export default function InventoryListPage() {
 
   return (
     // Removed wrapping div, SidebarProvider, SiteHeader, InventorySidebar, SidebarInset
-    <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6"> // Changed div to main and added lg:gap-6 lg:p-6
+    <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
       <Card>
         <CardHeader>
           <CardTitle>Daftar Inventaris</CardTitle>

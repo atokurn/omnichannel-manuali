@@ -19,6 +19,7 @@ import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"; // Import Tooltip components
 import { formatNumberWithSeparator } from '@/lib/utils'; // Import fungsi format
+import { ProductImageTooltip } from "@/components/ui/image-tooltip";
 
 
 
@@ -227,33 +228,13 @@ export default function StockMovementPage() {
       enableSorting: true,
       cell: ({ row }: any) => (
         <div className="flex items-center gap-3">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger>
-                <div className="relative h-12 w-12 overflow-hidden rounded-md cursor-pointer">
-                  <Image
-                    src="/placeholder.svg"
-                    alt={row.original.productName}
-                    fill
-                    sizes="48px"
-                    className="object-cover"
-                  />
-                </div>
-              </TooltipTrigger>
-              <TooltipContent side="right" className="p-0 border-0 bg-transparent">
-                <div className="relative w-48 h-48 overflow-hidden rounded-md shadow-lg">
-                  <Image
-                    src="/placeholder.svg"
-                    alt={row.original.productName}
-                    fill
-                    sizes="192px"
-                    className="object-cover"
-                    priority
-                  />
-                </div>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <ProductImageTooltip
+            imageUrl="/placeholder.svg"
+            alt={row.original.productName}
+            thumbnailSize={48}
+            previewSize={300}
+            side="right"
+          />
           <div>
             <div className="font-medium">{row.original.sku}</div>
             <div className="text-sm text-muted-foreground">{row.original.productName}</div>
@@ -289,22 +270,6 @@ export default function StockMovementPage() {
       cell: ({ row }: any) => (
         <div className="text-right pr-4">{formatNumberWithSeparator(row.original.quantity)}</div>
       ),
-    },
-    {
-      accessorKey: "type",
-      header: "Movement Type",
-      enableSorting: true,
-      cell: ({ row }: any) => {
-        const type = row.original.type;
-        let badgeVariant = "secondary";
-        
-        if (type === "Stock In") badgeVariant = "default";
-        if (type === "Stock Out") badgeVariant = "destructive";
-        if (type === "Transfer In") badgeVariant = "outline";
-        if (type === "Transfer Out") badgeVariant = "outline";
-        
-        return <Badge variant={badgeVariant as any}>{type}</Badge>;
-      },
     },
     {
       accessorKey: "date",
