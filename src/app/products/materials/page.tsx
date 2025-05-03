@@ -3,12 +3,12 @@
 import { useState, useEffect, useMemo } from 'react'; // Import useMemo
 import { useRouter } from 'next/navigation';
 import Image from 'next/image'; // Import Image
-import { DataTable } from '@/components/stock/data-table'; // Make sure this path is correct
+import { DataTable } from '@/components/table/data-table'; // Make sure this path is correct
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Eye, FileEdit, Trash2, Loader2, MoreHorizontal, ArrowUpDown, Pencil } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { DataTableSkeleton } from '@/components/stock/data-table-skeleton'; // Import the skeleton component
+import { DataTableSkeleton } from '@/components/table/data-table-skeleton'; // Import the skeleton component
 import { FormattedMaterial, PaginationState } from '@/lib/types';
 import { MaterialStatus } from '@prisma/client';
 import { toast } from 'sonner';

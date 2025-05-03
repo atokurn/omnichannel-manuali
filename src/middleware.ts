@@ -7,8 +7,11 @@ const JWT_SECRET = new TextEncoder().encode(
 ); // jose memerlukan Uint8Array
 const COOKIE_NAME = 'inventory-auth-token';
 
-// Daftar rute publik yang tidak memerlukan autentikasi
-const publicRoutes = ['/sign', '/signup'];
+// Daftar rute publik (halaman) yang tidak memerlukan autentikasi
+const publicPageRoutes = ['/sign', '/signup'];
+
+// Daftar rute API publik yang tidak memerlukan autentikasi
+const publicApiRoutes = ['/api/auth/login', '/api/auth/register']; // Tambahkan rute API publik lainnya jika perlu
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -18,8 +21,11 @@ export async function middleware(request: NextRequest) {
   try {
     if (token) {
       // Verifikasi token menggunakan jose
-      await jwtVerify(token, JWT_SECRET);
+      const { payload } = await jwtVerify(token, JWT_SECRET);
       isAuthenticated = true;
+      // Tambahkan tenantId dan userId ke header request
+      request.headers.set('X-User-Id', payload.userId as string);
+      request.headers.set('X-Tenant-Id', payload.tenantId as string);
     }
   } catch (error) {
     // Token tidak valid atau kedaluwarsa
@@ -32,19 +38,36 @@ export async function middleware(request: NextRequest) {
   }
 
   // Jika pengguna sudah terautentikasi dan mencoba mengakses halaman login/signup
-  if (isAuthenticated && publicRoutes.includes(pathname)) {
+  if (isAuthenticated && publicPageRoutes.includes(pathname)) {
     // Arahkan ke dashboard atau halaman utama setelah login
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
-  // Jika pengguna belum terautentikasi dan mencoba mengakses rute yang dilindungi
-  if (!isAuthenticated && !publicRoutes.includes(pathname)) {
-    // Arahkan ke halaman login
+  // Jika pengguna belum terautentikasi
+  if (!isAuthenticated) {
+    // Jika mencoba mengakses rute API publik, izinkan
+    if (publicApiRoutes.includes(pathname)) {
+      return NextResponse.next(); // Lanjutkan ke API route
+    }
+    // Jika mencoba mengakses halaman publik, izinkan (atau redirect jika sudah login - ditangani di atas)
+    if (publicPageRoutes.includes(pathname)) {
+      return NextResponse.next(); // Lanjutkan ke halaman publik
+    }
+    // Jika mencoba mengakses rute yang dilindungi lainnya, arahkan ke login
     return NextResponse.redirect(new URL('/sign', request.url));
   }
 
-  // Lanjutkan ke rute yang diminta jika tidak ada kondisi pengalihan yang terpenuhi
-  return NextResponse.next();
+  // Jika pengguna sudah terautentikasi dan mencoba mengakses halaman login/signup (sudah ditangani di atas)
+  // if (isAuthenticated && publicPageRoutes.includes(pathname)) { ... }
+
+
+  // Lanjutkan ke rute yang diminta, teruskan header yang dimodifikasi
+  const response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  });
+  return response;
 }
 
 // Tentukan rute mana yang akan dijalankan oleh middleware
@@ -55,6 +78,12 @@ export const config = {
      * - Rute API (_next/static, _next/image, favicon.ico)
      * - Aset statis (placeholder.svg)
      */
-    '/((?!api|_next/static|_next/image|favicon.ico|placeholder.svg).*)',
+    /*
+     * Cocokkan semua path permintaan kecuali untuk:
+     * - Aset statis Next.js (_next/static, _next/image, favicon.ico)
+     * - Aset statis publik (placeholder.svg)
+     * Middleware INI AKAN berjalan untuk rute /api
+     */
+    '/((?!_next/static|_next/image|favicon.ico|placeholder.svg).*)',
   ],
 };

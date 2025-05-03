@@ -81,6 +81,7 @@ export default function AddSupplierPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(formData),
+        credentials: 'include' // Kirim cookies bersama request
       });
 
       if (!response.ok) {

@@ -89,11 +89,14 @@ export function SettingsSidebar({ ...props }: React.ComponentProps<typeof Sideba
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild>
-              <a href="/settings/account"> {/* Link to default settings page */}
-                {/* You might want a specific icon or logo here */}
+            <SidebarMenuButton size="lg" asChild isActive={pathname === "/settings"}>
+              <a href="/settings/account">
+                <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
+                  <User className="size-4" />
+                </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">Settings</span>
+                  <span className="truncate text-xs">Management</span>
                 </div>
               </a>
             </SidebarMenuButton>

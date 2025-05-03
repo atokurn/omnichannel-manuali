@@ -28,47 +28,88 @@ export async function registerUser(userData: {
   email: string;
   password: string;
   name: string;
-  role?: string;
+  role?: string; // Role parameter might be deprecated if always 'USER'
+  // tenantId?: string; // tenantId is now created internally
 }) {
   try {
-    // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email: userData.email },
+    // 1. Create a new Tenant for the user
+    const newTenant = await prisma.tenant.create({
+      data: {
+        name: `${userData.name}'s Organization`, // Default tenant name
+        // plan and status will use defaults from schema
+      }
+    });
+    const tenantId = newTenant.id;
+
+    // Check if user already exists within the new tenant (should not happen)
+    const existingUser = await prisma.user.findFirst({
+      where: { 
+        email: userData.email,
+        // tenantId: userData.tenantId || '00000000-0000-0000-0000-000000000000' // Default tenant ID
+        tenantId: tenantId // Check within the newly created tenant
+      },
     });
 
     if (existingUser) {
-      // Throw specific error message checked in the route handler
+      // This case is unlikely now but kept for safety
+      // Consider deleting the created tenant if registration fails here
+      await prisma.tenant.delete({ where: { id: tenantId } }); 
       throw new Error('Email already exists');
     }
 
     // Hash password
     const hashedPassword = await hash(userData.password, SALT_ROUNDS);
 
-    // Find the default 'USER' role ID
-    const userRole = await prisma.role.findUnique({
-      where: { name: 'USER' },
-      select: { id: true }, // Only select the ID
+    // Ambil SEMUA permission yang ada
+    const allPermissions = await prisma.permission.findMany({
+      select: { id: true } // Hanya ambil ID
     });
 
-    if (!userRole) {
-      throw new Error("Default 'USER' role not found. Please seed the database.");
-    }
+    // Buat Role Admin Default dengan SEMUA permission
+    const adminRole = await prisma.role.create({
+      data: {
+        tenantId: tenantId,
+        name: 'Admin',
+        description: 'Administrator role with full access',
+        isDefault: true,
+        permissions: {
+          connect: allPermissions // Hubungkan semua permission
+        }
+      }
+    });
 
-    // Create user first, without the relation
+    // Buat Role Member Default (contoh: hanya dengan view product)
+    const viewProductPerm = await prisma.permission.findUnique({ 
+      where: { name: 'product:read' },
+      select: { id: true }
+    });
+    const memberRole = await prisma.role.create({
+      data: {
+        tenantId: tenantId,
+        name: 'Member',
+        description: 'Standard user role with limited access',
+        isDefault: true,
+        permissions: {
+          connect: viewProductPerm ? [{ id: viewProductPerm.id }] : [] // Hubungkan permission spesifik
+        }
+      }
+    });
+
+    // Create the user
     const newUser = await prisma.user.create({
       data: {
         email: userData.email,
         name: userData.name,
         password: hashedPassword,
-        // The relation will be created via the join table
+        tenantId: tenantId, // Assign the new tenant ID
       },
     });
 
-    // Create the entry in the UserRole join table
+    // Tugaskan role Admin ke user yang mendaftar
     await prisma.userRole.create({
       data: {
         userId: newUser.id,
-        roleId: userRole.id,
+        roleId: adminRole.id, // Gunakan ID dari role Admin
       },
     });
 
@@ -76,11 +117,12 @@ export async function registerUser(userData: {
     const user = await prisma.user.findUnique({
       where: { id: newUser.id },
       include: {
-        userRoles: { // Use the explicit relation field
+        tenant: true, // Include tenant info
+        userRoles: { 
           include: {
-            role: { // Include the related Role
+            role: { 
               include: {
-                permissions: true // Include permissions from the Role
+                permissions: true 
               }
             }
           }
@@ -89,23 +131,20 @@ export async function registerUser(userData: {
     });
 
     if (!user) {
-      // This should ideally not happen if creation was successful
+      // Consider cleanup if user fetch fails
       throw new Error("Failed to fetch newly created user with roles.");
     }
 
-    // Remove password from response
-    // Prepare user data for response using the new structure
+    // Prepare user data for response
     const rolesData = user.userRoles.map(ur => ({ id: ur.role.id, name: ur.role.name }));
     const permissionsData = [...new Set(user.userRoles.flatMap(ur => ur.role.permissions.map(p => p.name)))];
 
-    // Remove password from the user object before creating the response
     const { password: _, ...userWithoutPassword } = user;
 
     const userResponse = {
-      ...userWithoutPassword, // Spread the user data without password
-      roles: rolesData, // Add the structured roles data
-      permissions: permissionsData, // Add the structured permissions data
-      // Note: userRoles relation data is implicitly excluded by spreading userWithoutPassword
+      ...userWithoutPassword,
+      roles: rolesData,
+      permissions: permissionsData,
     };
 
     return userResponse;
@@ -126,10 +165,14 @@ export async function registerUser(userData: {
 
 export async function loginUser({ email, password }: UserCredentials) {
   try {
-    // Find user
-    const user = await prisma.user.findUnique({
-      where: { email },
+    // Find user by email only, tenantId is not needed for lookup
+    const user = await prisma.user.findFirst({
+      where: { 
+        email,
+        // tenantId: '00000000-0000-0000-0000-000000000000' // Default tenant ID - REMOVED
+      },
       include: {
+        tenant: true, // Include tenant info
         userRoles: { // Use the explicit relation field
           include: {
             role: { // Include the related Role
@@ -164,6 +207,7 @@ export async function loginUser({ email, password }: UserCredentials) {
       {
         userId: user.id,
         email: user.email,
+        tenantId: user.tenantId, // Sertakan tenantId dalam payload
         roles: roles,
         permissions: uniquePermissions,
       },
@@ -186,158 +230,13 @@ export async function loginUser({ email, password }: UserCredentials) {
     return { user: userResponse, token };
 
     // Remove password from response
-    const { password: _, ...userWithoutPassword } = user;
+    // const { password: _, ...userWithoutPassword } = user; // This line is unreachable
 
-    return { user: userWithoutPassword, token };
+    // return { user: userWithoutPassword, token }; // This line is unreachable
   } catch (error) {
     console.error('Error logging in:', error);
     throw error;
   }
 }
 
-// Middleware for protected routes
-export function withAuth(handler: Function) {
-  return async (req: NextRequest) => {
-    try {
-      // Get token from cookies
-      const cookieStore = cookies();
-      const token = cookieStore.get(COOKIE_NAME)?.value;
-
-      if (!token) {
-        return NextResponse.json(
-          { error: 'Authentication required' },
-          { status: 401 }
-        );
-      }
-
-      // Verify token
-      const decoded = verify(token, JWT_SECRET) as TokenPayload;
-
-      // Fetch user details from DB based on token to ensure freshness
-      const freshUser = await prisma.user.findUnique({
-        where: { id: decoded.userId },
-        include: {
-          roles: {
-            include: {
-              permissions: true,
-            },
-          },
-        },
-      });
-
-      if (!freshUser) {
-        throw new Error('User not found');
-      }
-
-      // Extract permissions using the new structure
-      const permissions = freshUser.userRoles.flatMap(ur => 
-        ur.role.permissions.map(permission => permission.name)
-      );
-      const uniquePermissions = [...new Set(permissions)];
-
-      // Add user details (including permissions) to request
-      (req as any).user = {
-        userId: freshUser.id,
-        email: freshUser.email,
-        roles: freshUser.userRoles.map(ur => ur.role.name),
-        permissions: uniquePermissions,
-      };
-
-      // Call the handler
-      return handler(req);
-    } catch (error) {
-      console.error('Authentication error:', error);
-      return NextResponse.json(
-        { error: 'Authentication failed' },
-        { status: 401 }
-      );
-    }
-  };
-}
-
-// Permission-based authorization
-export function withPermission(handler: Function, requiredPermissions: string[]) {
-  return withAuth(async (req: NextRequest) => {
-    const user = (req as any).user;
-
-    // Check if user has ALL required permissions
-    const hasAllPermissions = requiredPermissions.every(permission =>
-      user.permissions.includes(permission)
-    );
-
-    if (!hasAllPermissions) {
-      console.log(`Authorization failed for user ${user.email}. Required: ${requiredPermissions.join(', ')}, User has: ${user.permissions.join(', ')}`);
-      return NextResponse.json(
-        { error: 'Insufficient permissions' },
-        { status: 403 }
-      );
-    }
-
-    return handler(req);
-  });
-}
-
-// Set auth cookie
-export function setAuthCookie(token: string) {
-  cookies().set({
-    name: COOKIE_NAME,
-    value: token,
-    httpOnly: true,
-    path: '/',
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 60 * 60 * 24, // 1 day
-  });
-}
-
-// Clear auth cookie
-export function clearAuthCookie() {
-  cookies().delete(COOKIE_NAME);
-}
-
-// Get current user from token
-export async function getCurrentUser() {
-  try {
-    const cookieStore = cookies();
-    const token = cookieStore.get(COOKIE_NAME)?.value;
-
-    if (!token) return null;
-
-    const decoded = verify(token, JWT_SECRET) as TokenPayload;
-    
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-      include: {
-        userRoles: { // Use the explicit relation field
-          include: {
-            role: { // Include the related Role
-              include: {
-                permissions: true // Include permissions from the Role
-              }
-            }
-          }
-        }
-      },
-    });
-
-    if (!user) return null;
-
-    // Prepare user data for response using the new structure
-    const rolesData = user.userRoles.map(ur => ({ id: ur.role.id, name: ur.role.name }));
-    const permissionsData = [...new Set(user.userRoles.flatMap(ur => ur.role.permissions.map(p => p.name)))];
-
-    // Remove password from the user object before creating the response
-    const { password: _, ...userWithoutPassword } = user;
-
-    const userResponse = {
-      ...userWithoutPassword, // Spread the user data without password
-      roles: rolesData, // Add the structured roles data
-      permissions: permissionsData, // Add the structured permissions data
-      // Note: userRoles relation data is implicitly excluded by spreading userWithoutPassword
-    };
-
-    return userResponse;
-  } catch (error) {
-    console.error('Error getting current user:', error);
-    return null;
-  }
-}
+// Removed duplicate function definitions (loginUser, withAuth, withPermission, setAuthCookie, clearAuthCookie, getCurrentUser)

@@ -20,8 +20,13 @@ export async function POST(request: Request) {
     const { name, email, password } = validation.data;
 
     // Panggil fungsi registerUser dari lib/auth.ts
-    // Anda mungkin perlu menyesuaikan ini berdasarkan implementasi registerUser Anda
-    const user = await registerUser({ name, email, password });
+    // tenantId tidak lagi diperlukan karena dibuat di dalam registerUser
+    const user = await registerUser({ 
+      name, 
+      email, 
+      password, 
+      // tenantId: '00000000-0000-0000-0000-000000000000' // Default tenant ID - Dihapus
+    });
 
     // user object from registerUser already has password removed
     return NextResponse.json(user, { status: 201 });
@@ -36,9 +41,10 @@ export async function POST(request: Request) {
           return NextResponse.json({ error: 'Email already registered' }, { status: 409 });
       }
       // Add handling for other potential errors from registerUser
-      if (error.message === "Default 'USER' role not found. Please seed the database.") {
+      // Update error message check to match the new one in registerUser
+      if (error.message === "Default 'USER' role not found or could not be created for the tenant.") {
           // Log this specific issue clearly
-          console.error("CRITICAL: Default 'USER' role missing in the database.");
+          console.error("CRITICAL: Default 'USER' role missing or could not be created for the tenant.");
           // Return a more specific 500 error
           return NextResponse.json({ error: 'Server configuration error. Please contact support.' }, { status: 500 });
       }

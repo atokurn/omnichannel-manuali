@@ -1,10 +1,12 @@
 'use client';
 import { useState } from "react"
+import { useRouter } from 'next/navigation'; // Import useRouter
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Eye, EyeOff, Loader2 } from "lucide-react" // Import Eye and EyeOff icons, Loader2 if needed
 
 export function SignupForm({
   className,
@@ -13,8 +15,10 @@ export function SignupForm({
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [showPassword, setShowPassword] = useState(false) // State for password visibility
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const router = useRouter(); // Initialize router
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -47,7 +51,8 @@ export function SignupForm({
 
       // Handle sukses - contoh: redirect ke halaman login atau dashboard
       console.log('Pendaftaran berhasil!');
-      // window.location.href = '/login'; // Contoh redirect
+      // Redirect to login page after successful signup using Next.js router
+      router.push('/sign'); // Use router.push for navigation
 
     } catch (err: any) {
       // Set the error state with the message from the thrown Error
@@ -93,19 +98,40 @@ export function SignupForm({
                   disabled={isLoading}
                 />
               </div>
+              {/* Password Input with Toggle Button */}
               <div className="grid gap-3">
                 <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={isLoading}
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"} // Toggle input type
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={isLoading}
+                    className="pr-10" // Add padding for the icon
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    disabled={isLoading}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" aria-hidden="true" />
+                    ) : (
+                      <Eye className="h-4 w-4" aria-hidden="true" />
+                    )}
+                    <span className="sr-only">
+                      {showPassword ? "Hide password" : "Show password"}
+                    </span>
+                  </Button>
+                </div>
               </div>
               <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? 'Signing Up...' : 'Sign Up'}
+                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Sign Up'}
               </Button>
               <div className="after:border-border relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t">
                 <span className="bg-card text-muted-foreground relative z-10 px-2">
@@ -143,7 +169,7 @@ export function SignupForm({
               </div>
               <div className="text-center text-sm">
                 Already have an account?{" "}
-                <a href="/login" className="underline underline-offset-4">
+                <a href="/sign" className="underline underline-offset-4">
                   Login
                 </a>
               </div>

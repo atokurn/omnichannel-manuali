@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'; // Added useEffect
 import Image from 'next/image'; // Import Image component
 // Removed InventorySidebar, SiteHeader, SidebarInset, SidebarProvider imports
-import { DataTable } from "@/components/stock/data-table";
+import { DataTable } from "@/components/table/data-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Eye, FileEdit, Trash2, Calendar as CalendarIcon } from "lucide-react";

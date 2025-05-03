@@ -21,9 +21,19 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(url.searchParams.get('limit') || '10', 10);
     const skip = (page - 1) * limit;
 
-    // Ambil data dari database dengan pagination
+    // Dapatkan tenantId dari header request yang ditambahkan oleh middleware
+    const tenantId = request.headers.get('X-Tenant-Id');
+
+    if (!tenantId) {
+      return NextResponse.json({ message: 'Tenant ID tidak ditemukan di request' }, { status: 401 });
+    }
+
+    // Ambil data dari database dengan pagination dan filter berdasarkan tenant
     const [categories, totalCategories] = await prisma.$transaction([
       prisma.category.findMany({
+        where: {
+          tenantId: tenantId
+        },
         select: {
           id: true,
           name: true,
@@ -37,7 +47,11 @@ export async function GET(request: NextRequest) {
         skip: skip,
         take: limit,
       }),
-      prisma.category.count(),
+      prisma.category.count({
+        where: {
+          tenantId: tenantId
+        }
+      }),
     ]);
 
     // Format data untuk response
@@ -83,18 +97,31 @@ export async function POST(request: Request) {
       return NextResponse.json({ errors: validation.error.flatten().fieldErrors }, { status: 400 });
     }
 
-    // Cek apakah kategori dengan nama yang sama sudah ada
+    // Dapatkan tenantId dari header request yang ditambahkan oleh middleware
+    const tenantId = request.headers.get('X-Tenant-Id');
+
+    if (!tenantId) {
+      return NextResponse.json({ message: 'Tenant ID tidak ditemukan di request' }, { status: 401 });
+    }
+
+    // Cek apakah kategori dengan nama yang sama sudah ada dalam tenant yang sama
     const existingCategory = await prisma.category.findFirst({
-      where: { name: validation.data.name }
+      where: { 
+        name: validation.data.name,
+        tenantId: tenantId
+      }
     });
 
     if (existingCategory) {
       return NextResponse.json({ message: 'Kategori dengan nama tersebut sudah ada' }, { status: 409 });
     }
 
-    // Buat kategori baru
+    // Buat kategori baru dengan tenantId
     const newCategory = await prisma.category.create({
-      data: validation.data,
+      data: {
+        ...validation.data,
+        tenantId: tenantId
+      },
     });
 
     return NextResponse.json(newCategory, { status: 201 });
@@ -124,12 +151,20 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ message: 'Tidak ada ID yang diberikan untuk dihapus' }, { status: 400 });
     }
 
-    // Hapus kategori
+    // Dapatkan tenantId dari header request
+    const tenantId = request.headers.get('X-Tenant-Id');
+
+    if (!tenantId) {
+      return NextResponse.json({ message: 'Tenant ID tidak ditemukan di request' }, { status: 401 });
+    }
+
+    // Hapus kategori, pastikan hanya menghapus dari tenant yang benar
     const deleteResult = await prisma.category.deleteMany({
       where: {
         id: {
           in: idsToDelete,
         },
+        tenantId: tenantId, // Tambahkan filter tenantId
       },
     });
 

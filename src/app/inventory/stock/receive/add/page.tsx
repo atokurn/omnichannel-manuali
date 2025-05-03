@@ -11,8 +11,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { DatePicker } from '@/components/ui/date-picker';
-import { DataTable } from '@/components/stock/data-table';
-import { DataTableSkeleton } from '@/components/stock/data-table-skeleton'; // Import skeleton
+import { DataTable } from '@/components/table/data-table';
+import { DataTableSkeleton } from '@/components/table/data-table-skeleton'; // Import skeleton
 import { PlusCircle, Trash2, ScanLine, Loader2 } from 'lucide-react'; // Added Loader2
 import { FormattedMaterial } from '@/lib/types'; // Assuming this type is used or needed
 

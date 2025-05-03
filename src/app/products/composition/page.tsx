@@ -2,12 +2,12 @@
 
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { DataTable } from '@/components/stock/data-table';
+import { DataTable } from '@/components/table/data-table';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Eye, FileEdit, Trash2, Loader2, ArrowUpDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { DataTableSkeleton } from '@/components/stock/data-table-skeleton';
+import { DataTableSkeleton } from '@/components/table/data-table-skeleton';
 import { toast } from 'sonner';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ColumnDef, RowSelectionState } from '@tanstack/react-table';

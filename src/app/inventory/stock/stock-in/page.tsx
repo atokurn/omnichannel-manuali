@@ -6,7 +6,7 @@ import Link from 'next/link'; // Import Link component
 import { InventorySidebar } from "@/components/inventory-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { DataTable } from "@/components/stock/data-table";
+import { DataTable } from "@/components/table/data-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Eye, FileEdit, Trash2, Plus, Search } from "lucide-react"; // Import Plus and Search icons

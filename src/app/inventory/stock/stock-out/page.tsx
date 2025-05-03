@@ -4,7 +4,7 @@ import React from 'react';
 import { useState } from 'react';
 import Image from 'next/image'; // Import Image component
 import Link from 'next/link'; // Import Link component
-import { DataTable } from "@/components/stock/data-table";
+import { DataTable } from "@/components/table/data-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Eye, FileEdit, Trash2, Plus, Search } from "lucide-react"; // Import Plus and Search icons

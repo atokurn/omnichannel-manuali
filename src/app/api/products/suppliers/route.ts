@@ -25,15 +25,33 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(url.searchParams.get('limit') || '10', 10);
     const skip = (page - 1) * limit;
 
+    // Dapatkan tenantId dari request (asumsi middleware auth sudah menyediakan user)
+    // const user = (request as any).user; // Baris ini bisa dihapus jika tidak digunakan
+    // const tenantId = user?.tenantId || '00000000-0000-0000-0000-000000000000'; // Hapus baris ini
+
+    // Dapatkan tenantId dari header request yang ditambahkan oleh middleware
+    const tenantId = request.headers.get('X-Tenant-Id');
+
+    if (!tenantId) {
+      return NextResponse.json({ message: 'Tenant ID tidak ditemukan di request' }, { status: 401 });
+    }
+
     const [suppliers, totalSuppliers] = await prisma.$transaction([
       prisma.supplier.findMany({
+        where: {
+          tenantId: tenantId
+        },
         orderBy: {
           createdAt: 'desc',
         },
         skip: skip,
         take: limit,
       }),
-      prisma.supplier.count(),
+      prisma.supplier.count({
+        where: {
+          tenantId: tenantId
+        }
+      }),
     ]);
 
     const totalPages = Math.ceil(totalSuppliers / limit);
@@ -64,18 +82,35 @@ export async function POST(request: Request) {
       return NextResponse.json({ errors: validation.error.flatten().fieldErrors }, { status: 400 });
     }
 
-    // Cek apakah supplier dengan email yang sama sudah ada
-    const existingSupplier = await prisma.supplier.findUnique({
-      where: { email: validation.data.email }
+    // Dapatkan tenantId dari request (asumsi middleware auth sudah menyediakan user)
+    // const user = (request as any).user; // Baris ini bisa dihapus jika tidak digunakan
+    // const tenantId = user?.tenantId || '00000000-0000-0000-0000-000000000000'; // Hapus baris ini
+
+    // Dapatkan tenantId dari header request yang ditambahkan oleh middleware
+    const tenantId = request.headers.get('X-Tenant-Id');
+
+    if (!tenantId) {
+      return NextResponse.json({ message: 'Tenant ID tidak ditemukan di request' }, { status: 401 });
+    }
+
+    // Cek apakah supplier dengan email yang sama sudah ada dalam tenant yang sama
+    const existingSupplier = await prisma.supplier.findFirst({
+      where: { 
+        email: validation.data.email,
+        tenantId: tenantId
+      }
     });
 
     if (existingSupplier) {
       return NextResponse.json({ message: 'Supplier dengan email tersebut sudah ada' }, { status: 409 });
     }
 
-    // Buat supplier baru
+    // Buat supplier baru dengan tenantId
     const newSupplier = await prisma.supplier.create({
-      data: validation.data,
+      data: {
+        ...validation.data,
+        tenantId: tenantId
+      },
     });
 
     return NextResponse.json(newSupplier, { status: 201 });
@@ -102,11 +137,19 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ message: 'Tidak ada ID yang valid untuk dihapus' }, { status: 400 });
     }
 
+    // Dapatkan tenantId dari header request
+    const tenantId = request.headers.get('X-Tenant-Id');
+
+    if (!tenantId) {
+      return NextResponse.json({ message: 'Tenant ID tidak ditemukan di request' }, { status: 401 });
+    }
+
     const deleteResult = await prisma.supplier.deleteMany({
       where: {
         id: {
           in: idsToDelete,
         },
+        tenantId: tenantId, // Tambahkan filter tenantId
       },
     });
 
