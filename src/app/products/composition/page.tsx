@@ -1,218 +1,76 @@
-'use client';
+"use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { DataTable } from '@/components/table/data-table';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Eye, FileEdit, Trash2, Loader2, ArrowUpDown } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { DataTableSkeleton } from '@/components/table/data-table-skeleton';
-import { toast } from 'sonner';
-import { Checkbox } from '@/components/ui/checkbox';
-import { ColumnDef, RowSelectionState } from '@tanstack/react-table';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { DataTable } from "@/components/table/data-table";
+import { DataTableSkeleton } from "@/components/table/data-table-skeleton";
+import { Plus, Trash2, Loader2 } from 'lucide-react';
+import { toast } from "sonner";
+import { RowSelectionState } from "@tanstack/react-table";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
-// Interface untuk komposisi produk (BOM)
 interface Composition {
   id: string;
   productName: string;
   materialCount: number;
   createdAt: string;
+  isTemplate: boolean;
 }
 
-// Interface for API response with pagination
 interface ApiResponse {
-    data: Composition[];
-    pagination: {
-        page: number;
-        limit: number;
-        totalItems: number;
-        totalPages: number;
-    };
+  data: Composition[];
+  pagination: {
+    page: number;
+    limit: number;
+    totalItems: number;
+    totalPages: number;
+  };
 }
 
-// Placeholder data - replace with actual data fetching
-// TODO: Ganti dengan state dan data fetching yang sebenarnya
-const dummyCompositions: Composition[] = [
-  { id: 'bom1', productName: 'Meja Kantor', materialCount: 5, createdAt: new Date().toISOString() },
-  { id: 'bom2', productName: 'Kursi Lipat', materialCount: 3, createdAt: new Date().toISOString() },
-  { id: 'bom3', productName: 'Lemari Buku', materialCount: 7, createdAt: new Date().toISOString() },
-];
-
-// Define columns with Checkbox and updated Actions
-const getColumns = (refetchData: () => void): ColumnDef<Composition>[] => [
+const getColumns = (refreshData: () => void) => [
   {
-    id: 'select',
-    header: ({ table }) => (
-      <Checkbox
-        checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && 'indeterminate')}
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        aria-label="Select all"
-        className="translate-y-[2px]"
-      />
-    ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label="Select row"
-        className="translate-y-[2px]"
-      />
-    ),
-    enableSorting: false,
-    enableHiding: false,
+    accessorKey: "productName",
+    header: "Nama Produk/Template",
+    cell: ({ row }: any) => {
+      const isTemplate = row.original.isTemplate;
+      return (
+        <div className="flex items-center">
+          {isTemplate && <span className="mr-2 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">Template</span>}
+          <span>{row.original.productName}</span>
+        </div>
+      );
+    },
   },
   {
-    accessorKey: 'productName',
-    header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-      >
-        Nama Produk
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
-    ),
-    cell: ({ row }) => {
+    accessorKey: "materialCount",
+    header: "Jumlah Material",
+  },
+  {
+    accessorKey: "createdAt",
+    header: "Tanggal Dibuat",
+    cell: ({ row }: any) => {
+      return new Date(row.original.createdAt).toLocaleDateString('id-ID', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric'
+      });
+    },
+  },
+  {
+    id: "actions",
+    cell: ({ row }: any) => {
       const composition = row.original;
       return (
-        <div className="font-medium">{composition.productName}</div>
-      );
-    },
-  },
-  {
-    accessorKey: 'materialCount',
-    header: 'Jumlah Material',
-    cell: ({ row }) => {
-      return (
-        <div>{row.original.materialCount} item</div>
-      );
-    },
-  },
-  {
-    accessorKey: 'createdAt',
-    header: 'Tanggal Dibuat',
-    cell: ({ row }) => new Date(row.original.createdAt).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' }),
-  },
-  {
-    id: 'actions',
-    header: 'Aksi',
-    cell: ({ row }) => {
-      const router = useRouter();
-      const compositionId = row.original.id;
-      const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-      const [isDeleting, setIsDeleting] = useState(false);
-
-      const handleView = () => {
-        router.push(`/products/composition/view/${compositionId}`);
-      };
-
-      const handleEdit = () => {
-        router.push(`/products/composition/edit/${compositionId}`);
-      };
-
-      const handleDelete = async () => {
-        setIsDeleting(true);
-        try {
-          // Simulasi API call untuk demo
-          // const response = await fetch(`/api/products/composition?ids=${compositionId}`, {
-          //   method: 'DELETE',
-          // });
-          // if (!response.ok) {
-          //   const errorData = await response.json();
-          //   throw new Error(errorData.message || 'Gagal menghapus komposisi');
-          // }
-          
-          // Untuk demo, hapus dari state lokal
-          const remainingCompositions = dummyCompositions.filter(c => c.id !== compositionId);
-          setCompositions(remainingCompositions);
-          
-          toast.success('Sukses', { description: 'Komposisi produk berhasil dihapus.' });
-          refetchData(); // Refetch data after delete
-        } catch (err: any) {
-          toast.error('Error', { description: err.message || 'Gagal menghapus komposisi produk.' });
-        } finally {
-          setIsDeleting(false);
-          setIsDeleteDialogOpen(false);
-        }
-      };
-
-      return (
-        <div className="flex gap-1">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" size="icon" className="h-8 w-8" onClick={handleView}>
-                  <Eye className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Lihat Detail</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" size="icon" className="h-8 w-8" onClick={handleEdit}>
-                  <FileEdit className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Edit Komposisi</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          
-          <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="outline" size="icon" className="h-8 w-8 text-red-500 hover:bg-red-100">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </AlertDialogTrigger>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Hapus Komposisi</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Apakah Anda yakin ingin menghapus komposisi produk "{row.original.productName}"? Tindakan ini tidak dapat diurungkan.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={isDeleting}>Batal</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-red-600 hover:bg-red-700">
-                  {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  Hapus
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+        <div className="flex items-center justify-end gap-2">
+          <Button variant="outline" size="sm" onClick={() => console.log('View details', composition.id)}>
+            Detail
+          </Button>
+          <Button variant="destructive" size="sm" onClick={() => console.log('Delete', composition.id)}>
+            Hapus
+          </Button>
         </div>
       );
     },
@@ -221,78 +79,87 @@ const getColumns = (refetchData: () => void): ColumnDef<Composition>[] => [
 
 export default function CompositionPage() {
   const router = useRouter();
-  const [compositions, setCompositions] = useState<Composition[]>(dummyCompositions);
-  const [isLoading, setIsLoading] = useState(false);
+  const { tenantId } = useAuth();
+  const [compositions, setCompositions] = useState<Composition[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pagination, setPagination] = useState({
     page: 1,
-    limit: 10, // Default items per page (pageSize)
-    totalItems: dummyCompositions.length,
+    limit: 10,
+    totalItems: 0,
     totalPages: 1,
   });
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   const fetchCompositions = async (page = pagination.page, limit = pagination.limit) => {
-    // Simulasi loading untuk demo
+    if (!tenantId) {
+      setError("Tenant ID tidak ditemukan. Silakan login ulang.");
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
-    
-    // Simulasi API call untuk demo
-    setTimeout(() => {
-      setCompositions(dummyCompositions);
-      setPagination({
-        page,
-        limit,
-        totalItems: dummyCompositions.length,
-        totalPages: Math.ceil(dummyCompositions.length / limit),
+    try {
+      const response = await fetch(`/api/products/composition?page=${page}&limit=${limit}`, {
+        headers: {
+          'X-Tenant-Id': tenantId,
+        },
       });
-      setRowSelection({}); // Reset selection on data fetch
+      
+      if (!response.ok) {
+        throw new Error('Gagal mengambil data komposisi');
+      }
+      
+      const result: ApiResponse = await response.json();
+      
+      setCompositions(result.data);
+      setPagination(result.pagination);
+      setRowSelection({});
+    } catch (err: any) {
+      setError(err.message || 'Terjadi kesalahan');
+      toast.error('Error', { description: err.message || 'Gagal memuat data komposisi.' });
+    } finally {
       setIsLoading(false);
-    }, 500);
+    }
   };
+
+  useEffect(() => {
+    if (tenantId) {
+      fetchCompositions(pagination.page, pagination.limit);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenantId, pagination.page, pagination.limit]);
 
   const handlePageChange = (newPage: number) => {
     setPagination(prev => ({ ...prev, page: newPage }));
   };
 
-  // Handler for page size change
   const handlePageSizeChange = (newSize: number) => {
-    setPagination(prev => ({ ...prev, limit: newSize, page: 1 })); // Reset to page 1 when size changes
+    setPagination(prev => ({ ...prev, limit: newSize, page: 1 }));
   };
 
-  // Memoize columns to prevent recreation on every render
-  const columns = useMemo(() => getColumns(fetchCompositions), []);
+  const columns = getColumns(fetchCompositions);
 
   const selectedRowCount = Object.keys(rowSelection).length;
-  const selectedRowIds = useMemo(() => {
-      return Object.keys(rowSelection).map(index => compositions[parseInt(index)]?.id).filter(Boolean);
-  }, [rowSelection, compositions]);
+  const selectedRowIds = Object.keys(rowSelection)
+    .map(index => compositions[parseInt(index)]?.id)
+    .filter(Boolean);
 
   const handleBulkDelete = async () => {
-      if (selectedRowCount === 0) return;
-      setIsBulkDeleting(true);
-      try {
-          // Simulasi API call untuk demo
-          // const response = await fetch(`/api/products/composition?ids=${selectedRowIds.join(',')}`, {
-          //     method: 'DELETE',
-          // });
-          // if (!response.ok) {
-          //     const errorData = await response.json();
-          //     throw new Error(errorData.message || 'Gagal menghapus komposisi terpilih');
-          // }
-          
-          // Untuk demo, hapus dari state lokal
-          const remainingCompositions = compositions.filter(c => !selectedRowIds.includes(c.id));
-          setCompositions(remainingCompositions);
-          
-          toast.success('Sukses', { description: `${selectedRowCount} komposisi produk berhasil dihapus.` });
-          fetchCompositions(1); // Refetch data from page 1 after bulk delete
-      } catch (err: any) {
-          toast.error('Error', { description: err.message || 'Gagal menghapus komposisi produk terpilih.' });
-      } finally {
-          setIsBulkDeleting(false);
-      }
+    if (selectedRowCount === 0) return;
+    setIsBulkDeleting(true);
+    try {
+      // Implementasi API call untuk bulk delete
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulasi API call
+      toast.success('Sukses', { description: `${selectedRowCount} komposisi berhasil dihapus.` });
+      fetchCompositions(1);
+    } catch (err: any) {
+      toast.error('Error', { description: err.message || 'Gagal menghapus komposisi terpilih.' });
+    } finally {
+      setIsBulkDeleting(false);
+    }
   };
 
   return (
@@ -300,40 +167,39 @@ export default function CompositionPage() {
       <Card>
         <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
           <div>
-            <CardTitle>Komposisi Produk (BOM)</CardTitle>
+            <CardTitle>Komposisi Produk</CardTitle>
             <CardDescription>
               Kelola komposisi material untuk produk Anda.
             </CardDescription>
           </div>
           <div className="flex gap-2">
             {selectedRowCount > 0 && (
-                <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                        <Button variant="destructive" disabled={isBulkDeleting}>
-                            {isBulkDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-                            Hapus ({selectedRowCount})
-                        </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>Konfirmasi Hapus Massal</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                Apakah Anda yakin ingin menghapus {selectedRowCount} komposisi produk terpilih? Tindakan ini tidak dapat diurungkan.
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel disabled={isBulkDeleting}>Batal</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleBulkDelete} disabled={isBulkDeleting} className="bg-red-600 hover:bg-red-700">
-                                {isBulkDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                Hapus
-                            </AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" disabled={isBulkDeleting}>
+                    {isBulkDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                    Hapus ({selectedRowCount})
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Konfirmasi Hapus Massal</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Apakah Anda yakin ingin menghapus {selectedRowCount} komposisi terpilih? Tindakan ini tidak dapat diurungkan.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={isBulkDeleting}>Batal</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleBulkDelete} disabled={isBulkDeleting} className="bg-red-600 hover:bg-red-700">
+                      {isBulkDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                      Hapus
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             )}
             <Button onClick={() => router.push('/products/composition/add')}>
-              <Plus className="mr-2 h-4 w-4" />
-              Tambah Komposisi
+              <Plus className="mr-2 h-4 w-4" /> Tambah Komposisi
             </Button>
           </div>
         </CardHeader>
@@ -345,20 +211,18 @@ export default function CompositionPage() {
               {error}
             </div>
           ) : (
-            <>
-              <DataTable
-                columns={columns}
-                data={compositions}
-                searchKey="productName"
-                rowSelection={rowSelection}
-                onRowSelectionChange={setRowSelection}
-                currentPage={pagination.page}
-                pageCount={pagination.totalPages}
-                pageSize={pagination.limit}
-                onPageChange={handlePageChange}
-                onPageSizeChange={handlePageSizeChange}
-              />
-            </>
+            <DataTable
+              columns={columns}
+              data={compositions}
+              searchKey="productName"
+              rowSelection={rowSelection}
+              onRowSelectionChange={setRowSelection}
+              currentPage={pagination.page}
+              pageCount={pagination.totalPages}
+              pageSize={pagination.limit}
+              onPageChange={handlePageChange}
+              onPageSizeChange={handlePageSizeChange}
+            />
           )}
         </CardContent>
       </Card>

@@ -1,7 +1,18 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 
+import { getCurrentUser as getUser } from '@/lib/auth'; // Import getCurrentUser
+
 const prisma = new PrismaClient();
+
+// Pindahkan fungsi getCurrentUser ke luar handler agar bisa dipakai di GET juga
+async function getCurrentUser() {
+  const user = await getUser();
+  if (!user || !user.id || !user.tenantId) {
+    throw new Error('User tidak terautentikasi atau data user tidak lengkap.');
+  }
+  return user;
+}
 
 export async function POST(request: Request) {
   try {
@@ -13,8 +24,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Nama produk wajib diisi' }, { status: 400 });
     }
 
-    // Dapatkan ID user dari sesi login aktif
-    const userId = await getCurrentUserId();
+    // Dapatkan user dari sesi login aktif
+    const currentUser = await getCurrentUser();
+    
+    if (!currentUser || !currentUser.id || !currentUser.tenantId) {
+      throw new Error('User tidak terautentikasi atau data user tidak lengkap');
+    }
     
     // Simpan produk dasar
     const newProduct = await prisma.product.create({
@@ -26,28 +41,46 @@ export async function POST(request: Request) {
         hasVariants: body.addVariant || false,
         // Field wajib untuk relasi dengan User
         createdBy: {
-          connect: { id: userId }
+          connect: { id: currentUser.id }
+        },
+        // Field wajib untuk relasi dengan Tenant
+        tenant: {
+          connect: { id: currentUser.tenantId }
         },
         // Tambahkan field lain yang diperlukan
         sku: await generateSKU(body.productName, body.addVariant) // Generate SKU dengan format yang lebih baik
       },
     });
     
-    // Fungsi helper untuk mendapatkan ID user dari sesi login aktif
-    async function getCurrentUserId() {
-      // Import fungsi getCurrentUser dari lib/auth
-      const { getCurrentUser } = await import('@/lib/auth');
+    // Jika produk tidak memiliki varian, simpan kuantitas stok ke Inventory
+    // Catatan: Ini memerlukan setidaknya satu warehouse dan shelf yang tersedia
+    if (!body.addVariant && body.defaultQuantity) {
+      // Dapatkan warehouse default (gunakan warehouse pertama jika tersedia)
+      const defaultWarehouse = await prisma.warehouse.findFirst({
+        where: { tenantId: currentUser.tenantId },
+        include: { shelves: { include: { area: true }, take: 1 } }
+      });
       
-      // Dapatkan user yang sedang login
-      const currentUser = await getCurrentUser();
-      
-      if (!currentUser) {
-        throw new Error('User tidak terautentikasi. Silakan login terlebih dahulu.');
+      if (defaultWarehouse && defaultWarehouse.shelves.length > 0) {
+        const defaultShelf = defaultWarehouse.shelves[0];
+        
+        // Simpan data inventory
+        await prisma.inventory.create({
+          data: {
+            quantity: parseInt(body.defaultQuantity),
+            productId: newProduct.id,
+            shelfId: defaultShelf.id,
+            warehouseId: defaultWarehouse.id
+          }
+        });
+      } else {
+        console.warn('Tidak dapat menyimpan data inventory: Warehouse atau shelf tidak tersedia');
       }
-      
-      return currentUser.id;
     }
     
+    // Simpan ID user untuk digunakan di fungsi lain
+    const userId = currentUser.id;
+
     /**
      * Fungsi untuk menghasilkan SKU (Stock Keeping Unit) yang unik dan terstruktur
      * Format: PRD-[3 huruf pertama nama produk]-[V jika memiliki varian]-[6 digit angka unik]
@@ -134,28 +167,136 @@ export async function POST(request: Request) {
   }
 }
 
-// GET handler untuk mengambil daftar produk
-export async function GET() {
+// GET handler untuk mengambil daftar produk dengan pagination dan search
+export async function GET(request: Request) {
   try {
-    const products = await prisma.product.findMany({
-      select: {
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '10');
+    const search = searchParams.get('search') || '';
+
+    // Dapatkan user saat ini untuk mendapatkan tenantId
+    const currentUser = await getCurrentUser();
+    const tenantId = currentUser.tenantId;
+
+    // Calculate skip for pagination
+    const skip = (page - 1) * limit;
+
+    // Build where condition for search AND tenant filtering
+    const baseWhereCondition = {
+      tenantId: tenantId, // Filter berdasarkan tenantId
+    };
+
+    const searchCondition = search
+      ? {
+          OR: [
+            { name: { contains: search, mode: 'insensitive' } },
+            { sku: { contains: search, mode: 'insensitive' } },
+            { description: { contains: search, mode: 'insensitive' } },
+          ],
+        }
+      : {};
+
+    const whereCondition = { ...baseWhereCondition, ...searchCondition };
+
+    // Fetch products with pagination and search
+    const productsRaw = await prisma.product.findMany({
+      select: { // Tambahkan select untuk memilih field secara eksplisit
         id: true,
         name: true,
         description: true,
-        price: true,
         sku: true,
-        mainImage: true,
+        price: true,
+        cost: true,
+        minStockLevel: true,
+        weight: true,
+        weightUnit: true,
+        packageLength: true,
+        packageWidth: true,
+        packageHeight: true,
+        isPreorder: true,
+        preorderDays: true,
+        purchaseLimit: true,
         hasVariants: true,
+        mainImage: true, // Sertakan mainImage
         createdAt: true,
+        updatedAt: true,
+        createdById: true,
+        categoryId: true,
+        tenantId: true,
+        // Relasi yang diperlukan untuk perhitungan
+        variants: {
+          select: { id: true }
+        },
+        inventories: {
+          select: { quantity: true }
+        }
       },
+      where: whereCondition,
+      skip: skip,
+      take: limit,
       orderBy: {
-        createdAt: 'desc',
+        createdAt: 'desc', // Default sort by creation date
       },
+      // include dihapus karena sudah menggunakan select
     });
 
-    return NextResponse.json(products);
+    // Get total count for pagination
+    const totalProducts = await prisma.product.count({
+      where: whereCondition,
+    });
+
+    // Process products to add total stock and price range
+    const products = await Promise.all(productsRaw.map(async (product) => {
+      let totalStock = 0;
+      let minVariantPrice: number | null = null;
+      let maxVariantPrice: number | null = null;
+
+      if (product.hasVariants) {
+        // Fetch combinations specifically for this product to get price range and stock
+        const combinations = await prisma.productVariantCombination.findMany({
+          where: { productId: product.id },
+          select: { price: true, quantity: true },
+        });
+
+        totalStock = combinations.reduce((sum, combo) => sum + combo.quantity, 0);
+
+        if (combinations.length > 0) {
+          const prices = combinations.map(c => c.price);
+          minVariantPrice = Math.min(...prices);
+          maxVariantPrice = Math.max(...prices);
+        }
+      } else {
+        // Sum stock from inventory entries for non-variant product
+        totalStock = product.inventories.reduce((sum, inv) => sum + inv.quantity, 0); // Ganti 'inventory' menjadi 'inventories'
+      }
+
+      return {
+        ...product,
+        mainImage: product.mainImage, // Pastikan mainImage disertakan secara eksplisit
+        totalStock,
+        variantCount: product.variants.length, // Add variant count
+        minVariantPrice, // Add min variant price
+        maxVariantPrice, // Add max variant price
+        // Hapus relasi yang tidak perlu lagi setelah perhitungan
+        variants: undefined,
+        inventories: undefined,
+      };
+    }));
+
+
+    return NextResponse.json({
+      data: products,
+      total: totalProducts,
+      page,
+      limit,
+    });
   } catch (error) {
     console.error('Error fetching products:', error);
-    return NextResponse.json({ error: 'Gagal mengambil data produk' }, { status: 500 });
+    let errorMessage = 'Failed to fetch products';
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    }
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

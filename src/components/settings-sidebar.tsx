@@ -27,42 +27,109 @@ import {
 const settingsNav = {
   navMain: [
     {
-      title: "Settings",
-      url: "#", // Main group doesn't need an icon here if it's just a title
+      title: "Account",
+      url: "#", // Placeholder URL
+      icon: User,
+      isActive: true, // Main group doesn't need an icon here if it's just a title
       items: [
         {
-          title: "Account",
+          title: "Profile",
           url: "/settings/account",
           icon: User,
           isActive: true, // Set account as active initially
         },
         {
-          title: "Authorization Center",
-          url: "/settings/authorization",
-          icon: ShieldCheck,
-        },
-        {
-          title: "Order Settings",
-          url: "/settings/orders",
+          title: "User Management",
+          url: "/settings/account/users",
           icon: ShoppingCart,
         },
         {
-          title: "Print Settings",
-          url: "/settings/print",
+          title: "Roles",
+          url: "/settings/account/roles",
           icon: Printer,
-        },
-        {
-          title: "Shipping Settings",
-          url: "/settings/shipping",
-          icon: Truck,
-        },
-        {
-          title: "Inventory Settings",
-          url: "/settings/inventory",
-          icon: Archive,
         },
       ],
     },
+        {
+        title: "Authorization Center",
+        url: "#",
+        icon: ShieldCheck,          
+        items: [
+          {
+            title: "Authorization",
+            url: "/settings/authorization", // Example URL
+            icon: User,
+          },
+        ],
+      },
+      {
+        title: "Order Settings",
+        url: "#", // Placeholder URL
+        icon: ShoppingCart,
+        items: [
+          {
+            title: "Buat Anggaran",
+            url: "/finance/budget/create", // Example URL
+            icon: User,
+          },
+          {
+            title: "Laporan Anggaran",
+            url: "/finance/budget/reports", // Example URL
+            icon: User,
+          },
+        ],
+      },
+      {
+        title: "Print Settings",
+        url: "#", // Placeholder URL
+        icon: Printer,
+        items: [
+          {
+            title: "Buat Anggaran",
+            url: "/finance/budget/create", // Example URL
+            icon: User,
+          },
+          {
+            title: "Laporan Anggaran",
+            url: "/finance/budget/reports", // Example URL
+            icon: User,
+          },
+        ],
+      },
+      {
+        title: "Shipping Settings",
+        url: "#", // Placeholder URL
+        icon: Truck,
+        items: [
+          {
+            title: "Buat Anggaran",
+            url: "/finance/budget/create", // Example URL
+            icon: User,
+          },
+          {
+            title: "Laporan Anggaran",
+            url: "/finance/budget/reports", // Example URL
+            icon: User,
+          },
+        ],
+      },
+      {
+        title: "Inventory Settings",
+        url: "#", // Placeholder URL
+        icon: Archive,
+        items: [
+          {
+            title: "Buat Anggaran",
+            url: "/finance/budget/create", // Example URL
+            icon: User,
+          },
+          {
+            title: "Laporan Anggaran",
+            url: "/finance/budget/reports", // Example URL
+            icon: User,
+          },
+        ],
+      },
   ],
   navSecondary: [
     {
@@ -105,7 +172,7 @@ export function SettingsSidebar({ ...props }: React.ComponentProps<typeof Sideba
       </SidebarHeader>
       <SidebarContent>
         {/* Pass only the main navigation items for settings and the current pathname */}
-        <NavMain items={settingsNav.navMain[0].items ?? []} isSettings pathname={pathname} />
+        <NavMain items={settingsNav.navMain} pathname={pathname} />
         <NavSecondary items={settingsNav.navSecondary} className="mt-auto" />
       </SidebarContent>
     </Sidebar>

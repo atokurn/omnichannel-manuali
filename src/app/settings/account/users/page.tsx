@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { DataTable } from '@/components/table/data-table';
+import { DataTableSkeleton } from '@/components/table/data-table-skeleton'; // Import DataTableSkeleton
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Eye, FileEdit, Trash2, UserPlus } from 'lucide-react';
@@ -147,7 +148,7 @@ export default function UsersPage() {
   ];
   
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4">
+    <div className="flex flex-1 flex-col gap-4 p-6">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
@@ -162,16 +163,20 @@ export default function UsersPage() {
           )}
         </CardHeader>
         <CardContent>
-          <DataTable 
-            columns={columns} 
-            data={users} 
-            searchKey="name"
-            pageCount={1}
-            currentPage={1}
-            onPageChange={() => {}}
-            pageSize={10}
-            onPageSizeChange={() => {}}
-          />
+          {loading ? (
+            <DataTableSkeleton columnCount={columns.length} rowCount={10} /> // Use DataTableSkeleton
+          ) : (
+            <DataTable 
+              columns={columns} 
+              data={users} 
+              searchKey="name"
+              pageCount={1} // Placeholder, replace with actual page count if implementing pagination
+              currentPage={1} // Placeholder, replace with actual current page if implementing pagination
+              onPageChange={() => {}} // Placeholder, implement pagination logic
+              pageSize={10} // Placeholder, implement page size logic
+              onPageSizeChange={() => {}} // Placeholder, implement page size logic
+            />
+          )}
         </CardContent>
       </Card>
       

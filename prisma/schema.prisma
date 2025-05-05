@@ -24,6 +24,8 @@ model Tenant {
   materials   Material[]
   roles       Role[]
   transactions Transaction[]
+  productCompositions ProductComposition[] // Relation back from ProductComposition
+  compositionMaterials CompositionMaterial[] // Relation back from CompositionMaterial
 }
 
 model User {
@@ -79,7 +81,8 @@ model Product {
   images           ProductImage[]             // Relation to additional product images
   variantCombos    ProductVariantCombination[] // Relation to variant combinations
   tenant           Tenant                     @relation(fields: [tenantId], references: [id])
-  
+  compositions     ProductComposition[]       // Relation back from ProductComposition (one-to-many)
+
   @@index([tenantId])
   @@index([createdById])
   @@index([categoryId])
@@ -318,6 +321,7 @@ model Material {
   category       Category?              @relation(fields: [categoryId], references: [id])
   dynamicPrices  MaterialDynamicPrice[]
   transactionItems TransactionItem[] // Relasi balik ke TransactionItem
+  compositionMaterials CompositionMaterial[] // Relation back from CompositionMaterial
   tenant         Tenant                 @relation(fields: [tenantId], references: [id])
   
   @@unique([code, tenantId]) // Kode material harus unik dalam satu tenant
@@ -375,4 +379,40 @@ enum TransactionStatus {
 enum MaterialStatus {
   AKTIF
   NONAKTIF
+}
+
+model ProductComposition {
+  id           String                @id @default(uuid())
+  tenantId     String
+  productId    String?               // Null if it's a template
+  isTemplate   Boolean               @default(false)
+  templateName String?               // Name if it's a template
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+
+  tenant       Tenant                @relation(fields: [tenantId], references: [id])
+  product      Product?              @relation(fields: [productId], references: [id], onDelete: Cascade)
+  materials    CompositionMaterial[] // Relation to materials in this composition
+
+  @@index([tenantId])
+  @@index([productId])
+}
+
+model CompositionMaterial {
+  id              String             @id @default(uuid())
+  compositionId   String
+  materialId      String
+  quantity        Float              // Use Float for potentially fractional quantities
+  tenantId        String             // Include tenantId for multi-tenancy consistency
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  composition     ProductComposition @relation(fields: [compositionId], references: [id], onDelete: Cascade)
+  material        Material           @relation(fields: [materialId], references: [id]) // Consider onDelete behavior (e.g., Restrict)
+  tenant          Tenant             @relation(fields: [tenantId], references: [id])
+
+  @@unique([compositionId, materialId]) // A material should appear only once per composition
+  @@index([compositionId])
+  @@index([materialId])
+  @@index([tenantId])
 }

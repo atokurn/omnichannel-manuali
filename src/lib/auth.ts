@@ -239,4 +239,57 @@ export async function loginUser({ email, password }: UserCredentials) {
   }
 }
 
-// Removed duplicate function definitions (loginUser, withAuth, withPermission, setAuthCookie, clearAuthCookie, getCurrentUser)
+/**
+ * Mendapatkan user yang sedang login berdasarkan token JWT di cookie
+ * Fungsi ini hanya bisa digunakan di server-side (API routes)
+ */
+export async function getCurrentUser() {
+  try {
+    // Ambil cookie dari request
+    const cookieStore = await cookies(); // Tambahkan await di sini
+    const token = cookieStore.get(COOKIE_NAME)?.value;
+
+    if (!token) {
+      return null; // Tidak ada token, user tidak login
+    }
+
+    // Verifikasi token
+    const decoded = verify(token, JWT_SECRET) as TokenPayload;
+    const userId = decoded.userId;
+
+    if (!userId) {
+      return null; // Token tidak valid
+    }
+
+    // Ambil data user dari database
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        tenant: true,
+        userRoles: {
+          include: {
+            role: {
+              include: {
+                permissions: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!user) {
+      return null; // User tidak ditemukan
+    }
+
+    // Hapus password dari response
+    const { password: _, ...userWithoutPassword } = user;
+
+    return userWithoutPassword;
+  } catch (error) {
+    console.error('Error getting current user:', error);
+    return null; // Return null jika terjadi error
+  }
+}
+
+// Removed duplicate function definitions (loginUser, withAuth, withPermission, setAuthCookie, clearAuthCookie)

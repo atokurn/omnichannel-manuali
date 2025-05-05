@@ -75,6 +75,7 @@ const AddProductPage = () => {
   const [productName, setProductName] = useState<string>(""); // State for product name
   const [productDescription, setProductDescription] = useState<string>(""); // State for product description
   const [defaultPrice, setDefaultPrice] = useState<string>(""); // State for default price when no variants
+  const [defaultQuantity, setDefaultQuantity] = useState<string>(""); // State for default quantity when no variants
   const [selectedPreviewOptionId, setSelectedPreviewOptionId] = useState<string | null>(null); // State for selected variant option in preview
 
   const [mainImage, setMainImage] = useState<File | null>(null);
@@ -146,6 +147,7 @@ const AddProductPage = () => {
         productName: productName,
         productDescription: productDescription,
         defaultPrice: defaultPrice ? defaultPrice.replace(/[.,]/g, '') : '0', // Convert string to number
+        defaultQuantity: defaultQuantity, // Menambahkan kuantitas untuk produk tanpa varian
         addVariant: addVariant,
         variants: await processVariantsWithImages(variants),
         variantCombinations: variantTableData,
@@ -462,7 +464,21 @@ const AddProductPage = () => {
 
   // Update variant name
   const handleVariantNameChange = (variantId: string, name: string) => {
-    setVariants(variants.map(v => v.id === variantId ? { ...v, name } : v));
+    const trimmedName = name.trim().toLowerCase();
+    // Check if the name already exists in other variants (case-insensitive)
+    const isDuplicate = variants.some(
+      (v) => v.id !== variantId && v.name.trim().toLowerCase() === trimmedName
+    );
+
+    if (trimmedName && isDuplicate) {
+      toast.error(`Nama varian "${name}" sudah digunakan.`);
+      // Optionally prevent the update or revert
+      // return; // Uncomment to prevent update if name is duplicate
+    }
+
+    setVariants(prevVariants =>
+      prevVariants.map(v => (v.id === variantId ? { ...v, name: name } : v))
+    );
   };
 
   // Add a new option to a variant
@@ -492,26 +508,47 @@ const AddProductPage = () => {
   // Update variant option value and char count, automatically add new option if last one is typed into
   const handleVariantOptionValueChange = (variantId: string, optionId: string, value: string) => {
     setVariants(prevVariants => {
-      const newVariants = prevVariants.map(v => {
-        if (v.id === variantId) {
-          const optionIndex = v.options.findIndex(opt => opt.id === optionId);
-          const isLastOption = optionIndex === v.options.length - 1;
-          const wasEmpty = v.options[optionIndex]?.value === '';
+      const newVariants = [...prevVariants]; // Create a mutable copy
+      const variantIndex = newVariants.findIndex(v => v.id === variantId);
 
-          const updatedOptions = v.options.map(opt =>
-            opt.id === optionId ? { ...opt, value: value.slice(0, 50), charCount: value.slice(0, 50).length } : opt
-          );
+      if (variantIndex === -1) return prevVariants; // Variant not found
 
-          // If typing in the last empty option, add a new one
-          if (isLastOption && wasEmpty && value.length > 0 && v.options.length < 50) {
-            const newOption: VariantOption = { id: `option-${Date.now()}`, value: '', image: null, charCount: 0 };
-            return { ...v, options: [...updatedOptions, newOption] };
-          }
+      const currentVariant = newVariants[variantIndex];
+      const optionIndex = currentVariant.options.findIndex(opt => opt.id === optionId);
 
-          return { ...v, options: updatedOptions };
-        }
-        return v;
-      });
+      if (optionIndex === -1) return prevVariants; // Option not found
+
+      // Check for duplicates within the same variant, excluding the current option being edited
+      const trimmedValue = value.trim().toLowerCase();
+      const isDuplicate = currentVariant.options.some(
+        (opt) => opt.id !== optionId && opt.value.trim().toLowerCase() === trimmedValue
+      );
+
+      if (trimmedValue && isDuplicate) {
+        toast.error(`Nilai opsi "${value}" sudah ada untuk varian ini.`);
+        // Optionally revert the value or prevent further action
+        // For now, we just show the error and allow the state update, 
+        // but the user is notified.
+        // To prevent update: return prevVariants;
+      }
+
+      const isLastOption = optionIndex === currentVariant.options.length - 1;
+      const wasEmpty = currentVariant.options[optionIndex]?.value === '';
+
+      // Update the specific option
+      const updatedOptions = currentVariant.options.map(opt =>
+        opt.id === optionId ? { ...opt, value: value.slice(0, 50), charCount: value.slice(0, 50).length } : opt
+      );
+
+      // Update the variant with new options
+      newVariants[variantIndex] = { ...currentVariant, options: updatedOptions };
+
+      // If typing in the last empty option and it's not a duplicate, add a new one
+      if (isLastOption && wasEmpty && value.length > 0 && !isDuplicate && currentVariant.options.length < 50) {
+        const newOption: VariantOption = { id: `option-${Date.now()}`, value: '', image: null, charCount: 0 };
+        newVariants[variantIndex].options.push(newOption);
+      }
+
       return newVariants;
     });
   };
@@ -987,7 +1024,13 @@ const AddProductPage = () => {
                               </Tooltip>
                             </TooltipProvider>
                           </Label>
-                          <Input id="product-quantity" type="number" placeholder="0" />
+                          <Input 
+                            id="product-quantity" 
+                            type="number" 
+                            placeholder="0" 
+                            value={defaultQuantity} 
+                            onChange={(e) => setDefaultQuantity(e.target.value)} 
+                          />
                         </div>
                         <div className="space-y-1">
                           <Label htmlFor="product-sku" className="text-xs flex items-center">
@@ -1215,23 +1258,19 @@ const AddProductPage = () => {
                                 {/* Dynamic Variant Headers */}
                                 {variants.filter(v => v.name).map(variant => (
                                   <TableHead key={variant.id}>{variant.name}</TableHead>
-                                ))}
-                                <TableHead className="min-w-[150px]"><span className="text-red-500 mr-1">*</span>Harga jual <TooltipProvider><Tooltip><TooltipTrigger asChild><HelpCircle className="h-3 w-3 text-muted-foreground ml-1 inline-block cursor-help" /></TooltipTrigger><TooltipContent><p>Harga jual akhir produk.</p></TooltipContent></Tooltip></TooltipProvider></TableHead>
-                                <TableHead className="min-w-[120px]"><span className="text-red-500 mr-1">*</span>Kuantitas <TooltipProvider><Tooltip><TooltipTrigger asChild><HelpCircle className="h-3 w-3 text-muted-foreground ml-1 inline-block cursor-help" /></TooltipTrigger><TooltipContent><p>Jumlah stok tersedia.</p></TooltipContent></Tooltip></TooltipProvider></TableHead>
-                                <TableHead className="min-w-[150px]">SKU Penjual <TooltipProvider><Tooltip><TooltipTrigger asChild><HelpCircle className="h-3 w-3 text-muted-foreground ml-1 inline-block cursor-help" /></TooltipTrigger><TooltipContent><p>Kode unik SKU untuk varian ini.</p></TooltipContent></Tooltip></TooltipProvider></TableHead>
-                                <TableHead className="min-w-[180px]"><span className="text-red-500 mr-1">*</span>Berat dengan kemasan</TableHead>
-                                <TableHead className="w-[50px]"></TableHead> {/* For Delete Button */}
+                                ))}<TableHead className="min-w-[150px]"><span className="text-red-500 mr-1">*</span>Harga jual <TooltipProvider><Tooltip><TooltipTrigger asChild><HelpCircle className="h-3 w-3 text-muted-foreground ml-1 inline-block cursor-help" /></TooltipTrigger><TooltipContent><p>Harga jual akhir produk.</p></TooltipContent></Tooltip></TooltipProvider></TableHead><TableHead className="min-w-[120px]"><span className="text-red-500 mr-1">*</span>Kuantitas <TooltipProvider><Tooltip><TooltipTrigger asChild><HelpCircle className="h-3 w-3 text-muted-foreground ml-1 inline-block cursor-help" /></TooltipTrigger><TooltipContent><p>Jumlah stok tersedia.</p></TooltipContent></Tooltip></TooltipProvider></TableHead><TableHead className="min-w-[150px]">SKU Penjual <TooltipProvider><Tooltip><TooltipTrigger asChild><HelpCircle className="h-3 w-3 text-muted-foreground ml-1 inline-block cursor-help" /></TooltipTrigger><TooltipContent><p>Kode unik SKU untuk varian ini.</p></TooltipContent></Tooltip></TooltipProvider></TableHead><TableHead className="min-w-[180px]"><span className="text-red-500 mr-1">*</span>Berat dengan kemasan</TableHead><TableHead className="w-[50px]"></TableHead>{/* For Delete Button */}
                               </TableRow>
                             </TableHeader>
                             <TableBody>
                               {variantTableData.map((combination) => (
-                                <TableRow key={combination.combinationId}>{/* Remove whitespace here */}
+                                <TableRow key={combination.combinationId}>
                                   {/* Dynamic Variant Values */}
                                   {variants.filter(v => v.name).map(variant => (
                                     <TableCell key={`${combination.combinationId}-${variant.id}`}>
                                       {combination.options[variant.name] || '-'}
                                     </TableCell>
-                                  ))}{/* Input Fields */}
+                                  ))}
+                                  {/* Input Fields */}
                                   <TableCell>
                                     <div className="relative">
                                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">Rp</span>

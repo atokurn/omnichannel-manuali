@@ -2,7 +2,7 @@ import * as React from "react"
 
 import { SiteHeader } from "@/components/site-header"
 import { SettingsSidebar } from "@/components/settings-sidebar"
-import { SidebarProvider } from "@/components/ui/sidebar"; // Added import
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 
 interface SettingsLayoutProps {
   children: React.ReactNode
@@ -10,18 +10,16 @@ interface SettingsLayoutProps {
 
 export default function SettingsLayout({ children }: SettingsLayoutProps) {
   return (
-    <div className="[--header-height:calc(--spacing(14))]">
-    <SidebarProvider className="flex flex-col"> {/* Added SidebarProvider wrapper */}
+    <div className="[--header-height:calc(--spacing(14))] min-h-screen bg-muted/40"> {/* Added min-h-screen bg-muted/40 */}
+      <SidebarProvider className="flex flex-col">
         <SiteHeader />
         <div className="flex flex-1">
           <SettingsSidebar/>
-          <div className="flex-1 p-4 pl-[--sidebar-width]">
-          <main className="flex w-full flex-col overflow-hidden py-6">
+          <SidebarInset>
             {children}
-          </main>
-          </div>
+          </SidebarInset>
         </div>
-    </SidebarProvider> /* Added SidebarProvider wrapper */
+      </SidebarProvider>
     </div>
   )
 }
