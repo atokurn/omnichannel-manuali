@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 
-export async function GET(request: NextRequest, { params }: { params: { productId: string } }) {
-  const { productId } = params;
+export async function GET(
+  request: NextRequest, 
+  { params }: { params: { productId: string } }
+) {
+  const { productId } = await params; // Tambahkan await di sini
   const tenantId = request.headers.get('X-Tenant-Id');
 
   if (!tenantId) {
