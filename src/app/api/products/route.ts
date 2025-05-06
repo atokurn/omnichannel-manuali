@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 
 import { getCurrentUser as getUser } from '@/lib/auth'; // Import getCurrentUser
+import redisClient, { ensureRedisConnection } from '@/lib/redis'; // Import Redis client
 
 const prisma = new PrismaClient();
 
@@ -246,20 +247,64 @@ export async function GET(request: Request) {
       where: whereCondition,
     });
 
-    // Process products to add total stock and price range
+    // Process products to add total stock, price range, and variant combinations
     const products = await Promise.all(productsRaw.map(async (product) => {
       let totalStock = 0;
       let minVariantPrice: number | null = null;
       let maxVariantPrice: number | null = null;
+      let combinations: any[] = []; // Initialize combinations array
 
       if (product.hasVariants) {
-        // Fetch combinations specifically for this product to get price range and stock
-        const combinations = await prisma.productVariantCombination.findMany({
-          where: { productId: product.id },
-          select: { price: true, quantity: true },
-        });
+        // --- Redis Cache Check ---
+        const cacheKey = `product:${product.id}:combinations`;
+        let cachedCombinations: string | null = null;
+        try {
+          await ensureRedisConnection();
+          cachedCombinations = await redisClient.get(cacheKey);
+        } catch (redisError) {
+          console.warn(`Redis GET error for key ${cacheKey}:`, redisError);
+        }
 
-        totalStock = combinations.reduce((sum, combo) => sum + combo.quantity, 0);
+        if (cachedCombinations) {
+          try {
+            combinations = JSON.parse(cachedCombinations);
+            console.log(`Cache hit for ${cacheKey}`);
+          } catch (parseError) {
+            console.error(`Error parsing cached combinations for ${cacheKey}:`, parseError);
+            // Fallback to DB fetch if cache is corrupted
+            cachedCombinations = null; // Ensure DB fetch happens
+          }
+        }
+        
+        if (!cachedCombinations) {
+          console.log(`Cache miss for ${cacheKey}, fetching from DB...`);
+          // Fetch combinations specifically for this product from DB
+          combinations = await prisma.productVariantCombination.findMany({
+            where: { productId: product.id },
+            select: { 
+              id: true, // Select necessary fields
+              combinationId: true,
+              options: true,
+              price: true, 
+              quantity: true,
+              sku: true,
+              weight: true,
+              weightUnit: true,
+              createdAt: true,
+              updatedAt: true
+            },
+          });
+          // Store in Redis with 5-minute expiry
+          try {
+            await redisClient.set(cacheKey, JSON.stringify(combinations), { EX: 300 });
+          } catch (redisSetError) {
+            console.warn(`Redis SET error for key ${cacheKey}:`, redisSetError);
+          }
+        }
+        // --- End Redis Cache Logic ---
+
+        // Calculate stock and price range from fetched/cached combinations
+        totalStock = combinations.reduce((sum, combo) => sum + (combo.quantity || 0), 0);
 
         if (combinations.length > 0) {
           const prices = combinations.map(c => c.price);
@@ -278,6 +323,7 @@ export async function GET(request: Request) {
         variantCount: product.variants.length, // Add variant count
         minVariantPrice, // Add min variant price
         maxVariantPrice, // Add max variant price
+        combinations: product.hasVariants ? combinations : undefined, // Include combinations if product has variants
         // Hapus relasi yang tidak perlu lagi setelah perhitungan
         variants: undefined,
         inventories: undefined,

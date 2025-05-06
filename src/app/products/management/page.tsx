@@ -48,6 +48,20 @@ import {
 } from "@/components/ui/table"; // Import Table components
 import { Separator } from "@/components/ui/separator"; // Import Separator
 
+// Definisi tipe data untuk Kombinasi Varian (cocokkan dengan select di API)
+interface VariantCombination {
+  id: string;
+  combinationId: string;
+  options: Record<string, string>;
+  price: number;
+  quantity: number;
+  sku: string;
+  weight: number | null; // Sesuaikan tipe jika perlu
+  weightUnit: string | null; // Sesuaikan tipe jika perlu
+  createdAt: string;
+  updatedAt: string;
+}
+
 // Definisi tipe data untuk Produk berdasarkan respons API
 interface Product {
   id: string;
@@ -63,70 +77,23 @@ interface Product {
   createdAt: string; // Atau Date jika API mengembalikan Date
   // Tambahkan properti lain jika ada dari API, misal: imageUrl
   imageUrl?: string; // Opsional, jika API mengembalikan URL gambar
+  mainImage?: string; // Pastikan ini ada jika digunakan di kolom
+  minVariantPrice?: number | null; // Pastikan ini ada jika digunakan di kolom
+  maxVariantPrice?: number | null; // Pastikan ini ada jika digunakan di kolom
+  combinations?: VariantCombination[]; // Tambahkan data kombinasi varian
 }
 
 
-// Define VariantDetails component
-interface VariantCombination {
-  id: string;
-  productId: string;
-  combinationId: string;
-  options: Record<string, string>;
-  price: number;
-  quantity: number;
-  sku: string;
-  weight: number;
-  weightUnit: string;
-  createdAt: string;
-  updatedAt: string;
-}
+// Define VariantDetails component - Modified to accept combinations as prop
+function VariantDetails({ combinations }: { combinations: VariantCombination[] }) {
 
-function VariantDetails({ productId }: { productId: string }) {
-  const [variants, setVariants] = useState<VariantCombination[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchVariantDetails = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        // Ambil tenantId dari header atau context jika diperlukan
-        // Untuk contoh ini, kita asumsikan API bisa mengambilnya dari request
-        const response = await fetch(`/api/products/${productId}/variants`);
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Gagal memuat detail varian.');
-        }
-        const data = await response.json();
-        setVariants(data);
-      } catch (err: any) {
-        setError(err.message || 'Terjadi kesalahan saat memuat detail varian.');
-        toast.error('Error Varian', { description: err.message || 'Gagal memuat detail varian.' });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (productId) {
-      fetchVariantDetails();
-    }
-  }, [productId]);
-
-  if (isLoading) {
-    return <div className="p-4 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" /></div>;
-  }
-
-  if (error) {
-    return <div className="p-4 text-center text-red-600">Error: {error}</div>;
-  }
-
-  if (variants.length === 0) {
-    return <div className="p-4 text-center text-muted-foreground">Produk ini tidak memiliki varian atau detail varian tidak ditemukan.</div>;
+  // Data sudah di-fetch oleh parent, tidak perlu loading/error state di sini
+  if (!combinations || combinations.length === 0) {
+    return <div className="p-4 text-center text-muted-foreground">Detail varian tidak tersedia atau produk ini tidak memiliki varian.</div>;
   }
 
   // Mendapatkan semua nama opsi unik dari kombinasi varian
-  const optionNames = variants.reduce<string[]>((acc, variant) => {
+  const optionNames = combinations.reduce<string[]>((acc, variant) => {
     Object.keys(variant.options).forEach(key => {
       if (!acc.includes(key)) {
         acc.push(key);
@@ -150,7 +117,7 @@ function VariantDetails({ productId }: { productId: string }) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {variants.map((variant) => (
+          {combinations.map((variant) => (
             <TableRow key={variant.id}>
               {optionNames.map(name => (
                 <TableCell key={`${variant.id}-${name}`}>{variant.options[name] || '-'}</TableCell>
@@ -673,7 +640,8 @@ export default function ProductManagementPage() {
                           <TableRow>
                             {/* Use a single cell that spans all columns */}
                             <TableCell colSpan={columns.length} className="p-0">
-                              <VariantDetails productId={row.original.id} />
+                              {/* Pass pre-fetched combinations data */}
+                              <VariantDetails combinations={row.original.combinations || []} />
                             </TableCell>
                           </TableRow>
                         )}
