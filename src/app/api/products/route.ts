@@ -252,37 +252,36 @@ export async function GET(request: Request) {
       let totalStock = 0;
       let minVariantPrice: number | null = null;
       let maxVariantPrice: number | null = null;
-      let combinations: any[] = []; // Initialize combinations array
+      // let combinations: any[] = []; // Initialize combinations array - Will be replaced by processedCombinations
+      let processedCombinations: any[] = [];
 
       if (product.hasVariants) {
-        // --- Redis Cache Check ---
-        const cacheKey = `product:${product.id}:combinations`;
-        let cachedCombinations: string | null = null;
+        const cacheKey = `product:${product.id}:combinations_with_imageUrl_v1`; // New cache key
+        let cachedDataString: string | null = null;
         try {
           await ensureRedisConnection();
-          cachedCombinations = await redisClient.get(cacheKey);
+          cachedDataString = await redisClient.get(cacheKey);
         } catch (redisError) {
           console.warn(`Redis GET error for key ${cacheKey}:`, redisError);
         }
 
-        if (cachedCombinations) {
+        if (cachedDataString) {
           try {
-            combinations = JSON.parse(cachedCombinations);
+            processedCombinations = JSON.parse(cachedDataString);
             console.log(`Cache hit for ${cacheKey}`);
           } catch (parseError) {
-            console.error(`Error parsing cached combinations for ${cacheKey}:`, parseError);
-            // Fallback to DB fetch if cache is corrupted
-            cachedCombinations = null; // Ensure DB fetch happens
+            console.error(`Error parsing cached data for ${cacheKey}:`, parseError);
+            cachedDataString = null; // Force DB fetch if cache is corrupted
           }
         }
         
-        if (!cachedCombinations) {
-          console.log(`Cache miss for ${cacheKey}, fetching from DB...`);
-          // Fetch combinations specifically for this product from DB
-          combinations = await prisma.productVariantCombination.findMany({
+        if (!cachedDataString) { // If cache miss or parse error
+          console.log(`Cache miss or parse error for ${cacheKey}, fetching and processing...`);
+          // Fetch raw combinations specifically for this product from DB
+          const rawCombinations = await prisma.productVariantCombination.findMany({
             where: { productId: product.id },
             select: { 
-              id: true, // Select necessary fields
+              id: true, 
               combinationId: true,
               options: true,
               price: true, 
@@ -294,26 +293,64 @@ export async function GET(request: Request) {
               updatedAt: true
             },
           });
-          // Store in Redis with 5-minute expiry
+
+          // Fetch all ProductVariantOptions with images for this product
+          const productVariantOptionsWithImages = await prisma.productVariantOption.findMany({
+            where: {
+              variant: {
+                productId: product.id,
+              },
+              image: { not: null }, // Only options with images
+            },
+            select: {
+              value: true,
+              image: true,
+              variant: { select: { name: true } }, // To match option by variant name and value
+            },
+          });
+
+          // Helper function to find a representative image for a combination
+          const findRepresentativeImage = (
+            comboOpts: Record<string, string>,
+            allOptsWithImgs: Array<{value: string, image: string | null, variant: {name: string}}>
+          ): string | null => {
+            for (const variantNameKey in comboOpts) {
+              const optionVal = comboOpts[variantNameKey];
+              const foundOpt = allOptsWithImgs.find(
+                opt => opt.variant.name === variantNameKey && opt.value === optionVal && opt.image
+              );
+              if (foundOpt && foundOpt.image) {
+                return foundOpt.image;
+              }
+            }
+            return null;
+          };
+
+          // Process rawCombinations to add imageUrl
+          processedCombinations = rawCombinations.map(combo => ({
+            ...combo,
+            imageUrl: findRepresentativeImage(combo.options as Record<string, string>, productVariantOptionsWithImages),
+          }));
+          
+          // Store processedCombinations in Redis
           try {
-            await redisClient.set(cacheKey, JSON.stringify(combinations), { EX: 300 });
+            await redisClient.set(cacheKey, JSON.stringify(processedCombinations), { EX: 300 }); // Cache for 5 minutes
           } catch (redisSetError) {
             console.warn(`Redis SET error for key ${cacheKey}:`, redisSetError);
           }
         }
-        // --- End Redis Cache Logic ---
 
-        // Calculate stock and price range from fetched/cached combinations
-        totalStock = combinations.reduce((sum, combo) => sum + (combo.quantity || 0), 0);
+        // Calculate stock and price range from processedCombinations
+        totalStock = processedCombinations.reduce((sum, combo) => sum + (combo.quantity || 0), 0);
 
-        if (combinations.length > 0) {
-          const prices = combinations.map(c => c.price);
+        if (processedCombinations.length > 0) {
+          const prices = processedCombinations.map(c => c.price);
           minVariantPrice = Math.min(...prices);
           maxVariantPrice = Math.max(...prices);
         }
       } else {
         // Sum stock from inventory entries for non-variant product
-        totalStock = product.inventories.reduce((sum, inv) => sum + inv.quantity, 0); // Ganti 'inventory' menjadi 'inventories'
+        totalStock = product.inventories.reduce((sum, inv) => sum + inv.quantity, 0);
       }
 
       return {
@@ -323,7 +360,7 @@ export async function GET(request: Request) {
         variantCount: product.variants.length, // Add variant count
         minVariantPrice, // Add min variant price
         maxVariantPrice, // Add max variant price
-        combinations: product.hasVariants ? combinations : undefined, // Include combinations if product has variants
+        combinations: product.hasVariants ? processedCombinations : undefined, // Include processedCombinations (with imageUrl)
         // Hapus relasi yang tidak perlu lagi setelah perhitungan
         variants: undefined,
         inventories: undefined,

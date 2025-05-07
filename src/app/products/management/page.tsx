@@ -60,6 +60,7 @@ interface VariantCombination {
   weightUnit: string | null; // Sesuaikan tipe jika perlu
   createdAt: string;
   updatedAt: string;
+  imageUrl?: string; // URL gambar untuk varian ini
 }
 
 // Definisi tipe data untuk Produk berdasarkan respons API
@@ -102,12 +103,25 @@ function VariantDetails({ combinations }: { combinations: VariantCombination[] }
     return acc;
   }, []);
 
+  // Fungsi untuk mendapatkan URL gambar untuk opsi varian tertentu
+  const getOptionImageUrl = (variant: VariantCombination, optionName: string) => {
+    // Implementasi sederhana - mencari gambar berdasarkan nama opsi
+    // Asumsi: ProductVariantOption memiliki properti image yang menyimpan URL gambar
+    // Ini perlu disesuaikan dengan struktur data sebenarnya
+    const optionValue = variant.options[optionName];
+    // Di sini kita bisa menambahkan logika untuk mendapatkan URL gambar dari opsi
+    // Untuk saat ini, kita gunakan placeholder jika tidak ada gambar
+    return null; // Placeholder, akan diimplementasikan sesuai struktur data
+  };
+
   return (
     <div className="p-4 bg-background">
       <h4 className="mb-2 font-semibold text-sm">Detail Varian</h4>
       <Table className="text-xs">
         <TableHeader>
           <TableRow>
+            {/* Kolom untuk gambar varian */}
+            <TableHead>Gambar</TableHead>
             {optionNames.map(name => (
               <TableHead key={name}>{name}</TableHead>
             ))}
@@ -119,6 +133,22 @@ function VariantDetails({ combinations }: { combinations: VariantCombination[] }
         <TableBody>
           {combinations.map((variant) => (
             <TableRow key={variant.id}>
+              {/* Sel untuk gambar varian */}
+              <TableCell>
+                <ProductImageTooltip 
+                  imageUrl={variant.imageUrl || '/placeholder.svg'} 
+                  productName={`Varian ${Object.values(variant.options).join(', ')}`} 
+                  alt={`Varian ${Object.values(variant.options).join(', ')}`}
+                >
+                  <Image
+                    src={variant.imageUrl || '/placeholder.svg'}
+                    alt={`Varian ${Object.values(variant.options).join(', ')}`}
+                    width={30}
+                    height={30}
+                    className="rounded object-cover"
+                  />
+                </ProductImageTooltip>
+              </TableCell>
               {optionNames.map(name => (
                 <TableCell key={`${variant.id}-${name}`}>{variant.options[name] || '-'}</TableCell>
               ))}
@@ -297,22 +327,38 @@ const router = useRouter(); // Get router inside cell
 const [isDeleting, setIsDeleting] = useState(false);
 
 const handleDelete = async () => {
-setIsDeleting(true);
-try {
-const response = await fetch(`/api/products/${product.id}`, {
-method: 'DELETE',
-});
-if (!response.ok) {
-const errorData = await response.json();
-throw new Error(errorData.error || 'Gagal menghapus produk.');
-}
-toast.success('Sukses', { description: `Produk "${product.name}" berhasil dihapus.` });
-refreshData(); // Call refreshData passed from the component
-} catch (err: any) {
-toast.error('Error Hapus', { description: err.message || 'Gagal menghapus produk.' });
-} finally {
-setIsDeleting(false);
-}
+  if (!product || !product.id) {
+    toast.error('Error Hapus', { description: 'ID Produk tidak valid.' });
+    console.error('handleDelete error: Invalid product ID', product);
+    return;
+  }
+
+  setIsDeleting(true);
+  try {
+    const response = await fetch(`/api/products/${product.id}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        // Tambahkan header lain yang mungkin diperlukan, seperti X-Tenant-Id jika ada
+      },
+    });
+
+    const responseData = await response.json(); // Selalu coba parse JSON
+
+    if (!response.ok) {
+      // Log error dari server jika ada
+      console.error('Server error on delete:', responseData);
+      throw new Error(responseData.error || responseData.message || `Gagal menghapus produk (status: ${response.status}).`);
+    }
+
+    toast.success('Sukses', { description: responseData.message || `Produk "${product.name}" berhasil dihapus.` });
+    refreshData(); // Panggil refreshData yang diteruskan dari komponen
+  } catch (err: any) {
+    console.error('Error deleting product:', err);
+    toast.error('Error Hapus', { description: err.message || 'Terjadi kesalahan saat menghapus produk.' });
+  } finally {
+    setIsDeleting(false);
+  }
 };
 
 return (
@@ -492,26 +538,34 @@ export default function ProductManagementPage() {
 
   // Handler untuk bulk delete
   const handleBulkDelete = async () => {
-    if (selectedRowCount === 0) return;
+    if (selectedRowCount === 0 || selectedRowIds.length === 0) {
+      toast.error('Error Hapus Massal', { description: 'Tidak ada produk yang dipilih untuk dihapus.' });
+      return;
+    }
     setIsBulkDeleting(true);
     try {
-      const response = await fetch('/api/products/bulk-delete', { // Ganti ke endpoint bulk delete yang sesuai
-        method: 'POST', // Atau DELETE, sesuaikan dengan API
+      const response = await fetch('/api/products/bulk-delete', {
+        method: 'DELETE', // Menggunakan metode DELETE yang lebih sesuai untuk operasi penghapusan
         headers: {
           'Content-Type': 'application/json',
+          // Tambahkan header lain yang mungkin diperlukan, seperti X-Tenant-Id jika ada
         },
         body: JSON.stringify({ ids: selectedRowIds }),
       });
 
+      const responseData = await response.json(); // Selalu coba parse JSON
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Gagal menghapus produk terpilih.');
+        console.error('Server error on bulk delete:', responseData);
+        throw new Error(responseData.error || responseData.message || `Gagal menghapus produk terpilih (status: ${response.status}).`);
       }
 
-      toast.success('Sukses', { description: `${selectedRowCount} produk berhasil dihapus.` });
+      toast.success('Sukses', { description: responseData.message || `${selectedRowCount} produk berhasil dihapus.` });
       fetchProducts(1, paginationState.pageSize, searchTerm); // Refresh data dari halaman 1 setelah bulk delete
+      setRowSelection({}); // Reset pilihan setelah berhasil menghapus
     } catch (err: any) {
-      toast.error('Error Hapus Massal', { description: err.message || 'Gagal menghapus produk terpilih.' });
+      console.error('Error bulk deleting products:', err);
+      toast.error('Error Hapus Massal', { description: err.message || 'Terjadi kesalahan saat menghapus produk terpilih.' });
     } finally {
       setIsBulkDeleting(false);
     }

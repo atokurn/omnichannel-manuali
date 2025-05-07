@@ -241,34 +241,37 @@ const AddProductPage = () => {
     return data.url; // URL gambar yang sudah diunggah
   };
 
-  // Fungsi untuk memproses varian dengan gambar
-  const processVariantsWithImages = async (variants: Variant[]) => {
-    const processedVariants = [...variants];
-    
-    // Proses setiap varian
-    for (let i = 0; i < processedVariants.length; i++) {
-      const variant = processedVariants[i];
-      
-      // Proses setiap opsi dalam varian
-      for (let j = 0; j < variant.options.length; j++) {
-        const option = variant.options[j];
-        
-        // Jika opsi memiliki gambar, unggah gambar
-        if (option.image) {
-          try {
-            const imageUrl = await uploadImage(option.image, `variant-${variant.id}-option-${option.id}`);
-            // Ganti objek File dengan URL gambar
-            processedVariants[i].options[j].image = null; // Hapus objek File
-            // @ts-ignore - Tambahkan properti imageUrl
-            processedVariants[i].options[j].imageUrl = imageUrl;
-          } catch (error) {
-            console.error(`Gagal mengunggah gambar untuk opsi ${option.value}:`, error);
-          }
-        }
-      }
-    }
-    
-    return processedVariants;
+  // Fungsi untuk memproses varian dengan gambar, memastikan URL gambar dikirim ke backend
+  const processVariantsWithImages = async (variantsToProcess: Variant[]) => {
+    const processedApiVariants = await Promise.all(
+      variantsToProcess.map(async (variant) => {
+        const processedApiOptions = await Promise.all(
+          variant.options.map(async (option) => {
+            let imageUrl: string | null = null; // Default ke null
+            // Periksa apakah option.image adalah objek File yang perlu diunggah
+            if (option.image instanceof File) {
+              try {
+                imageUrl = await uploadImage(option.image, `variant-${variant.id}-option-${option.id}`);
+              } catch (error) {
+                console.error(`Gagal mengunggah gambar untuk opsi ${option.value}:`, error);
+                // imageUrl akan tetap null jika unggahan gagal
+              }
+            }
+            // Struktur data untuk backend saat membuat ProductVariantOption
+            return {
+              value: option.value,
+              image: imageUrl, // Kirim URL gambar (string) atau null
+            };
+          })
+        );
+        // Struktur data untuk backend saat membuat ProductVariant
+        return {
+          name: variant.name, // Backend menggunakan variant.name
+          options: processedApiOptions,
+        };
+      })
+    );
+    return processedApiVariants;
   };
 
   const scrollToRef = (ref: React.RefObject<HTMLDivElement>, title: string) => {

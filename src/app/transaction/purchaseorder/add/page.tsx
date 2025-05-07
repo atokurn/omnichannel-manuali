@@ -3,7 +3,7 @@
 import React, { useState, useRef } from 'react'; // Import useRef
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -22,18 +22,26 @@ import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import Image from 'next/image'; // Import Image component
 import { ScrollArea } from "@/components/ui/scroll-area"; // Added ScrollArea
 import { Textarea } from '@/components/ui/textarea'; // Added Textarea
+import { SelectProductsDialog } from '@/components/select-products-dialog'; // Import the dialog
 
 // Interface for Item Detail (Rincian Barang)
+// Updated ItemDetail interface to match product structure from dialog
 interface ItemDetail {
   id: string;
-  // Add properties for item details like name, quantity, unit, price, discount, total
-  // Example:
-  // name: string;
-  // quantity: number;
-  // unit: string;
-  // price: number;
-  // discount: number;
-  // total: number;
+  productId: string; // ID produk induk
+  variantId?: string; // ID varian jika ada
+  name: string;
+  sku: string; // Menambahkan field SKU
+  quantity: number;
+  unit: string;
+  buyPrice: number;
+  discount: number;
+  total: number;
+  // Add other relevant fields from the product data if needed
+  category?: string;
+  type?: string;
+  stock?: number;
+  variant?: string; // Informasi varian (misalnya "Warna: test")
 }
 
 const AddPurchaseOrderPage = () => {
@@ -71,6 +79,90 @@ const AddPurchaseOrderPage = () => {
     console.log('Atur Barang clicked');
   };
 
+  // Handler for saving selected products from the dialog
+  const handleSaveSelectedProducts = (selectedProducts: any[]) => {
+    // Buat map dari item yang sudah ada untuk referensi cepat
+    const existingItemsMap = items.reduce((map, item) => {
+      // Gunakan ID unik yang mencakup informasi varian jika ada
+      const uniqueId = item.id;
+      map[uniqueId] = item;
+      return map;
+    }, {} as Record<string, ItemDetail>);
+  
+    // Map selected products to the ItemDetail structure
+    // Pertahankan nilai quantity, discount, dan total jika item sudah ada
+    const newItems: ItemDetail[] = selectedProducts.map(product => {
+      // Buat ID unik untuk produk, termasuk informasi varian jika ada
+      const uniqueId = product.variantId 
+        ? `${product.id}_${product.variantId}` 
+        : product.id;
+      
+      // Cek apakah produk sudah ada dalam daftar
+      const existingItem = existingItemsMap[uniqueId];
+      
+      if (existingItem) {
+        // Jika produk sudah ada, pertahankan nilai quantity, discount, dan total
+        return {
+          ...product,
+          id: uniqueId, // Gunakan ID unik
+          productId: product.id, // Simpan ID produk induk
+          sku: product.sku || '-', // Gunakan SKU dari produk
+          quantity: existingItem.quantity,
+          unit: existingItem.unit,
+          discount: existingItem.discount,
+          total: existingItem.total,
+          // Pastikan buyPrice dipertahankan jika ada perubahan
+          buyPrice: product.buyPrice || existingItem.buyPrice,
+          variant: product.hasVariants ? product.options ? Object.entries(product.options)
+            .map(([key, value]) => `${key}: ${value}`)
+            .join(', ') : '' : ''
+        };
+      } else {
+        // Jika produk baru, inisialisasi dengan nilai default
+        return {
+          ...product,
+          id: uniqueId, // Gunakan ID unik
+          productId: product.id, // Simpan ID produk induk
+          sku: product.sku || '-', // Gunakan SKU dari produk
+          quantity: 1, // Default quantity to 1, allow user to change later
+          unit: 'Pcs', // Default unit, adjust as needed
+          discount: 0, // Default discount
+          total: product.buyPrice * 1, // Initial total based on default quantity
+          variant: product.hasVariants ? product.options ? Object.entries(product.options)
+            .map(([key, value]) => `${key}: ${value}`)
+            .join(', ') : '' : ''
+        };
+      }
+    });
+  
+    // Update state dengan item baru
+    setItems(newItems);
+    console.log('Selected products saved:', newItems);
+  };
+
+  const handleRemoveItem = (id: string) => {
+    setItems(items.filter(item => item.id !== id));
+  };
+
+  // Function to update item quantity, discount, etc.
+  const handleItemChange = (id: string, field: keyof ItemDetail, value: any) => {
+    setItems(items.map(item => {
+      if (item.id === id) {
+        const updatedItem = { ...item, [field]: value };
+        // Recalculate total when quantity, price, or discount changes
+        if (field === 'quantity' || field === 'buyPrice' || field === 'discount') {
+          const quantity = field === 'quantity' ? Number(value) : item.quantity;
+          const price = field === 'buyPrice' ? Number(value) : item.buyPrice;
+          const discount = field === 'discount' ? Number(value) : item.discount;
+          // Basic total calculation, adjust based on discount type (fixed/percentage)
+          updatedItem.total = (quantity * price) - discount;
+        }
+        return updatedItem;
+      }
+      return item;
+    }));
+  };
+
   const handleAddOtherCost = () => {
     setOtherCosts([...otherCosts, { id: Date.now().toString(), name: '', amount: '' }]);
   };
@@ -84,18 +176,50 @@ const AddPurchaseOrderPage = () => {
   };
 
   // Calculate totals (implement logic based on items, discount, tax, other costs)
-  const calculateSubtotal = () => 0; // Placeholder
-  const calculateDiscountAmount = () => 0; // Placeholder
-  const calculateTaxAmount = () => 0; // Placeholder
+  const calculateSubtotal = () => items.reduce((sum, item) => sum + item.total, 0);
+  const calculateDiscountAmount = () => {
+    const sub = calculateSubtotal();
+    if (discountType === 'percentage') {
+      return sub * (Number(discountValue) / 100);
+    }
+    return Number(discountValue) || 0;
+  }; // Placeholder
+  const calculateTaxAmount = () => {
+    const subAfterDiscount = calculateSubtotal() - calculateDiscountAmount();
+    if (taxType === 'include' || taxType === 'exclude') {
+        // Assuming taxValue is percentage for now
+        const taxRate = Number(taxValue) / 100;
+        if (taxType === 'include') {
+            // Tax is included in the subtotal after discount
+            // Amount = (SubtotalAfterDiscount * TaxRate) / (1 + TaxRate)
+            return (subAfterDiscount * taxRate) / (1 + taxRate);
+        } else { // exclude
+            // Tax is added on top of subtotal after discount
+            // Amount = SubtotalAfterDiscount * TaxRate
+            return subAfterDiscount * taxRate;
+        }
+    } 
+    return 0;
+  }; // Placeholder
   const calculateTotalOtherCosts = () => otherCosts.reduce((sum, cost) => sum + (Number(cost.amount) || 0), 0); // Calculate total other costs
   const calculateTotal = () => {
     const sub = calculateSubtotal();
     const disc = calculateDiscountAmount();
-    const tax = calculateTaxAmount();
     const other = calculateTotalOtherCosts();
-    // Adjust calculation based on tax type (include/exclude)
-    // Placeholder logic:
-    return sub - disc + tax + other;
+    let tax = calculateTaxAmount();
+
+    let baseForTotal = sub - disc;
+    let totalAmount = baseForTotal + other;
+
+    // If tax is excluded, add it to the total
+    if (taxType === 'exclude') {
+        totalAmount += tax;
+    } 
+    // If tax is included, it's already part of the subtotal calculation logic,
+    // but we need the tax amount itself for display. The total remains base + other.
+    // Note: The calculateTaxAmount already handles the 'include' logic correctly for display.
+
+    return totalAmount;
   }; // Placeholder
 
   const subtotal = calculateSubtotal();
@@ -290,50 +414,92 @@ const AddPurchaseOrderPage = () => {
                   <div className="flex flex-col items-center justify-center py-12 border-2 border-dashed border-muted rounded-lg">
                     <Package className="h-12 w-12 text-muted-foreground mb-4" />
                     <p className="text-muted-foreground mb-4">Belum ada barang yang ditambahkan</p>
-                    <Button onClick={handleAddItem}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Atur Barang
-                    </Button>
+                    {/* Replace Button with SelectProductsDialog */}
+                    <SelectProductsDialog
+                      trigger={
+                        <Button>
+                          <Plus className="h-4 w-4 mr-2" />
+                          Atur Barang
+                        </Button>
+                      }
+                      onSave={handleSaveSelectedProducts}
+                      initialSelectedProducts={items}
+                    />
                   </div>
                 ) : (
                   <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead>Nama Barang</TableHead>
+                        <TableHead>SKU</TableHead>
                         <TableHead className="text-right">Jumlah</TableHead>
                         <TableHead>Satuan</TableHead>
                         <TableHead className="text-right">Harga Satuan</TableHead>
-                        <TableHead className="text-right">Diskon</TableHead>
+                        <TableHead className="text-right">Diskon (Rp)</TableHead>
                         <TableHead className="text-right">Total Harga</TableHead>
-                        <TableHead></TableHead> {/* For actions */}
+                        <TableHead />
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {/* Map through items here */}
-                      {/* Example Row (replace with actual data mapping) */}
-                      <TableRow>
-                        <TableCell>Contoh Barang</TableCell>
-                        <TableCell className="text-right">1</TableCell>
-                        <TableCell>Pcs</TableCell>
-                        <TableCell className="text-right">Rp 10.000</TableCell>
-                        <TableCell className="text-right">Rp 0</TableCell>
-                        <TableCell className="text-right">Rp 10.000</TableCell>
-                        <TableCell>
-                          <Button variant="ghost" size="icon">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
+                      {items.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell className="font-medium">
+                            {item.name}
+                            {item.variant && (
+                              <div className="text-xs text-muted-foreground mt-1">{item.variant}</div>
+                            )}
+                          </TableCell>
+                          <TableCell>{item.sku}</TableCell>
+                          <TableCell className="text-right">
+                            <Input
+                              type="number"
+                              min="1"
+                              value={item.quantity}
+                              onChange={(e) => handleItemChange(item.id, 'quantity', Number(e.target.value))}
+                              className="h-8 w-[70px] text-right"
+                            />
+                          </TableCell>
+                          <TableCell>
+                             {/* Assuming unit is fixed for now, make it editable if needed */}
+                            {item.unit}
+                          </TableCell>
+                          <TableCell className="text-right">Rp {item.buyPrice ? item.buyPrice.toLocaleString('id-ID') : '0'}</TableCell>
+                          <TableCell className="text-right">
+                             <Input
+                              type="number"
+                              min="0"
+                              value={item.discount}
+                              onChange={(e) => handleItemChange(item.id, 'discount', Number(e.target.value))}
+                              className="h-8 w-[90px] text-right"
+                              placeholder="0"
+                            />
+                          </TableCell>
+                          <TableCell className="text-right">Rp {item.total ? item.total.toLocaleString('id-ID') : '0'}</TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="icon" onClick={() => handleRemoveItem(item.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
                     </TableBody>
                   </Table>
                 )}
               </CardContent>
               {items.length > 0 && (
                 <CardFooter className="border-t pt-4">
-                  <Button variant="outline" onClick={handleAddItem}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Tambah Barang Lain
-                  </Button>
+                   {/* Use Dialog trigger here as well */}
+                   <SelectProductsDialog
+                      trigger={
+                        <Button variant="outline">
+                          <Plus className="h-4 w-4 mr-2" />
+                          Tambah Barang Lain
+                        </Button>
+                      }
+                      onSave={handleSaveSelectedProducts}
+                      initialSelectedProducts={items}
+                    />
                 </CardFooter>
               )}
             </Card>
@@ -348,7 +514,7 @@ const AddPurchaseOrderPage = () => {
               <CardContent className="grid gap-4">
                 <div className="flex justify-between">
                   <span>Subtotal</span>
-                  <span>Rp {subtotal.toLocaleString('id-ID')}</span>
+                  <span>Rp {subtotal ? subtotal.toLocaleString('id-ID') : '0'}</span>
                 </div>
                 <Separator />
                 {/* Discount Section */}
@@ -375,7 +541,7 @@ const AddPurchaseOrderPage = () => {
                 </div>
                 <div className="flex justify-between text-muted-foreground">
                   <span>Jumlah Diskon</span>
-                  <span>- Rp {discountAmount.toLocaleString('id-ID')}</span>
+                  <span>- Rp {discountAmount ? discountAmount.toLocaleString('id-ID') : '0'}</span>
                 </div>
                 <Separator />
                 {/* Tax Section */}
@@ -404,12 +570,12 @@ const AddPurchaseOrderPage = () => {
                 </div>
                 <div className="flex justify-between text-muted-foreground">
                   <span>Jumlah Pajak</span>
-                  <span>Rp {taxAmount.toLocaleString('id-ID')}</span>
+                  <span>Rp {taxAmount ? taxAmount.toLocaleString('id-ID') : '0'}</span>
                 </div>
                 <Separator />
                 {/* Other Costs Section */}
                 {otherCosts.map((cost, index) => (
-                  <div key={cost.id} className="flex items-center justify-between gap-2">
+                  <div key={`${cost.id}-${index}`} className="flex items-center justify-between gap-2">
                     <Input
                       value={cost.name}
                       onChange={(e) => handleOtherCostChange(cost.id, 'name', e.target.value)}
@@ -456,7 +622,7 @@ const AddPurchaseOrderPage = () => {
                 {/* Total Section */}
                 <div className="flex justify-between font-semibold text-lg">
                   <span>Total</span>
-                  <span>Rp {total.toLocaleString('id-ID')}</span>
+                  <span>Rp {total ? total.toLocaleString('id-ID') : '0'}</span>
                 </div>
               </CardContent>
             </Card>

@@ -58,7 +58,7 @@ export function SignForm({
       const data = await response.json(); // Assuming successful login returns user data
       console.log('Login successful:', data);
       // Redirect to dashboard after successful login
-      window.location.href = '/dashboard'; // Or your desired redirect path
+      window.location.href = '/products'; // Or your desired redirect path
 
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred')

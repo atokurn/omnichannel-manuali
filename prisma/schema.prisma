@@ -26,6 +26,8 @@ model Tenant {
   transactions Transaction[]
   productCompositions ProductComposition[] // Relation back from ProductComposition
   compositionMaterials CompositionMaterial[] // Relation back from CompositionMaterial
+  ecommerceStores EcommerceStore[]
+  skuMappings SkuMapping[]
 }
 
 model User {
@@ -128,6 +130,7 @@ model ProductVariantCombination {
   @@unique([productId, combinationId])
 
   transactionItems TransactionItem[] // Relasi balik ke TransactionItem
+  skuMappings SkuMapping[] // Relasi ke SkuMapping
 }
 
 model ProductImage {
@@ -381,6 +384,14 @@ enum MaterialStatus {
   NONAKTIF
 }
 
+enum SyncStatus {
+  PENDING
+  IN_PROGRESS
+  SUCCESS
+  FAILED
+  PARTIAL_SUCCESS
+}
+
 model ProductComposition {
   id           String                @id @default(uuid())
   tenantId     String
@@ -415,4 +426,67 @@ model CompositionMaterial {
   @@index([compositionId])
   @@index([materialId])
   @@index([tenantId])
+}
+
+model EcommercePlatform {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  isActive    Boolean  @default(true)
+  apiBaseUrl  String?
+  apiVersion  String?
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  stores      EcommerceStore[]
+  skuMappings SkuMapping[]
+}
+
+model EcommerceStore {
+  id             String   @id @default(uuid())
+  name           String
+  externalStoreId String
+  platformId     String
+  tenantId       String
+  isActive       Boolean  @default(true)
+  apiToken       String?
+  apiTokenExpiry DateTime?
+  refreshToken   String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  platform    EcommercePlatform @relation(fields: [platformId], references: [id], onDelete: Cascade)
+  tenant      Tenant            @relation(fields: [tenantId], references: [id])
+  skuMappings SkuMapping[]
+
+  @@unique([platformId, externalStoreId])
+  @@index([tenantId])
+}
+
+model SkuMapping {
+  id                String      @id @default(uuid())
+  tenantId          String
+  variantId         String
+  platformId        String
+  storeId           String?
+  sellerSku         String      // SKU Penjual variant
+  storeSku          String?     // SKU Store variant
+  externalProductId String?     // Product ID dari platform e-commerce
+  syncEnabled       Boolean     @default(true)
+  lastSyncedAt      DateTime?
+  syncStatus        SyncStatus  @default(PENDING)
+  syncMessage       String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  variant     ProductVariantCombination @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  platform    EcommercePlatform        @relation(fields: [platformId], references: [id], onDelete: Cascade)
+  store       EcommerceStore?          @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  tenant      Tenant                   @relation(fields: [tenantId], references: [id])
+
+  @@unique([variantId, platformId, storeId])
+  @@index([tenantId])
+  @@index([sellerSku])
+  @@index([storeSku])
+  @@index([externalProductId])
 }

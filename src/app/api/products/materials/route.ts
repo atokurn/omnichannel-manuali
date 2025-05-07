@@ -221,6 +221,12 @@ export async function DELETE(request: NextRequest) {
   try {
     await ensureRedisConnection(); // Pastikan koneksi Redis aktif
 
+    const tenantId = request.headers.get('X-Tenant-Id');
+
+    if (!tenantId) {
+      return NextResponse.json({ message: 'Tenant ID not found in headers' }, { status: 400 });
+    }
+
     const url = new URL(request.url);
     const idsParam = url.searchParams.get('ids');
 
@@ -242,6 +248,7 @@ export async function DELETE(request: NextRequest) {
         id: {
           in: idsToDelete,
         },
+        tenantId: tenantId, // Tambahkan filter tenantId untuk keamanan
       },
     });
 
@@ -250,10 +257,13 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Invalidate cache setelah menghapus material
-    const keys = await redisClient.keys('materials:page:*');
+    // Gunakan pola kunci yang sama dengan yang digunakan saat menyimpan cache
+    const keys = await redisClient.keys(`materials:tenant:${tenantId}:page:*`);
     if (keys.length > 0) {
       await redisClient.del(keys);
-      console.log(`Invalidated ${keys.length} material cache keys after DELETE.`);
+      console.log(`Invalidated ${keys.length} material cache keys for tenant ${tenantId} after DELETE.`);
+    } else {
+      console.log(`No cache keys found to invalidate for tenant ${tenantId} after DELETE.`);
     }
 
     return NextResponse.json({ message: `${deleteResult.count} material berhasil dihapus` }, { status: 200 });
