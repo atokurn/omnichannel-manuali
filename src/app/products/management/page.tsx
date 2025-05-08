@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useMemo, useEffect, Fragment } from 'react'; // Import useEffect and Fragment
+import { useState, useMemo, useEffect, Fragment, useCallback } from 'react'; // Import useEffect, Fragment, and useCallback
 import Image from 'next/image';
-import { DataTable } from "@/components/table/data-table"; // Keep this for now, might remove later if rendering directly
+import { DataTable } from "@/components/data-table/data-table"; // Ensure DataTable is imported
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Eye, FileEdit, Trash2, Plus, Loader2, ArrowUpDown, ChevronDown, ChevronRight } from "lucide-react"; // Add Chevron icons
@@ -25,7 +25,7 @@ import {
   Row, // Import Row type
   flexRender, // Add flexRender import
 } from "@tanstack/react-table";
-import { DataTableSkeleton } from '@/components/table/data-table-skeleton';
+import { DataTableSkeleton } from '@/components/data-table/data-table-skeleton';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -47,6 +47,9 @@ import {
   TableRow,
 } from "@/components/ui/table"; // Import Table components
 import { Separator } from "@/components/ui/separator"; // Import Separator
+import { DataTablePagination } from '@/components/data-table/data-table-pagination'; // Import DataTablePagination directly
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Import Select components
+import { Label } from "@/components/ui/label"; // Import Label
 
 // Definisi tipe data untuk Kombinasi Varian (cocokkan dengan select di API)
 interface VariantCombination {
@@ -165,10 +168,10 @@ function VariantDetails({ combinations }: { combinations: VariantCombination[] }
 
 
 // Define getColumns function before it's used in the component
+// Add a new column for the expander
 const getColumns = (refreshData: () => void): ColumnDef<Product>[] => [
-// Select Column
-{
-id: "select",
+  {
+    id: "select",
 header: ({ table }) => (
 <Checkbox
 checked={
@@ -430,10 +433,14 @@ export default function ProductManagementPage() {
   const [products, setProducts] = useState<Product[]>([]); // Inisialisasi dengan array kosong
   const [isLoading, setIsLoading] = useState(true); // Set loading true di awal
   const [error, setError] = useState<string | null>(null);
-  const [paginationState, setPaginationState] = useState({
-    pageIndex: 0, // TanStack Table uses 0-based index
-    pageSize: 10,
-  });
+  // const [paginationState, setPaginationState] = useState({
+  //   pageIndex: 0, // TanStack Table uses 0-based index
+  //   pageSize: 10,
+  // });
+  // Replace paginationState with individual states for DataTable component
+  const [currentPage, setCurrentPage] = useState(1); // 1-based index for UI
+  const [pageSize, setPageSize] = useState(10);
+
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -443,8 +450,8 @@ export default function ProductManagementPage() {
   const [sorting, setSorting] = useState<any[]>([]); // State for sorting
   const [expanded, setExpanded] = useState<ExpandedState>({}); // State for expanded rows
 
-  // Fungsi untuk fetch data produk dari API
-  const fetchProducts = async (page = paginationState.pageIndex + 1, limit = paginationState.pageSize, search = searchTerm) => {
+  // Fungsi untuk fetch data produk dari API, dibungkus dengan useCallback
+  const fetchProducts = useCallback(async (page = currentPage, limit = pageSize, search = searchTerm) => {
     setIsLoading(true);
     setError(null);
     try {
@@ -466,17 +473,19 @@ export default function ProductManagementPage() {
       setProducts(result.data || []); // Pastikan data selalu array
       // Update pagination based on API response
       if (result.pagination && typeof result.pagination.page === 'number') {
-        setPaginationState(prev => ({
-          ...prev,
-          pageIndex: result.pagination.page - 1, // Convert back to 0-based index
-        }));
+        // setPaginationState(prev => ({
+        //   ...prev,
+        //   pageIndex: result.pagination.page - 1, // Convert back to 0-based index
+        // }));
+        setCurrentPage(result.pagination.page); // API returns 1-based index
         setTotalItems(result.pagination.totalItems || 0);
         setTotalPages(result.pagination.totalPages || 1);
       } else {
         console.warn('Invalid pagination data received from API:', result.pagination);
         setTotalItems(result.data?.length || 0);
         setTotalPages(1);
-        setPaginationState(prev => ({ ...prev, pageIndex: 0 }));
+        // setPaginationState(prev => ({ ...prev, pageIndex: 0 }));
+        setCurrentPage(1);
       }
       setRowSelection({}); // Reset selection saat fetch data
       // setExpanded({}); // Optionally reset expanded state on data fetch
@@ -486,16 +495,15 @@ export default function ProductManagementPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [currentPage, pageSize, searchTerm]); // Dependencies for useCallback
 
   // Fetch data saat komponen dimount atau dependensi berubah
   useEffect(() => {
-    fetchProducts(paginationState.pageIndex + 1, paginationState.pageSize, searchTerm);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paginationState.pageIndex, paginationState.pageSize, searchTerm]); // Add searchTerm as dependency
+    fetchProducts(currentPage, pageSize, searchTerm);
+  }, [fetchProducts, currentPage, pageSize, searchTerm]); // fetchProducts is now a dependency
 
   // Memoize columns
-  const columns = useMemo(() => getColumns(() => fetchProducts(paginationState.pageIndex + 1, paginationState.pageSize, searchTerm)), [paginationState.pageIndex, paginationState.pageSize, searchTerm]);
+  const columns = useMemo(() => getColumns(() => fetchProducts(currentPage, pageSize, searchTerm)), [fetchProducts, currentPage, pageSize, searchTerm]);
 
   const table = useReactTable({
     data: products,
@@ -503,14 +511,28 @@ export default function ProductManagementPage() {
     state: {
       sorting,
       rowSelection,
-      pagination: paginationState,
+      // pagination: paginationState, // Use individual pageIndex and pageSize for DataTable
+      pagination: {
+        pageIndex: currentPage -1, // Tanstack table uses 0-based index
+        pageSize: pageSize,
+      },
       expanded,
     },
     pageCount: totalPages,
     manualPagination: true, // We handle pagination server-side
     manualSorting: true, // Assuming server-side sorting later
     manualFiltering: true, // Assuming server-side filtering later
-    onPaginationChange: setPaginationState,
+    // onPaginationChange: setPaginationState, // DataTable handles this via onPageChange and onPageSizeChange
+    onPaginationChange: (updater) => {
+      if (typeof updater === 'function') {
+        const newState = updater({ pageIndex: currentPage - 1, pageSize });
+        setCurrentPage(newState.pageIndex + 1);
+        setPageSize(newState.pageSize);
+      } else {
+        setCurrentPage(updater.pageIndex + 1);
+        setPageSize(updater.pageSize);
+      }
+    },
     onSortingChange: setSorting,
     onRowSelectionChange: setRowSelection,
     onExpandedChange: setExpanded, // Handle expanded state changes
@@ -526,7 +548,19 @@ export default function ProductManagementPage() {
   // Handler untuk perubahan search term
   const handleSearchChange = (term: string) => {
     setSearchTerm(term);
-    // fetchProducts will be called by useEffect
+    setCurrentPage(1); // Reset to first page on search
+    // fetchProducts will be called by useEffect due to searchTerm or currentPage dependency change
+  };
+
+  // Handler untuk perubahan halaman
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  // Handler untuk perubahan ukuran halaman
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+    setCurrentPage(1); // Reset to first page on page size change
   };
 
   // Hitung jumlah baris yang dipilih
@@ -534,10 +568,10 @@ export default function ProductManagementPage() {
   const selectedRowIds = useMemo(() => {
     // Ambil ID dari baris yang dipilih berdasarkan data produk saat ini
     return table.getSelectedRowModel().flatRows.map(row => row.original.id);
-  }, [rowSelection, table]);
+  }, [rowSelection, table]); // Dependency on table instance might be broad, consider if products can be used
 
-  // Handler untuk bulk delete
-  const handleBulkDelete = async () => {
+  // Handler untuk bulk delete, dibungkus dengan useCallback
+  const handleBulkDelete = useCallback(async () => {
     if (selectedRowCount === 0 || selectedRowIds.length === 0) {
       toast.error('Error Hapus Massal', { description: 'Tidak ada produk yang dipilih untuk dihapus.' });
       return;
@@ -545,15 +579,14 @@ export default function ProductManagementPage() {
     setIsBulkDeleting(true);
     try {
       const response = await fetch('/api/products/bulk-delete', {
-        method: 'DELETE', // Menggunakan metode DELETE yang lebih sesuai untuk operasi penghapusan
+        method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
-          // Tambahkan header lain yang mungkin diperlukan, seperti X-Tenant-Id jika ada
         },
         body: JSON.stringify({ ids: selectedRowIds }),
       });
 
-      const responseData = await response.json(); // Selalu coba parse JSON
+      const responseData = await response.json();
 
       if (!response.ok) {
         console.error('Server error on bulk delete:', responseData);
@@ -561,15 +594,16 @@ export default function ProductManagementPage() {
       }
 
       toast.success('Sukses', { description: responseData.message || `${selectedRowCount} produk berhasil dihapus.` });
-      fetchProducts(1, paginationState.pageSize, searchTerm); // Refresh data dari halaman 1 setelah bulk delete
-      setRowSelection({}); // Reset pilihan setelah berhasil menghapus
+      // Panggil fetchProducts untuk refresh data. Karena fetchProducts di-memoize, ini aman.
+      fetchProducts(1, pageSize, searchTerm);
+      setRowSelection({});
     } catch (err: any) {
       console.error('Error bulk deleting products:', err);
       toast.error('Error Hapus Massal', { description: err.message || 'Terjadi kesalahan saat menghapus produk terpilih.' });
     } finally {
       setIsBulkDeleting(false);
     }
-  };
+  }, [selectedRowCount, selectedRowIds, fetchProducts, pageSize, searchTerm]); // Dependencies for useCallback
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-4">
@@ -615,127 +649,142 @@ export default function ProductManagementPage() {
           </div>
         </CardHeader>
         <CardContent>
-          {/* Search Input - Assuming DataTable has a search input or we add one here */}
+          {/* Search Input - TODO: Add a search input component here if needed, DataTable's search is not used directly anymore */}
           {/* <Input placeholder="Cari produk..." value={searchTerm} onChange={(e) => handleSearchChange(e.target.value)} className="max-w-sm mb-4" /> */}
 
           {isLoading ? (
-            <DataTableSkeleton columnCount={columns.length} rowCount={paginationState.pageSize} />
+            <DataTableSkeleton columnCount={columns.length} rowCount={pageSize} />
           ) : error ? (
             <div className="text-center py-10 text-red-600">
               {error}
             </div>
           ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  {table.getHeaderGroups().map(headerGroup => (
-                    <TableRow key={headerGroup.id}>
-                      {headerGroup.headers.map(header => (
-                        <TableHead key={header.id} style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}>
-                          {header.isPlaceholder
-                            ? null
-                            : (
-                              <div
-                                {...{
-                                  className: header.column.getCanSort()
-                                    ? 'cursor-pointer select-none flex items-center gap-1'
-                                    : '',
-                                  onClick: header.column.getToggleSortingHandler(),
-                                }}
+            // This block now correctly contains only the manual table rendering logic.
+            // The DataTable component instance that caused duplication has been removed.
+            <>
+
+              <div className="rounded-md border mt-4">
+                <Table>
+                  <TableHeader>
+                    {table.getHeaderGroups().map(headerGroup => (
+                      <TableRow key={headerGroup.id}>
+                        {headerGroup.headers.map(header => (
+                          <TableHead key={header.id} style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}>
+                            {header.isPlaceholder
+                              ? null
+                              : (
+                                <div
+                                  {...{
+                                    className: header.column.getCanSort()
+                                      ? 'cursor-pointer select-none flex items-center gap-1'
+                                      : '',
+                                    onClick: header.column.getToggleSortingHandler(),
+                                  }}
+                                >
+                                  {flexRender(
+                                    header.column.columnDef.header,
+                                    header.getContext()
+                                  )}
+                                  {{ asc: <ArrowUpDown className="ml-2 h-3 w-3" />, desc: <ArrowUpDown className="ml-2 h-3 w-3 rotate-180" /> }[header.column.getIsSorted() as string] ?? null}
+                                </div>
+                              )}
+                          </TableHead>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableHeader>
+                  <TableBody>
+                    {table.getRowModel().rows?.length ? (
+                      table.getRowModel().rows.map(row => (
+                        <Fragment key={row.id}>
+                          <TableRow
+                            data-state={row.getIsSelected() && "selected"}
+                          >
+                            {row.getVisibleCells().map(cell => (
+                              <TableCell key={cell.id}>
+                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                              </TableCell>
+                            ))}
+                          </TableRow>
+                          {/* Expander Row - Simplified, toggle handled by cell if needed or via row.getToggleExpandedHandler() */}
+                          {row.getCanExpand() && (
+                            <TableRow>
+                              <TableCell 
+                                colSpan={columns.length} 
+                                className="p-0 cursor-pointer hover:bg-muted/75" 
+                                onClick={row.getToggleExpandedHandler()} // Ensure this handler is correctly used
                               >
-                                {flexRender(
-                                  header.column.columnDef.header,
-                                  header.getContext()
-                                )}
-                                {{ asc: <ArrowUpDown className="ml-2 h-3 w-3" />, desc: <ArrowUpDown className="ml-2 h-3 w-3 rotate-180" /> }[header.column.getIsSorted() as string] ?? null}
-                              </div>
-                            )}
-                        </TableHead>
-                      ))}
-                    </TableRow>
-                  ))}
-                </TableHeader>
-                <TableBody>
-                  {table.getRowModel().rows?.length ? (
-                    table.getRowModel().rows.map(row => (
-                      <Fragment key={row.id}>
-                        <TableRow
-                          data-state={row.getIsSelected() && "selected"}
-                        >
-                          {row.getVisibleCells().map(cell => (
-                            <TableCell key={cell.id}>
-                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                            </TableCell>
-                          ))}
-                        </TableRow>
-                        {/* Expander Row */}
-                        {row.getCanExpand() && (
-                          <TableRow>
-                            <TableCell 
-                              colSpan={columns.length} 
-                              className="p-0 cursor-pointer hover:bg-muted/75" 
-                              onClick={row.getToggleExpandedHandler()} // Move onClick here
-                            >
-                              <div className="flex items-center px-4 py-2 bg-muted/50">
-                                {/* Remove button, keep icon and text */} 
-                                <span className="p-1 rounded mr-2">
-                                  {row.getIsExpanded() ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                                </span>
-                                <span className="text-xs font-medium text-muted-foreground">
-                                  {row.getIsExpanded() ? 'Sembunyikan Varian' : 'Tampilkan Varian'}
-                                </span>
-                              </div>
-                              <Separator /> 
-                            </TableCell>
-                          </TableRow>
-                        )}
-                        {/* Expanded Content Row */}
-                        {row.getIsExpanded() && (
-                          <TableRow>
-                            {/* Use a single cell that spans all columns */}
-                            <TableCell colSpan={columns.length} className="p-0">
-                              {/* Pass pre-fetched combinations data */}
-                              <VariantDetails combinations={row.original.combinations || []} />
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </Fragment>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={columns.length} className="h-24 text-center">
-                        Tidak ada hasil.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+                                <div className="flex items-center px-4 py-2 bg-muted/50">
+                                  <span className="p-1 rounded mr-2">
+                                    {row.getIsExpanded() ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                                  </span>
+                                  <span className="text-xs font-medium text-muted-foreground">
+                                    {row.getIsExpanded() ? 'Sembunyikan Varian' : 'Tampilkan Varian'}
+                                  </span>
+                                </div>
+                                <Separator /> 
+                              </TableCell>
+                            </TableRow>
+                          )}
+                          {/* Expanded Content Row */}
+                          {row.getIsExpanded() && (
+                            <TableRow>
+                              <TableCell colSpan={columns.length} className="p-0">
+                                <VariantDetails combinations={row.original.combinations || []} />
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </Fragment>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={columns.length} className="h-24 text-center">
+                          Tidak ada hasil.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
-          {/* Pagination Controls - Assuming DataTable had pagination or we add it here */}
-          {/* Example Pagination (replace with DataTable's or custom) */}
-          <div className="flex items-center justify-end space-x-2 py-4">
-            <div className="flex-1 text-sm text-muted-foreground">
-              {table.getFilteredSelectedRowModel().rows.length} dari{" "}
-              {totalItems} baris terpilih.
+          {/* Pagination Controls - Manual implementation with DataTablePagination */}
+          <div className="flex items-center justify-between space-x-2 py-4">
+            {/* Rows per page selector */}
+            <div className="flex items-center space-x-2">
+              <Label htmlFor="rows-per-page" className="text-sm font-medium whitespace-nowrap">Baris per halaman</Label>
+              <Select
+                value={`${pageSize}`}
+                onValueChange={(value) => {
+                  handlePageSizeChange(Number(value));
+                }}
+              >
+                <SelectTrigger id="rows-per-page" className="h-8 w-[70px]">
+                  <SelectValue placeholder={pageSize} />
+                </SelectTrigger>
+                <SelectContent side="top">
+                  {[10, 20, 30, 40, 50].map((size) => (
+                    <SelectItem key={size} value={`${size}`}>
+                      {size}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <div className="space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => table.previousPage()}
-                disabled={!table.getCanPreviousPage()}
-              >
-                Sebelumnya
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => table.nextPage()}
-                disabled={!table.getCanNextPage()}
-              >
-                Selanjutnya
-              </Button>
+
+            {/* Use the DataTablePagination component */}
+            {totalPages > 1 && (
+              <DataTablePagination
+                currentPage={currentPage}
+                pageCount={totalPages}
+                onPageChange={handlePageChange}
+                // pageSize, onPageSizeChange, totalItems are not props of DataTablePagination
+              />
+            )}
+
+            {/* Display total items info */}
+            <div className="flex-1 text-sm text-muted-foreground text-right">
+              Halaman {currentPage} dari {totalPages}. Total {totalItems} produk.
             </div>
           </div>
         </CardContent>

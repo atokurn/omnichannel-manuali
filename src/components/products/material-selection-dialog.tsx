@@ -12,8 +12,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { DataTable } from "@/components/table/data-table";
-import { DataTableSkeleton } from "@/components/table/data-table-skeleton";
+import { DataTable } from "@/components/data-table/data-table";
+import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from "sonner";
 import { ColumnDef, RowSelectionState } from "@tanstack/react-table";

@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 interface User {
   id: string;
@@ -36,38 +37,45 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const router = useRouter();
-  
-  useEffect(() => {
-    // Fetch current user on mount
-    fetchCurrentUser();
-  }, []);
-  
-  async function fetchCurrentUser() {
-    try {
-      setLoading(true);
-      const res = await fetch('/api/auth/me');
-      if (res.ok) {
-        const data = await res.json();
-        setUser(data.user);
+// Fetcher function for React Query
+const fetchCurrentUser = async (): Promise<User | null> => {
+  try {
+    const res = await fetch('/api/auth/me', {
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      if (res.status === 401) {
+        return null; // Not authenticated
       }
-    } catch (error) {
-      console.error('Failed to fetch user', error);
-    } finally {
-      setLoading(false);
+      throw new Error('Failed to fetch user');
     }
+    const data = await res.json();
+    return data.user;
+  } catch (error) {
+    console.error('Failed to fetch user', error);
+    return null;
   }
+};
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  
+  // Use React Query to fetch and cache user data
+  const { data: user, isLoading: loading } = useQuery({
+    queryKey: ['currentUser'],
+    queryFn: fetchCurrentUser,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: 1,
+  });
   
   async function login(email: string, password: string) {
-    setLoading(true);
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
+        credentials: 'include',
       });
       
       if (!res.ok) {
@@ -75,21 +83,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error(error.message || 'Login failed');
       }
       
-      const data = await res.json();
-      setUser(data.user);
+      // Invalidate and refetch the currentUser query after successful login
+      await queryClient.invalidateQueries({ queryKey: ['currentUser'] });
       router.push('/dashboard');
     } catch (error) {
       console.error('Login error', error);
       throw error;
-    } finally {
-      setLoading(false);
     }
   }
   
   async function logout() {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-      setUser(null);
+      await fetch('/api/auth/logout', { 
+        method: 'POST',
+        credentials: 'include',
+      });
+      // Invalidate the currentUser query after logout
+      queryClient.setQueryData(['currentUser'], null);
+      queryClient.invalidateQueries({ queryKey: ['currentUser'] });
       router.push('/auth/login');
     } catch (error) {
       console.error('Logout error', error);
@@ -99,7 +110,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   function hasPermission(resource: string, action: string) {
     if (!user) return false;
     
-    // Periksa apakah pengguna memiliki izin yang diperlukan
     return user.roles.some(role => 
       role.permissions.some(
         permission => 

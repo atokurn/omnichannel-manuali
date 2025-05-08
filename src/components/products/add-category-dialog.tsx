@@ -19,12 +19,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea"; // Menggunakan Textarea untuk deskripsi
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select" // Impor komponen Select
 
 // Definisikan tipe untuk data kategori jika diperlukan
 interface CategoryData {
   id: string;
   name: string;
   description: string;
+  type?: string; // Tambahkan tipe
   createdAt: string;
 }
 
@@ -38,6 +46,7 @@ export function AddCategoryDialog({ onAddCategory, onSuccess }: AddCategoryDialo
   const [formData, setFormData] = useState({
     name: '',
     description: '',
+    type: '', // Tambahkan state untuk tipe
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -45,6 +54,13 @@ export function AddCategoryDialog({ onAddCategory, onSuccess }: AddCategoryDialo
     setFormData(prev => ({
       ...prev,
       [name]: value
+    }));
+  };
+
+  const handleSelectChange = (value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      type: value
     }));
   };
 
@@ -89,6 +105,7 @@ export function AddCategoryDialog({ onAddCategory, onSuccess }: AddCategoryDialo
       setFormData({
         name: '',
         description: '',
+        type: '', // Reset tipe
       });
       setOpen(false);
       
@@ -151,6 +168,20 @@ export function AddCategoryDialog({ onAddCategory, onSuccess }: AddCategoryDialo
                 placeholder="Deskripsi singkat kategori (opsional)"
                 rows={3} // Atur jumlah baris awal
               />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="type" className="text-right">
+                Tipe Kategori
+              </Label>
+              <Select name="type" value={formData.type} onValueChange={handleSelectChange}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Pilih tipe kategori" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Produk Jadi">Produk Jadi</SelectItem>
+                  <SelectItem value="Bahan Baku">Bahan Baku</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           {error && (

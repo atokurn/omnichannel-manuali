@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react'; // Import useCallback
 import { useRouter } from 'next/navigation';
-import { DataTable } from '@/components/table/data-table';
+import { DataTable } from '@/components/data-table/data-table';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Eye, FileEdit, Trash2, Loader2, ArrowUpDown, MoreHorizontal } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { DataTableSkeleton } from '@/components/table/data-table-skeleton';
+import { DataTableSkeleton } from '@/components/data-table/data-table-skeleton';
 import { toast } from 'sonner';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ColumnDef, RowSelectionState } from '@tanstack/react-table';
@@ -227,11 +227,7 @@ export default function SuppliersPage() {
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   // Ambil data supplier saat komponen dimuat atau pagination berubah
-  useEffect(() => {
-    fetchSuppliers(pagination.page, pagination.limit);
-  }, [pagination.page, pagination.limit]);
-
-  const fetchSuppliers = async (page = pagination.page, limit = pagination.limit) => {
+  const fetchSuppliers = useCallback(async (page = pagination.page, limit = pagination.limit) => {
     setIsLoading(true);
     setError(null);
     
@@ -264,7 +260,11 @@ export default function SuppliersPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [pagination.page, pagination.limit]); // Added dependencies
+
+  useEffect(() => {
+    fetchSuppliers(pagination.page, pagination.limit);
+  }, [fetchSuppliers, pagination.page, pagination.limit]); // Added fetchSuppliers to dependencies
 
   const handlePageChange = (newPage: number) => {
     setPagination(prev => ({ ...prev, page: newPage }));
@@ -277,26 +277,17 @@ export default function SuppliersPage() {
 
   // Memoize columns to prevent recreation on every render
   // Pass fetchSuppliers with current pagination to refetch correctly
-  const columns = useMemo(() => getColumns(() => fetchSuppliers(pagination.page, pagination.limit)), [pagination.page, pagination.limit]);
+  const columns = useMemo(() => getColumns(() => fetchSuppliers(pagination.page, pagination.limit)), [fetchSuppliers, pagination.page, pagination.limit]); // Added fetchSuppliers to dependencies
 
   const selectedRowCount = Object.keys(rowSelection).length;
   const selectedRowIds = useMemo(() => {
       return Object.keys(rowSelection).map(index => suppliers[parseInt(index)]?.id).filter(Boolean);
   }, [rowSelection, suppliers]);
 
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = useCallback(async () => {
       if (selectedRowCount === 0) return;
       setIsBulkDeleting(true);
       try {
-          // Simulasi API call untuk demo
-          // const response = await fetch(`/api/products/suppliers?ids=${selectedRowIds.join(',')}`, {
-          //     method: 'DELETE',
-          // });
-          // if (!response.ok) {
-          //     const errorData = await response.json();
-          //     throw new Error(errorData.message || 'Gagal menghapus supplier terpilih');
-          // }
-          
           // Panggil API untuk menghapus supplier terpilih
           const response = await fetch(`/api/products/suppliers?ids=${selectedRowIds.join(',')}`, {
               method: 'DELETE',
@@ -317,7 +308,7 @@ export default function SuppliersPage() {
       } finally {
           setIsBulkDeleting(false);
       }
-  };
+  }, [selectedRowCount, selectedRowIds, fetchSuppliers, pagination.totalItems, pagination.limit, pagination.page]); // Added dependencies
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-4">

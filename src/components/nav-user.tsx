@@ -11,10 +11,11 @@ import {
   CreditCard,
   LogOut,
   Sparkles,
-  User as UserIcon, // Rename User icon to avoid conflict
-  Loader2, // Import Loader icon
+  User as UserIcon,
+  Loader2,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { useQuery } from "@tanstack/react-query"
 
 import {
   Avatar,
@@ -46,63 +47,60 @@ interface UserData {
   // Add other fields if needed, like roles, tenantName etc.
 }
 
+// Fetcher function for React Query
+const fetchUserData = async (): Promise<UserData> => {
+  const response = await fetch('/api/auth/me', {
+    credentials: 'include', // Send cookies
+  });
+  
+  if (!response.ok) {
+    if (response.status === 401) {
+      // Not authenticated or token expired
+      throw new Error('Unauthorized');
+    }
+    // Handle other non-OK responses
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(`Failed to fetch user: ${response.status} ${response.statusText} - ${errorData.message || 'No error details'}`);
+  }
+  
+  const data = await response.json();
+  
+  // Validate the received data structure
+  if (data && data.user && typeof data.user === 'object') {
+    return data.user;
+  } else {
+    // If data.user is missing or not an object, treat it as an error
+    console.error("Invalid user data structure received from API:", data);
+    throw new Error('Invalid user data received from server.');
+  }
+};
+
 // Remove the user prop from the component definition
 export function NavUser() {
   const { isMobile } = useSidebar()
   const router = useRouter()
 
-  // State for user data, loading, and error
-  const [user, setUser] = useState<UserData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Fetch user data on component mount
-  useEffect(() => {
-    const fetchUser = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const response = await fetch('/api/auth/me', {
-          credentials: 'include', // Send cookies
-        });
-        if (!response.ok) {
-          if (response.status === 401) {
-            // Not authenticated or token expired
-            console.log("User not authenticated, redirecting to login.");
-            router.push('/sign');
-            return; // Stop further execution
-          }
-          // Handle other non-OK responses
-          const errorData = await response.json().catch(() => ({})); // Try to parse error JSON
-          throw new Error(`Failed to fetch user: ${response.status} ${response.statusText} - ${errorData.message || 'No error details'}`);
-        }
-        
-        const data = await response.json();
-        
-        // **Validate the received data structure**
-        if (data && data.user && typeof data.user === 'object') {
-          setUser(data.user); // Set user state only if data.user is a valid object
-        } else {
-          // If data.user is missing or not an object, treat it as an error
-          console.error("Invalid user data structure received from API:", data);
-          throw new Error('Invalid user data received from server.');
-        }
-
-      } catch (err) {
-        console.error("Error fetching user data:", err);
-        // Set the error state for display or further handling
-        setError(err instanceof Error ? err.message : 'An unknown error occurred while fetching user data.');
-        // Optionally redirect to login on specific errors, but avoid redirecting for all errors
-        // if (err.message.includes('401')) { // Example: redirect only on auth errors caught here
-        //   router.push('/sign');
-        // }
-      } finally {
-        setIsLoading(false);
+  // Use React Query to fetch and cache user data
+  const { data: user, isLoading, error } = useQuery({
+    queryKey: ['userData'],
+    queryFn: fetchUserData,
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+    retry: (failureCount, error) => {
+      // Don't retry on 401 unauthorized errors
+      if (error instanceof Error && error.message === 'Unauthorized') {
+        router.push('/sign');
+        return false;
       }
-    };
-
-    fetchUser();
-  }, [router]); // Add router to dependency array
+      // Retry other errors up to 3 times
+      return failureCount < 3;
+    },
+    onError: (error) => {
+      console.error("Error fetching user data:", error);
+      if (error instanceof Error && error.message === 'Unauthorized') {
+        router.push('/sign');
+      }
+    }
+  });
 
   const handleLogout = async () => {
     try {
@@ -111,7 +109,9 @@ export function NavUser() {
         credentials: 'include' // Include credentials for logout too
       })
       if (response.ok) {
-        setUser(null); // Clear user state
+        // Invalidate and refetch queries after logout
+        // This would be done with queryClient.invalidateQueries(['userData']) if we had access to queryClient here
+        // For now, just redirect to sign page
         router.push("/sign")
         router.refresh()
       } else {
@@ -153,17 +153,8 @@ export function NavUser() {
     return null; // Or a fallback UI
   }
 
-  // If still loading or user is null AFTER loading and NO error, something is wrong
-  // This condition should ideally not be met if fetchUser logic is correct
-  if (!isLoading && !user) {
-      console.warn("User data is null after loading without specific error. Check API response or fetch logic.");
-      // Maybe redirect to login as a fallback?
-      // router.push('/sign'); 
-      return null; // Or a fallback UI indicating login state issue
-  }
-
   // Render user info only if loading is complete AND user is not null
-  if (!isLoading && user) {
+  if (user) {
     return (
       <SidebarMenu>
         <SidebarMenuItem>
@@ -242,4 +233,7 @@ export function NavUser() {
       </SidebarMenu>
     )
   }
+  
+  // Fallback if no user data
+  return null;
 }

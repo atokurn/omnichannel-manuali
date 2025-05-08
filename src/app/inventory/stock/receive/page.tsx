@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Image from 'next/image'; // Import Image component
 // Removed InventorySidebar, SiteHeader, SidebarInset, SidebarProvider imports
-import { DataTable } from "@/components/table/data-table"; // Assuming a similar table structure
+import { DataTable } from "@/components/data-table/data-table"; // Assuming a similar table structure
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Eye, FileEdit, Trash2, PackageCheck } from "lucide-react"; // Added PackageCheck

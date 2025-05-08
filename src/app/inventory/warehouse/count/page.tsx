@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 
-import { DataTable } from "@/components/table/data-table"; // Asumsi menggunakan DataTable yang sama
+import { DataTable } from "@/components/data-table/data-table"; // Asumsi menggunakan DataTable yang sama
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Eye, FileEdit, Trash2, ListChecks, Plus } from "lucide-react";

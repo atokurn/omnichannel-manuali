@@ -8,6 +8,7 @@ const prisma = new PrismaClient();
 const CategorySchema = z.object({
   name: z.string().min(1, { message: 'Nama kategori tidak boleh kosong' }),
   description: z.string().optional(),
+  type: z.string().optional(), // Tambahkan validasi untuk tipe
 });
 
 /**
@@ -38,6 +39,7 @@ export async function GET(request: NextRequest) {
           id: true,
           name: true,
           description: true,
+          type: true, // Sertakan tipe dalam select
           createdAt: true,
           updatedAt: true,
         },
@@ -59,6 +61,7 @@ export async function GET(request: NextRequest) {
       id: category.id,
       name: category.name,
       description: category.description || '',
+      type: category.type || '', // Sertakan tipe dalam format
       createdAt: category.createdAt.toISOString(),
       updatedAt: category.updatedAt.toISOString(),
     }));
@@ -119,7 +122,9 @@ export async function POST(request: Request) {
     // Buat kategori baru dengan tenantId
     const newCategory = await prisma.category.create({
       data: {
-        ...validation.data,
+        name: validation.data.name,
+        description: validation.data.description,
+        type: validation.data.type, // Simpan tipe
         tenantId: tenantId
       },
     });

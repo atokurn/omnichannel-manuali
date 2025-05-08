@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { DataTable } from '@/components/table/data-table';
-import { DataTableSkeleton } from '@/components/table/data-table-skeleton'; // Import DataTableSkeleton
+import { DataTable } from '@/components/data-table/data-table';
+import { DataTableSkeleton } from '@/components/data-table/data-table-skeleton'; // Import DataTableSkeleton
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Eye, FileEdit, Trash2, UserPlus } from 'lucide-react';

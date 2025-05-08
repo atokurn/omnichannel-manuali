@@ -5,7 +5,7 @@ import Image from 'next/image'; // Import Image component
 import { InventorySidebar } from "@/components/inventory-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { DataTable } from "@/components/table/data-table";
+import { DataTable } from "@/components/data-table/data-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Eye, FileEdit, Trash2 } from "lucide-react";

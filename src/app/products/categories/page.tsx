@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react'; // Tambahkan useCallback
 import { useRouter } from 'next/navigation';
-import { DataTable } from '@/components/table/data-table';
+import { DataTable } from '@/components/data-table/data-table';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Eye, FileEdit, Trash2, Loader2, ArrowUpDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { DataTableSkeleton } from '@/components/table/data-table-skeleton';
+import { DataTableSkeleton } from '@/components/data-table/data-table-skeleton';
 import { toast } from 'sonner';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ColumnDef, RowSelectionState } from '@tanstack/react-table';
@@ -23,12 +23,15 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { AddCategoryDialog } from "@/components/products/add-category-dialog"; // Impor komponen dialog
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 
 // Interface untuk kategori
 interface Category {
   id: string;
   name: string;
   description: string;
+  type?: string; // Tambahkan tipe kategori
   createdAt: string;
   updatedAt?: string;
 }
@@ -101,6 +104,16 @@ const getColumns = (refetchData: () => void): ColumnDef<Category>[] => [
   {
     accessorKey: 'description',
     header: 'Deskripsi',
+  },
+  {
+    accessorKey: 'type',
+    header: 'Tipe',
+    cell: ({ row }) => {
+      const category = row.original;
+      return (
+        <div>{category.type || '-'}</div>
+      );
+    },
   },
   {
     accessorKey: 'createdAt',
@@ -196,14 +209,11 @@ export default function CategoriesPage() {
   });
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [typeFilter, setTypeFilter] = useState<string>('all'); // State untuk filter tipe
   
   // Ambil data kategori saat komponen dimuat
-  useEffect(() => {
-    fetchCategories(pagination.page, pagination.limit);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pagination.page, pagination.limit]);
-
-  const fetchCategories = async (page = pagination.page, limit = pagination.limit) => {
+  // Memoize fetchCategories with useCallback
+  const fetchCategories = useCallback(async (page = pagination.page, limit = pagination.limit) => {
     setIsLoading(true);
     setError(null);
     
@@ -218,34 +228,46 @@ export default function CategoriesPage() {
       
       const data: ApiResponse = await response.json();
       
-      setCategories(data.data);
-      setPagination({
+      // Filter kategori berdasarkan tipe jika filter tidak 'all'
+      let filteredCategories = data.data;
+      if (typeFilter !== 'all') {
+        filteredCategories = data.data.filter(category => category.type === typeFilter);
+      }
+      
+      setCategories(filteredCategories);
+      setPagination(prev => ({
+        ...prev,
         page: data.pagination.page,
         limit: data.pagination.limit,
-        totalItems: data.pagination.totalItems,
-        totalPages: data.pagination.totalPages,
-      });
+        totalItems: typeFilter !== 'all' ? filteredCategories.length : data.pagination.totalItems,
+        totalPages: typeFilter !== 'all' ? Math.ceil(filteredCategories.length / limit) : data.pagination.totalPages,
+      }));
       setRowSelection({}); // Reset selection on data fetch
     } catch (err) {
       console.error('Error fetching categories:', err);
-      setError(err instanceof Error ? err.message : 'Terjadi kesalahan saat mengambil data kategori');
-      toast.error('Error', { description: err instanceof Error ? err.message : 'Terjadi kesalahan saat mengambil data kategori' });
+      const errorMessage = err instanceof Error ? err.message : 'Terjadi kesalahan saat mengambil data kategori';
+      setError(errorMessage);
+      toast.error('Error', { description: errorMessage });
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [pagination.page, pagination.limit, typeFilter]); // Add dependencies for useCallback
 
-  const handlePageChange = (newPage: number) => {
+  useEffect(() => {
+    fetchCategories(pagination.page, pagination.limit);
+  }, [fetchCategories, pagination.page, pagination.limit]); // Include fetchCategories in useEffect dependencies
+
+  const handlePageChange = useCallback((newPage: number) => {
     setPagination(prev => ({ ...prev, page: newPage }));
-  };
+  }, []);
 
   // Handler for page size change
-  const handlePageSizeChange = (newSize: number) => {
+  const handlePageSizeChange = useCallback((newSize: number) => {
     setPagination(prev => ({ ...prev, limit: newSize, page: 1 })); // Reset to page 1 when size changes
-  };
+  }, []);
 
   // Memoize columns to prevent recreation on every render
-  const columns = useMemo(() => getColumns(fetchCategories), []);
+  const columns = useMemo(() => getColumns(fetchCategories), [fetchCategories]);
 
   const selectedRowCount = Object.keys(rowSelection).length;
   const selectedRowIds = useMemo(() => {
@@ -315,8 +337,22 @@ export default function CategoriesPage() {
           </div>
         </CardHeader>
         <CardContent>
+          {/* Filter Tipe */}
+          <div className="flex items-center gap-2 mb-4">
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger id="type-filter" className="w-[180px]">
+                <SelectValue placeholder="Pilih Tipe" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Tipe</SelectItem>
+                <SelectItem value="Produk Jadi">Produk Jadi</SelectItem>
+                <SelectItem value="Bahan Baku">Bahan Baku</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
           {isLoading ? (
-            <DataTableSkeleton columnCount={4} rowCount={10} />
+            <DataTableSkeleton columnCount={5} rowCount={10} />
           ) : error ? (
             <div className="text-center py-10 text-red-600">
               {error}

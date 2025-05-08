@@ -150,6 +150,7 @@ model Category {
   tenantId    String
   name        String
   description String?
+  type        String?   // Tambahkan tipe kategori (misalnya: Produk Jadi, Bahan Baku)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   products    Product[]

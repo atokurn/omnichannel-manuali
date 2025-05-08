@@ -1,14 +1,14 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react'; // Import useMemo
+import { useState, useEffect, useMemo, useCallback } from 'react'; // Import useCallback
 import { useRouter } from 'next/navigation';
 import Image from 'next/image'; // Import Image
-import { DataTable } from '@/components/table/data-table'; // Make sure this path is correct
+import { DataTable } from '@/components/data-table/data-table'; // Make sure this path is correct
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Eye, FileEdit, Trash2, Loader2, MoreHorizontal, ArrowUpDown, Pencil } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { DataTableSkeleton } from '@/components/table/data-table-skeleton'; // Import the skeleton component
+import { DataTableSkeleton } from '@/components/data-table/data-table-skeleton'; // Import the skeleton component
 import { FormattedMaterial, PaginationState } from '@/lib/types';
 import { MaterialStatus } from '@prisma/client';
 import { toast } from 'sonner';
@@ -441,7 +441,7 @@ export default function ProductMaterialsPage() {
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
-  const fetchMaterials = async (page = pagination.page, limit = pagination.limit) => {
+  const fetchMaterials = useCallback(async (page = pagination.page, limit = pagination.limit) => {
     setIsLoading(true);
     setError(null);
     try {
@@ -467,12 +467,11 @@ export default function ProductMaterialsPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [pagination.page, pagination.limit]); // Added dependencies
 
   useEffect(() => {
     fetchMaterials(pagination.page, pagination.limit);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pagination.page, pagination.limit]); // Refetch when page or limit changes
+  }, [fetchMaterials, pagination.page, pagination.limit]); // Added fetchMaterials to dependencies
 
   const handlePageChange = (newPage: number) => {
     setPagination(prev => ({ ...prev, page: newPage }));
@@ -484,14 +483,14 @@ export default function ProductMaterialsPage() {
   };
 
   // Memoize columns to prevent recreation on every render
-  const columns = useMemo(() => getColumns(fetchMaterials), []);
+  const columns = useMemo(() => getColumns(fetchMaterials), [fetchMaterials]); // Added fetchMaterials to dependencies
 
   const selectedRowCount = Object.keys(rowSelection).length;
   const selectedRowIds = useMemo(() => {
       return Object.keys(rowSelection).map(index => materials[parseInt(index)]?.id).filter(Boolean);
   }, [rowSelection, materials]);
 
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = useCallback(async () => {
       if (selectedRowCount === 0) return;
       setIsBulkDeleting(true);
       try {
@@ -509,7 +508,7 @@ export default function ProductMaterialsPage() {
       } finally {
           setIsBulkDeleting(false);
       }
-  };
+  }, [selectedRowCount, selectedRowIds, fetchMaterials]); // Added dependencies
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-4">
