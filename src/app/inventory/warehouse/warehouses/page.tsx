@@ -5,12 +5,19 @@ import { useState } from 'react';
 import { DataTable } from "@/components/data-table/data-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Eye, FileEdit, Trash2 } from "lucide-react";
+import { Eye, FileEdit, Trash2, MoreHorizontal } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { dummyWarehouses } from "@/lib/services/stock-service";
 import { AddWarehouseDialog } from "@/components/warehouse/add-warehouse-dialog";
 import { dummyWarehousesData as warehouseService } from "@/lib/services/warehouse-service";
 import { Warehouse } from "@/lib/services/warehouse-service";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // Data dummy untuk Warehouses dengan informasi lebih lengkap
 const dummyWarehousesData: Warehouse[] = [
@@ -78,11 +85,22 @@ const dummyWarehousesData: Warehouse[] = [
 
 export default function WarehousesPage() {
   const [filteredData, setFilteredData] = useState<Warehouse[]>(dummyWarehousesData);
-  
+
   // Fungsi untuk filter tidak lagi berdasarkan status
   const handleStatusChange = (status: string) => {
     setFilteredData(dummyWarehousesData);
   };
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  // Calculate pagination
+  const totalItems = filteredData.length;
+  const pageCount = Math.ceil(totalItems / pageSize);
+  const paginatedData = filteredData.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
 
   // Definisi kolom untuk DataTable
   const columns = [
@@ -122,11 +140,11 @@ export default function WarehousesPage() {
       header: "Default Shipping",
       cell: ({ row }: any) => (
         <div className="flex items-center">
-          <input 
-            type="radio" 
-            checked={row.original.defaultShipping} 
-            onChange={() => {}} 
-            className="mr-2" 
+          <input
+            type="radio"
+            checked={row.original.defaultShipping}
+            onChange={() => { }}
+            className="mr-2"
           />
           {row.original.defaultShipping ? "Yes" : "No"}
         </div>
@@ -137,11 +155,11 @@ export default function WarehousesPage() {
       header: "Default Returning",
       cell: ({ row }: any) => (
         <div className="flex items-center">
-          <input 
-            type="radio" 
-            checked={row.original.defaultReturning} 
-            onChange={() => {}} 
-            className="mr-2" 
+          <input
+            type="radio"
+            checked={row.original.defaultReturning}
+            onChange={() => { }}
+            className="mr-2"
           />
           {row.original.defaultReturning ? "Yes" : "No"}
         </div>
@@ -168,17 +186,29 @@ export default function WarehousesPage() {
       header: "Actions",
       cell: ({ row }: any) => {
         return (
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon">
-              <Eye className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon">
-              <FileEdit className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon">
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <span className="sr-only">Open menu</span>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => console.log('View', row.original.id)}>
+                <Eye className="mr-2 h-4 w-4" />
+                View
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => console.log('Edit', row.original.id)}>
+                <FileEdit className="mr-2 h-4 w-4" />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem className="text-red-600" onClick={() => console.log('Delete', row.original.id)}>
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         );
       },
     },
@@ -187,23 +217,27 @@ export default function WarehousesPage() {
   return (
     <main className="flex flex-1 flex-col gap-4 p-4">
       <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle>Warehouses</CardTitle>
-                    <CardDescription>Kelola data gudang dan lokasi penyimpanan</CardDescription>
-                  </div>
-                  <AddWarehouseDialog onAddWarehouse={(newWarehouse) => {
-                    // Menambahkan warehouse baru ke data yang ada
-                    setFilteredData([newWarehouse, ...filteredData]);
-                  }} />
-                </CardHeader>
-                <CardContent>
-                  <DataTable 
-                    columns={columns} 
-                    data={filteredData} 
-                    searchKey="name" 
-                  />
-                </CardContent>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Warehouses</CardTitle>
+            <CardDescription>Kelola data gudang dan lokasi penyimpanan</CardDescription>
+          </div>
+          <AddWarehouseDialog onAddWarehouse={(newWarehouse) => {
+            // Menambahkan warehouse baru ke data yang ada
+            setFilteredData([newWarehouse, ...filteredData]);
+          }} />
+        </CardHeader>
+        <CardContent>
+          <DataTable
+            columns={columns}
+            data={paginatedData}
+            searchKey="name"
+            pageCount={pageCount}
+            currentPage={currentPage}
+            onPageChange={setCurrentPage}
+            pageSize={pageSize}
+            onPageSizeChange={setPageSize}
+          />   </CardContent>
       </Card>
     </main>
   );

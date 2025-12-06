@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { DataTable } from '@/components/data-table/data-table';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Eye, FileEdit, Trash2, Loader2, ArrowUpDown } from 'lucide-react';
+import { Plus, Eye, FileEdit, Trash2, Loader2, ArrowUpDown, MoreHorizontal } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { DataTableSkeleton } from '@/components/data-table/data-table-skeleton';
 import { toast } from 'sonner';
@@ -25,6 +25,13 @@ import {
 import { AddCategoryDialog } from "@/components/products/add-category-dialog"; // Impor komponen dialog
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // Interface untuk kategori
 interface Category {
@@ -49,13 +56,13 @@ interface ApiResponse {
 
 // Interface for API response with pagination
 interface ApiResponse {
-    data: Category[];
-    pagination: {
-        page: number;
-        limit: number;
-        totalItems: number;
-        totalPages: number;
-    };
+  data: Category[];
+  pagination: {
+    page: number;
+    limit: number;
+    totalItems: number;
+    totalPages: number;
+  };
 }
 
 // Gunakan state untuk menyimpan data kategori dari API
@@ -148,7 +155,7 @@ const getColumns = (refetchData: () => void): ColumnDef<Category>[] => [
             const errorData = await response.json();
             throw new Error(errorData.message || 'Gagal menghapus kategori');
           }
-          
+
           const result = await response.json();
           toast.success('Sukses', { description: 'Kategori berhasil dihapus.' });
           refetchData(); // Refetch data after delete
@@ -161,19 +168,33 @@ const getColumns = (refetchData: () => void): ColumnDef<Category>[] => [
       };
 
       return (
-        <div className="flex gap-1">
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={handleView}>
-            <Eye className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={handleEdit}>
-            <FileEdit className="h-4 w-4" />
-          </Button>
+        <>
           <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-            <AlertDialogTrigger asChild>
-              <Button variant="outline" size="icon" className="h-8 w-8 text-red-500 hover:bg-red-100">
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </AlertDialogTrigger>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-8 w-8 p-0">
+                  <span className="sr-only">Buka menu</span>
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Aksi</DropdownMenuLabel>
+                <DropdownMenuItem onClick={handleView}>
+                  <Eye className="mr-2 h-4 w-4" />
+                  Lihat
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleEdit}>
+                  <FileEdit className="mr-2 h-4 w-4" />
+                  Edit
+                </DropdownMenuItem>
+                <AlertDialogTrigger asChild>
+                  <DropdownMenuItem className="text-red-600 focus:text-red-700 focus:bg-red-100">
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Hapus
+                  </DropdownMenuItem>
+                </AlertDialogTrigger>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
@@ -190,7 +211,7 @@ const getColumns = (refetchData: () => void): ColumnDef<Category>[] => [
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-        </div>
+        </>
       );
     },
   },
@@ -210,30 +231,30 @@ export default function CategoriesPage() {
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [typeFilter, setTypeFilter] = useState<string>('all'); // State untuk filter tipe
-  
+
   // Ambil data kategori saat komponen dimuat
   // Memoize fetchCategories with useCallback
   const fetchCategories = useCallback(async (page = pagination.page, limit = pagination.limit) => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
       // Panggil API untuk mendapatkan data kategori
       const response = await fetch(`/api/products/categories?page=${page}&limit=${limit}`);
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Gagal mengambil data kategori');
       }
-      
+
       const data: ApiResponse = await response.json();
-      
+
       // Filter kategori berdasarkan tipe jika filter tidak 'all'
       let filteredCategories = data.data;
       if (typeFilter !== 'all') {
         filteredCategories = data.data.filter(category => category.type === typeFilter);
       }
-      
+
       setCategories(filteredCategories);
       setPagination(prev => ({
         ...prev,
@@ -271,30 +292,30 @@ export default function CategoriesPage() {
 
   const selectedRowCount = Object.keys(rowSelection).length;
   const selectedRowIds = useMemo(() => {
-      return Object.keys(rowSelection).map(index => categories[parseInt(index)]?.id).filter(Boolean);
+    return Object.keys(rowSelection).map(index => categories[parseInt(index)]?.id).filter(Boolean);
   }, [rowSelection, categories]);
 
   const handleBulkDelete = async () => {
-      if (selectedRowCount === 0) return;
-      setIsBulkDeleting(true);
-      try {
-          // Panggil API untuk menghapus kategori terpilih
-          const response = await fetch(`/api/products/categories?ids=${selectedRowIds.join(',')}`, {
-              method: 'DELETE',
-          });
-          if (!response.ok) {
-              const errorData = await response.json();
-              throw new Error(errorData.message || 'Gagal menghapus kategori terpilih');
-          }
-          
-          const result = await response.json();
-          toast.success('Sukses', { description: result.message || `${selectedRowCount} kategori berhasil dihapus.` });
-          fetchCategories(1); // Refetch data from page 1 after bulk delete
-      } catch (err: any) {
-          toast.error('Error', { description: err.message || 'Gagal menghapus kategori terpilih.' });
-      } finally {
-          setIsBulkDeleting(false);
+    if (selectedRowCount === 0) return;
+    setIsBulkDeleting(true);
+    try {
+      // Panggil API untuk menghapus kategori terpilih
+      const response = await fetch(`/api/products/categories?ids=${selectedRowIds.join(',')}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Gagal menghapus kategori terpilih');
       }
+
+      const result = await response.json();
+      toast.success('Sukses', { description: result.message || `${selectedRowCount} kategori berhasil dihapus.` });
+      fetchCategories(1); // Refetch data from page 1 after bulk delete
+    } catch (err: any) {
+      toast.error('Error', { description: err.message || 'Gagal menghapus kategori terpilih.' });
+    } finally {
+      setIsBulkDeleting(false);
+    }
   };
 
   return (
@@ -309,29 +330,29 @@ export default function CategoriesPage() {
           </div>
           <div className="flex gap-2">
             {selectedRowCount > 0 && (
-                <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                        <Button variant="destructive" disabled={isBulkDeleting}>
-                            {isBulkDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-                            Hapus ({selectedRowCount})
-                        </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>Konfirmasi Hapus Massal</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                Apakah Anda yakin ingin menghapus {selectedRowCount} kategori terpilih? Tindakan ini tidak dapat diurungkan.
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel disabled={isBulkDeleting}>Batal</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleBulkDelete} disabled={isBulkDeleting} className="bg-red-600 hover:bg-red-700">
-                                {isBulkDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                Hapus
-                            </AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" disabled={isBulkDeleting}>
+                    {isBulkDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                    Hapus ({selectedRowCount})
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Konfirmasi Hapus Massal</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Apakah Anda yakin ingin menghapus {selectedRowCount} kategori terpilih? Tindakan ini tidak dapat diurungkan.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={isBulkDeleting}>Batal</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleBulkDelete} disabled={isBulkDeleting} className="bg-red-600 hover:bg-red-700">
+                      {isBulkDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                      Hapus
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             )}
             <AddCategoryDialog onSuccess={() => fetchCategories()} />
           </div>
@@ -350,7 +371,7 @@ export default function CategoriesPage() {
               </SelectContent>
             </Select>
           </div>
-          
+
           {isLoading ? (
             <DataTableSkeleton columnCount={5} rowCount={10} />
           ) : error ? (

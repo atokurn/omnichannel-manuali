@@ -19,6 +19,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { cn, formatNumberWithSeparator } from '@/lib/utils'; // Import cn utility and format function
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"; // Import Table components
 import { toast } from "sonner"; // Import toast from sonner
+import VariantsEditor from './variants-editor';
 
 // Interface for Variant Option
 interface VariantOption {
@@ -49,6 +50,10 @@ interface VariantCombinationData {
 
 // Import SkuMappingCard
 import SkuMappingCard from './sku-mapping-card';
+import ShippingSection from './shipping-section';
+import ImagesSection from './images-section';
+import CostPriceSection from './cost-price-section';
+import SalesInfoSection from './sales-info-section';
 
 const AddProductPage = () => {
   const router = useRouter(); // Initialize router
@@ -274,7 +279,7 @@ const AddProductPage = () => {
     return processedApiVariants;
   };
 
-  const scrollToRef = (ref: React.RefObject<HTMLDivElement>, title: string) => {
+  const scrollToRef = (ref: React.RefObject<HTMLDivElement | null>, title: string) => {
     ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     setActiveSection(title); // Update active section on click
   };
@@ -737,113 +742,26 @@ const AddProductPage = () => {
                   <Button variant="ghost" size="sm" className="text-primary"><Sparkles className="h-4 w-4 mr-1"/> Optimisasi AI</Button>
                 </CardHeader>
                 <CardContent className="space-y-6">
+
                   <div className="space-y-2 max-w-3xl mx-auto">
-                    <Label htmlFor="product-image" className="flex items-center"><span className="text-red-500 mr-1">*</span>Gambar</Label>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {/* Main Image Upload with Drag & Drop */}
-                      <div 
-                        className={cn(
-                          "md:col-span-1 border-2 border-dashed rounded-lg flex flex-col items-center justify-center p-6 aspect-square text-center hover:border-primary cursor-pointer bg-muted/20",
-                          isDraggingMain ? "border-primary bg-primary/5" : "",
-                          mainImagePreview ? "relative" : ""
-                        )}
-                        onDragEnter={handleDragEnterMain}
-                        onDragLeave={handleDragLeaveMain}
-                        onDragOver={handleDragOverMain}
-                        onDrop={handleDropMain}
-                        onClick={() => document.getElementById('main-image-upload')?.click()}
-                      >
-                        {mainImagePreview ? (
-                          <>
-                            <img 
-                              src={mainImagePreview} 
-                              alt="Preview" 
-                              className="object-contain w-full h-full rounded-md" 
-                            />
-                            <button 
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleRemoveMainImage();
-                              }}
-                              className="absolute top-2 right-2 bg-destructive text-destructive-foreground rounded-full p-1 shadow-sm hover:bg-destructive/90 transition-colors"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <Upload className="h-8 w-8 text-muted-foreground mb-2" />
-                            <span className="text-sm font-medium">Unggah gambar utama</span>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              - Dimensi: 600 x 600 px.<br/>
-                              - Ukuran file maks.: 5 MB.<br/>
-                              - Format: JPG, JPEG, PNG.<br/>
-                              - Seret & lepas gambar di sini
-                            </p>
-                          </>
-                        )}
-                        {/* Hidden file input */}
-                        <Input 
-                          id="main-image-upload" 
-                          type="file" 
-                          className="hidden" 
-                          accept=".jpg,.jpeg,.png" 
-                          onChange={handleMainImageChange}
-                        />
-                      </div>
-                      {/* Additional Image Placeholders with Drag & Drop */}
-                      <div className="md:col-span-2 grid grid-cols-4 gap-2">
-                        {['Depan', 'Samping', 'Berbagai sisi', 'Saat diguna...', 'Variasi', 'Dengan latar...', 'Close-up', 'Ukuran & Sk...'].map((label) => (
-                          <div 
-                            key={label} 
-                            className={cn(
-                              "border rounded-lg flex flex-col items-center justify-center p-2 aspect-square bg-muted/50 text-center cursor-pointer hover:border-primary",
-                              isDraggingAdditional === label ? "border-primary bg-primary/5" : "",
-                              additionalImagePreviews[label] ? "relative" : ""
-                            )}
-                            onDragEnter={(e) => handleDragEnterAdditional(e, label)}
-                            onDragLeave={handleDragLeaveAdditional}
-                            onDragOver={(e) => handleDragOverAdditional(e, label)}
-                            onDrop={(e) => handleDropAdditional(e, label)}
-                            onClick={() => document.getElementById(`image-upload-${label}`)?.click()}
-                          >
-                            {additionalImagePreviews[label] ? (
-                              <>
-                                <img 
-                                  src={additionalImagePreviews[label] || ''} 
-                                  alt={label} 
-                                  className="object-contain w-full h-full rounded-md" 
-                                />
-                                <button 
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleRemoveAdditionalImage(label);
-                                  }}
-                                  className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 shadow-sm hover:bg-destructive/90 transition-colors"
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </button>
-                              </>
-                            ) : (
-                              <>
-                                <ImageIcon className="h-6 w-6 text-muted-foreground mb-1" />
-                                <span className="text-[10px] text-muted-foreground leading-tight">{label}</span>
-                              </>
-                            )}
-                            {/* Hidden file input for each */}
-                            <Input 
-                              id={`image-upload-${label}`} 
-                              type="file" 
-                              className="hidden" 
-                              accept=".jpg,.jpeg,.png" 
-                              onChange={(e) => handleAdditionalImageChange(e, label)}
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+                    <ImagesSection 
+                      mainImagePreview={mainImagePreview}
+                      isDraggingMain={isDraggingMain}
+                      onDragEnterMain={handleDragEnterMain}
+                      onDragLeaveMain={handleDragLeaveMain}
+                      onDragOverMain={handleDragOverMain}
+                      onDropMain={handleDropMain}
+                      onMainImageChange={handleMainImageChange}
+                      onRemoveMainImage={handleRemoveMainImage}
+                      additionalImagePreviews={additionalImagePreviews}
+                      isDraggingAdditional={isDraggingAdditional}
+                      onDragEnterAdditional={handleDragEnterAdditional}
+                      onDragLeaveAdditional={handleDragLeaveAdditional}
+                      onDragOverAdditional={handleDragOverAdditional}
+                      onDropAdditional={handleDropAdditional}
+                      onAdditionalImageChange={handleAdditionalImageChange}
+                      onRemoveAdditionalImage={handleRemoveAdditionalImage}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="product-name" className="flex items-center"><span className="text-red-500 mr-1">*</span>Nama produk</Label>
@@ -893,37 +811,11 @@ const AddProductPage = () => {
               </Card>
 
               {/* Card Harga Modal */}
-              <Card ref={costPriceRef} id="harga-modal">
-                <CardHeader>
-                  <CardTitle>Harga Modal</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="calculated-cost-price">Harga Modal Dihitung</Label>
-                    <Input id="calculated-cost-price" type="text" placeholder="Rp 0" disabled />
-                    <p className="text-sm text-muted-foreground">
-                      Harga modal dihitung otomatis berdasarkan bahan baku (fitur mendatang).
-                    </p>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id="manual-cost-price-toggle" 
-                      checked={showManualCostPrice}
-                      onCheckedChange={(checked) => setShowManualCostPrice(Boolean(checked))}
-                    />
-                    <Label htmlFor="manual-cost-price-toggle" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                      Sesuaikan Harga Modal Manual
-                    </Label>
-                  </div>
-                  {/* Conditional rendering for manual input based on checkbox state */}
-                  {showManualCostPrice && (
-                    <div className="grid gap-2 pt-2">
-                      <Label htmlFor="manual-cost-price">Harga Modal Manual</Label>
-                      <Input id="manual-cost-price" type="number" placeholder="Masukkan harga modal manual" />
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              <CostPriceSection 
+                ref={costPriceRef}
+                showManualCostPrice={showManualCostPrice}
+                onToggleShowManualCostPrice={(checked: boolean) => setShowManualCostPrice(Boolean(checked))}
+              />
               {/* End Card Harga Modal */}
 
               {/* Info Penjualan */}
@@ -932,290 +824,45 @@ const AddProductPage = () => {
                   <CardTitle>Info penjualan</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  {/* Tambah Varian Switch */}
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label htmlFor="add-variant" className="font-medium">Tambah varian</Label>
-                      <p className="text-xs text-muted-foreground">Tambahkan hingga 3 varian.</p>
-                    </div>
-                    <Switch id="add-variant" checked={addVariant} onCheckedChange={(checked) => {
-                      setAddVariant(checked);
-                      if (checked && variants.length === 0) {
-                        handleAddVariantSection(); // Add the first variant section automatically
-                      } else if (!checked) {
-                        setVariants([]); // Clear variants if switch is turned off
-                      }
-                    }} />
-                  </div>
-
-                  {/* Conditionally render Price & Stock section */}
-                  {!addVariant && (
-                    <div className="space-y-4 p-4 border rounded-md bg-muted/20">
-                      <div className="flex items-center justify-between">
-                        <Label className="flex items-center font-medium">
-                          <span className="text-red-500 mr-1">*</span>Harga & Stok
-                        </Label>
-                        <div className="flex items-center gap-2">
-                          {/* Pre-order Checkbox moved here */}
-                          <Checkbox id="pre-order" />
-                          <Label htmlFor="pre-order" className="text-sm font-normal flex items-center">
-                            Pre-order
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <HelpCircle className="h-3 w-3 text-muted-foreground ml-1 cursor-help" />
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Aktifkan jika produk ini memerlukan pre-order.</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          </Label>
-                          {/* End Pre-order Checkbox */}
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="outline" size="sm" className="h-8 text-xs">
-                                Ubah sekaligus <ChevronDown className="h-3 w-3 ml-1" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem>Ubah Harga</DropdownMenuItem>
-                              <DropdownMenuItem>Ubah Kuantitas</DropdownMenuItem>
-                              <DropdownMenuItem>Ubah SKU</DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-3 gap-4">
-                        <div className="space-y-1">
-                          <Label htmlFor="product-price" className="text-xs flex items-center">
-                            <span className="text-red-500 mr-1">*</span>Harga jual
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <HelpCircle className="h-3 w-3 text-muted-foreground ml-1 cursor-help" />
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Harga jual akhir produk.</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          </Label>
-                          <div className="relative">
-                            <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-sm text-muted-foreground">Rp</span>
-                            <Input 
-                              id="product-price" 
-                              type="number" 
-                              placeholder="0" 
-                              className="pl-8" 
-                              value={defaultPrice} // Bind value to state
-                              onChange={(e) => setDefaultPrice(e.target.value)} // Update state on change
-                            />
-                          </div>
-                        </div>
-                        <div className="space-y-1">
-                          <Label htmlFor="product-quantity" className="text-xs flex items-center">
-                            <span className="text-red-500 mr-1">*</span>Kuantitas
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <HelpCircle className="h-3 w-3 text-muted-foreground ml-1 cursor-help" />
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Jumlah stok produk yang tersedia.</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          </Label>
-                          <Input 
-                            id="product-quantity" 
-                            type="number" 
-                            placeholder="0" 
-                            value={defaultQuantity} 
-                            onChange={(e) => setDefaultQuantity(e.target.value)} 
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label htmlFor="product-sku" className="text-xs flex items-center">
-                            SKU Penjual
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <HelpCircle className="h-3 w-3 text-muted-foreground ml-1 cursor-help" />
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Kode unik (Stock Keeping Unit) untuk produk ini.</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          </Label>
-                          <Input id="product-sku" placeholder="Masukkan SKU" />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
+                <SalesInfoSection
+                  addVariant={addVariant}
+                  onToggleAddVariant={(checked: boolean) => {
+                    setAddVariant(checked);
+                    if (checked && variants.length === 0) {
+                      handleAddVariantSection();
+                    } else if (!checked) {
+                      setVariants([]);
+                    }
+                  }}
+                  defaultPrice={defaultPrice}
+                  onDefaultPriceChange={(value: string) => setDefaultPrice(value)}
+                  defaultQuantity={defaultQuantity}
+                  onDefaultQuantityChange={(value: string) => setDefaultQuantity(value)}
+                />
                   {/* Variant Creation Forms (Conditional & Mapped) */}
-                  {addVariant && variants.map((variant, variantIndex) => (
-                    <div key={variant.id} className="space-y-4 p-4 border rounded-md bg-muted/20 relative">
-                       {/* Delete Variant Section Button */}
-                       {variants.length > 1 && (
-                         <Button
-                           variant="ghost"
-                           size="icon"
-                           className="absolute top-2 right-2 h-7 w-7 text-muted-foreground hover:text-destructive"
-                           onClick={() => handleRemoveVariantSection(variant.id)}
-                         >
-                           <Trash2 className="h-4 w-4" />
-                         </Button>
-                       )}
-
-                      {/* Variant Name */}
-                      <div className="space-y-2">
-                        <Label htmlFor={`variant-name-${variant.id}`} className="flex items-center">
-                          <span className="text-red-500 mr-1">*</span>Nama Varian
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <HelpCircle className="h-3 w-3 text-muted-foreground ml-1 cursor-help" />
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Masukkan nama untuk grup varian (mis. Warna, Ukuran).</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </Label>
-                        <Select onValueChange={(value) => handleVariantNameChange(variant.id, value)} value={variant.name}>
-                          <SelectTrigger id={`variant-name-${variant.id}`}>
-                            <SelectValue placeholder="Pilih atau masukkan varian" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {/* Add predefined variant names or allow custom input */}
-                            <SelectItem value="Warna">Warna</SelectItem>
-                            <SelectItem value="Ukuran">Ukuran</SelectItem>
-                            {/* Add more predefined or allow custom input */}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      {/* Variant Options (Mapped) */}
-                      {variant.options.map((option, optionIndex) => (
-                        <div key={option.id} className="space-y-2">
-                          {/* Label only needed for the first option conceptually, but keep structure for now */}
-                          {optionIndex === 0 && (
-                            <Label htmlFor={`variant-value-${option.id}`} className="flex items-center">
-                              <span className="text-red-500 mr-1">*</span>Nilai varian
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <HelpCircle className="h-3 w-3 text-muted-foreground ml-1 cursor-help" />
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Masukkan opsi untuk varian ini (mis. Merah, XL). Ketik di baris terakhir untuk menambah opsi baru.</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            </Label>
-                          )}
-                          <div className="flex items-start gap-3">
-                            {/* Image Upload */}
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Label htmlFor={`variant-image-upload-${option.id}`} className="border rounded-lg flex flex-col items-center justify-center p-4 aspect-square text-center hover:border-primary cursor-pointer bg-background w-24 h-24 shrink-0">
-                                    {/* Basic image preview or icon */}
-                                    {option.image ? (
-                                      <img src={URL.createObjectURL(option.image)} alt="Preview" className="h-full w-full object-cover rounded-md" />
-                                    ) : (
-                                      <>
-                                        <ImageIcon className="h-6 w-6 text-muted-foreground mb-1" />
-                                        <span className="text-xs text-muted-foreground">Unggah gambar</span>
-                                      </>
-                                    )}
-                                    <Input
-                                      id={`variant-image-upload-${option.id}`}
-                                      type="file"
-                                      className="hidden"
-                                      accept=".jpg,.jpeg,.png"
-                                      onChange={(e) => handleVariantOptionImageChange(variant.id, option.id, e)}
-                                    />
-                                  </Label>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Unggah gambar untuk opsi varian ini (opsional).</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-
-                            {/* Value Input & Actions */}
-                            <div className="flex-1 flex items-center gap-2">
-                              <div className="flex-1 relative">
-                                <Input
-                                  id={`variant-value-${option.id}`}
-                                  placeholder={optionIndex === variant.options.length - 1 && optionIndex > 0 ? "Tambahkan nilai lain" : "Masukkan opsi"} // Dynamic placeholder
-                                  maxLength={50}
-                                  value={option.value}
-                                  onChange={(e) => handleVariantOptionValueChange(variant.id, option.id, e.target.value)}
-                                />
-                                <span className="absolute right-3 bottom-2 text-xs text-muted-foreground">{option.charCount}/50</span>
-                              </div>
-                              {/* Action Buttons */}
-                              {/* Show remove button only if it's not the last empty option */} 
-                              {(variant.options.length > 1 && !(optionIndex === variant.options.length - 1 && option.value === '')) ? (
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-9 w-9 text-muted-foreground hover:text-destructive"
-                                        onClick={() => handleRemoveVariantOption(variant.id, option.id)}
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Hapus opsi</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
-                              ) : (
-                                /* Spacer to keep alignment when remove button is hidden */
-                                <div className="w-9 h-9"></div>
-                              )}
-                               <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                     <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground cursor-move">
-                                       <GripVertical className="h-4 w-4" />
-                                     </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Pindahkan (fungsi belum aktif)</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                      {/* Removed the separate 'Tambahkan nilai lain' input section and associated buttons */}
-                    </div>
-                  ))}
+                  {addVariant && (
+                    <VariantsEditor
+                      addVariant={addVariant}
+                      variants={variants}
+                      variantTableData={variantTableData}
+                      onAddVariantSection={handleAddVariantSection}
+                      onRemoveVariantSection={handleRemoveVariantSection}
+                      onVariantNameChange={handleVariantNameChange}
+                      onRemoveVariantOption={handleRemoveVariantOption}
+                      onVariantOptionValueChange={handleVariantOptionValueChange}
+                      onVariantOptionImageChange={handleVariantOptionImageChange}
+                      onVariantTableInputChange={handleVariantTableInputChange}
+                      onWeightUnitChange={handleWeightUnitChange}
+                      onRemoveVariantCombination={handleRemoveVariantCombination}
+                    />
+                  )}
 
                   {/* Button to Add New Variant Section */}
-                  {addVariant && variants.length < 3 && (
-                     <Button
-                       variant="outline"
-                       className="w-full border-dashed"
-                       onClick={handleAddVariantSection}
-                     >
-                       <Plus className="h-4 w-4 mr-2" /> Tambah varian ({variants.length}/3)
-                     </Button>
-                  )}
+                  {/* Moved inside VariantsEditor */}
 
                   {/* Variant Combination Table (List Varian) */}
-                  {addVariant && variantTableData.length > 0 && (
+                  {/* Moved inside VariantsEditor */}
+                  {false && (
                     <div className="mt-6 space-y-4">
                       <Separator />
                       <div className="flex items-center justify-between">
@@ -1252,7 +899,7 @@ const AddProductPage = () => {
                           </TooltipProvider>
                         </Label>
                       </div>
-
+                      
                       <Card className="overflow-hidden">
                         <ScrollArea className="max-h-[400px] w-full">
                           <Table className="min-w-full">
@@ -1383,112 +1030,7 @@ const AddProductPage = () => {
               </Card>
 
               {/* Pengiriman */}
-              <Card ref={shippingRef} id="pengiriman">
-                <CardHeader>
-                  <CardTitle>Pengiriman</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {/* Berat Paket */}
-                  <div className="space-y-2">
-                    <Label htmlFor="package-weight" className="flex items-center">
-                      <span className="text-red-500 mr-1">*</span>Berat paket
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <HelpCircle className="h-3 w-3 text-muted-foreground ml-1 cursor-help" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Masukkan berat produk setelah dikemas.</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </Label>
-                    <div className="flex items-center gap-2">
-                      <Select defaultValue="g">
-                        <SelectTrigger id="weight-unit" className="w-[120px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="g">Gram (g)</SelectItem>
-                          <SelectItem value="kg">Kilogram (kg)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Input id="package-weight" type="number" placeholder="Masukkan berat paket" className="flex-1" />
-                    </div>
-                  </div>
-
-                  {/* Dimensi Paket */}
-                  <div className="space-y-2">
-                    <Label className="flex items-center">
-                      Dimensi Paket
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <HelpCircle className="h-3 w-3 text-muted-foreground ml-1 cursor-help" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Ukuran paket setelah dikemas (opsional).</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </Label>
-                    <p className="text-xs text-muted-foreground">Pastikan berat dan dimensi kotak akurat karena akan digunakan untuk menghitung biaya pengiriman dan metode pengiriman.</p>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="relative">
-                        <Input id="package-height" type="number" placeholder="Tinggi" className="pr-10" />
-                        <span className="absolute inset-y-0 right-0 flex items-center pr-3 text-sm text-muted-foreground">cm</span>
-                      </div>
-                      <div className="relative">
-                        <Input id="package-width" type="number" placeholder="Lebar" className="pr-10" />
-                        <span className="absolute inset-y-0 right-0 flex items-center pr-3 text-sm text-muted-foreground">cm</span>
-                      </div>
-                      <div className="relative">
-                        <Input id="package-length" type="number" placeholder="Panjang" className="pr-10" />
-                        <span className="absolute inset-y-0 right-0 flex items-center pr-3 text-sm text-muted-foreground">cm</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Opsi Pengiriman */}
-                  <div className="space-y-2">
-                    <Label className="flex items-center">
-                      <span className="text-red-500 mr-1">*</span>Opsi Pengiriman
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <HelpCircle className="h-3 w-3 text-muted-foreground ml-1 cursor-help" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Pilih opsi pengiriman yang tersedia.</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </Label>
-                    <div className="p-4 border rounded-md space-y-4 bg-muted/20">
-                      {/* Bayar di tempat (COD) */}
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="cod-switch" className="font-normal">Bayar di tempat (COD)</Label>
-                        <Switch id="cod-switch" />
-                      </div>
-                      <Separator />
-                      {/* Asuransi */}
-                      <div className="space-y-2">
-                        <Label className="font-normal">Asuransi</Label>
-                        <RadioGroup defaultValue="optional" className="flex items-center gap-4">
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="required" id="insurance-required" />
-                            <Label htmlFor="insurance-required" className="font-normal">Wajib</Label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="optional" id="insurance-optional" />
-                            <Label htmlFor="insurance-optional" className="font-normal">Opsional</Label>
-                          </div>
-                        </RadioGroup>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              <ShippingSection ref={shippingRef} id="pengiriman" />
               {/* End Pengiriman */}
 
                   {/* SKU Mapping Card */}
@@ -1496,8 +1038,13 @@ const AddProductPage = () => {
                     <SkuMappingCard 
                       productId={productId} 
                       selectedChannels={selectedChannels}
+                      selectedStores={selectedStores}
                       skuMappingOption={skuMappingOption}
                       enableSkuMapping={enableSkuMapping}
+                      onEnableSkuMappingChange={(checked: boolean) => setEnableSkuMapping(checked)}
+                      onSkuMappingOptionChange={setSkuMappingOption}
+                      onSelectedChannelsChange={setSelectedChannels}
+                      onSelectedStoresChange={setSelectedStores}
                     />
                   </div>
 
@@ -1570,9 +1117,9 @@ const AddProductPage = () => {
                           }
                         }
                       }
-                      return priceToShow ? `Rp ${formatNumberWithSeparator(priceToShow)}` : <span className="text-muted-foreground">Rp ...</span>;
+                      return priceToShow ? `Rp ${formatNumberWithSeparator(Number(priceToShow))}` : <span className="text-muted-foreground">Rp ...</span>;
                     } else if (!addVariant && defaultPrice) {
-                      return `Rp ${formatNumberWithSeparator(defaultPrice)}`;
+                      return `Rp ${formatNumberWithSeparator(Number(defaultPrice))}`;
                     } else {
                       return <span className="text-muted-foreground">Rp ...</span>;
                     }

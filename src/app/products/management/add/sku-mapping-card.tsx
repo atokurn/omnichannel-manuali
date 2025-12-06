@@ -13,28 +13,30 @@ import ApiSyncSection from '@/components/products/ecommerce-sync/api-sync-sectio
 
 interface SkuMappingCardProps {
   productId?: string;
-  selectedChannels?: string[];
-  skuMappingOption?: string;
-  enableSkuMapping?: boolean;
+  selectedChannels: string[];
+  selectedStores: string[];
+  skuMappingOption: 'all' | 'channel' | 'store';
+  enableSkuMapping: boolean;
+  onEnableSkuMappingChange: (checked: boolean) => void;
+  onSkuMappingOptionChange: (option: 'all' | 'channel' | 'store') => void;
+  onSelectedChannelsChange: (channels: string[]) => void;
+  onSelectedStoresChange: (stores: string[]) => void;
 }
 
 const SkuMappingCard = ({ 
   productId,
-  selectedChannels: propSelectedChannels = [],
-  skuMappingOption: propSkuMappingOption = 'all',
-  enableSkuMapping: propEnableSkuMapping = false
+  selectedChannels,
+  selectedStores,
+  skuMappingOption,
+  enableSkuMapping,
+  onEnableSkuMappingChange,
+  onSkuMappingOptionChange,
+  onSelectedChannelsChange,
+  onSelectedStoresChange,
 }: SkuMappingCardProps) => {
-  // State untuk SKU Mapping
-  const [enableSkuMapping, setEnableSkuMapping] = useState(propEnableSkuMapping);
-  const [skuMappingOption, setSkuMappingOption] = useState(propSkuMappingOption); // 'all', 'channel', 'store'
-  
   // State untuk dialog
   const [openChannelDialog, setOpenChannelDialog] = useState(false);
   const [openStoreDialog, setOpenStoreDialog] = useState(false);
-  
-  // State untuk channel dan store yang dipilih
-  const [selectedChannels, setSelectedChannels] = useState<string[]>(propSelectedChannels);
-  const [selectedStores, setSelectedStores] = useState<string[]>([]);
   
   // Data channel dan store (contoh data)
   const channels = ['Shopee', 'Tokopedia', 'TikTok Shop', 'Lazada'];
@@ -45,19 +47,19 @@ const SkuMappingCard = ({
     { id: '4', name: 'Toko Lazada', channel: 'Lazada' },
   ];
   
-  // Handler untuk perubahan opsi SKU Mapping
-  const handleSkuMappingOptionChange = (option: string) => {
-    setSkuMappingOption(option);
+  // Handler untuk perubahan opsi SKU Mapping (controlled)
+  const handleSkuMappingOptionChange = (option: 'all' | 'channel' | 'store') => {
+    onSkuMappingOptionChange(option);
     if (option === 'all') {
-      setSelectedChannels(channels);
-      setSelectedStores(stores.map(store => store.id));
+      onSelectedChannelsChange(channels);
+      onSelectedStoresChange(stores.map(store => store.id));
     } else {
-      setSelectedChannels([]);
-      setSelectedStores([]);
+      onSelectedChannelsChange([]);
+      onSelectedStoresChange([]);
     }
   };
   
-  // Handler untuk dialog channel
+  // Handler untuk dialog channel (keep local open state elsewhere)
   const handleSaveChannels = () => {
     setOpenChannelDialog(false);
   };
@@ -77,7 +79,7 @@ const SkuMappingCard = ({
               Pemetaan SKU untuk sinkronisasi stok dan pesanan di berbagai platform e-commerce.
             </CardDescription>
           </div>
-          <Switch checked={enableSkuMapping} onCheckedChange={setEnableSkuMapping} />
+          <Switch checked={enableSkuMapping} onCheckedChange={(checked) => onEnableSkuMappingChange(Boolean(checked))} />
         </div>
       </CardHeader>
       
@@ -305,10 +307,10 @@ const SkuMappingCard = ({
                   id={`channel-${channel}`}
                   checked={selectedChannels.includes(channel)}
                   onCheckedChange={(checked) => {
-                    if (checked) {
-                      setSelectedChannels([...selectedChannels, channel]);
+                    if (Boolean(checked)) {
+                      onSelectedChannelsChange([...selectedChannels, channel]);
                     } else {
-                      setSelectedChannels(selectedChannels.filter(c => c !== channel));
+                      onSelectedChannelsChange(selectedChannels.filter(c => c !== channel));
                     }
                   }}
                 />
@@ -321,7 +323,7 @@ const SkuMappingCard = ({
             <Button variant="outline" onClick={() => setOpenChannelDialog(false)}>
               Batal
             </Button>
-            <Button onClick={handleSaveChannels}>Simpan</Button>
+            <Button onClick={() => setOpenChannelDialog(false)}>Simpan</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -343,10 +345,10 @@ const SkuMappingCard = ({
                   id={`store-${store.id}`}
                   checked={selectedStores.includes(store.id)}
                   onCheckedChange={(checked) => {
-                    if (checked) {
-                      setSelectedStores([...selectedStores, store.id]);
+                    if (Boolean(checked)) {
+                      onSelectedStoresChange([...selectedStores, store.id]);
                     } else {
-                      setSelectedStores(selectedStores.filter(id => id !== store.id));
+                      onSelectedStoresChange(selectedStores.filter(id => id !== store.id));
                     }
                   }}
                 />
@@ -359,7 +361,7 @@ const SkuMappingCard = ({
             <Button variant="outline" onClick={() => setOpenStoreDialog(false)}>
               Batal
             </Button>
-            <Button onClick={handleSaveStores}>Simpan</Button>
+            <Button onClick={() => setOpenStoreDialog(false)}>Simpan</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

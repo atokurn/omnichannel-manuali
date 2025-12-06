@@ -46,13 +46,13 @@ interface Supplier {
 
 // Interface for API response with pagination
 interface ApiResponse {
-    data: Supplier[];
-    pagination: {
-        page: number;
-        limit: number;
-        totalItems: number;
-        totalPages: number;
-    };
+  data: Supplier[];
+  pagination: {
+    page: number;
+    limit: number;
+    totalItems: number;
+    totalPages: number;
+  };
 }
 
 // Gunakan state untuk menyimpan data supplier dari API
@@ -154,7 +154,7 @@ const getColumns = (refetchData: () => void): ColumnDef<Supplier>[] => [
           //   const errorData = await response.json();
           //   throw new Error(errorData.message || 'Gagal menghapus supplier');
           // }
-          
+
           // Panggil API untuk menghapus supplier
           const response = await fetch(`/api/products/suppliers?ids=${supplierId}`, {
             method: 'DELETE',
@@ -163,9 +163,9 @@ const getColumns = (refetchData: () => void): ColumnDef<Supplier>[] => [
             const errorData = await response.json();
             throw new Error(errorData.message || 'Gagal menghapus supplier');
           }
-          
+
           const result = await response.json();
-          
+
           toast.success('Sukses', { description: result.message || 'Supplier berhasil dihapus.' });
           refetchData(); // Refetch data after delete
         } catch (err: any) {
@@ -177,19 +177,33 @@ const getColumns = (refetchData: () => void): ColumnDef<Supplier>[] => [
       };
 
       return (
-        <div className="flex gap-1">
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={handleView}>
-            <Eye className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={handleEdit}>
-            <FileEdit className="h-4 w-4" />
-          </Button>
+        <>
           <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-            <AlertDialogTrigger asChild>
-              <Button variant="outline" size="icon" className="h-8 w-8 text-red-500 hover:bg-red-100">
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </AlertDialogTrigger>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-8 w-8 p-0">
+                  <span className="sr-only">Buka menu</span>
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Aksi</DropdownMenuLabel>
+                <DropdownMenuItem onClick={handleView}>
+                  <Eye className="mr-2 h-4 w-4" />
+                  Lihat
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleEdit}>
+                  <FileEdit className="mr-2 h-4 w-4" />
+                  Edit
+                </DropdownMenuItem>
+                <AlertDialogTrigger asChild>
+                  <DropdownMenuItem className="text-red-600 focus:text-red-700 focus:bg-red-100">
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Hapus
+                  </DropdownMenuItem>
+                </AlertDialogTrigger>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
@@ -206,7 +220,7 @@ const getColumns = (refetchData: () => void): ColumnDef<Supplier>[] => [
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-        </div>
+        </>
       );
     },
   },
@@ -230,20 +244,20 @@ export default function SuppliersPage() {
   const fetchSuppliers = useCallback(async (page = pagination.page, limit = pagination.limit) => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
       // Panggil API untuk mendapatkan data supplier, sertakan credentials
       const response = await fetch(`/api/products/suppliers?page=${page}&limit=${limit}`, {
         credentials: 'include' // Kirim cookies bersama request
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Gagal mengambil data supplier');
       }
-      
+
       const data: ApiResponse = await response.json();
-      
+
       setSuppliers(data.data);
       setPagination({
         page: data.pagination.page,
@@ -281,33 +295,33 @@ export default function SuppliersPage() {
 
   const selectedRowCount = Object.keys(rowSelection).length;
   const selectedRowIds = useMemo(() => {
-      return Object.keys(rowSelection).map(index => suppliers[parseInt(index)]?.id).filter(Boolean);
+    return Object.keys(rowSelection).map(index => suppliers[parseInt(index)]?.id).filter(Boolean);
   }, [rowSelection, suppliers]);
 
   const handleBulkDelete = useCallback(async () => {
-      if (selectedRowCount === 0) return;
-      setIsBulkDeleting(true);
-      try {
-          // Panggil API untuk menghapus supplier terpilih
-          const response = await fetch(`/api/products/suppliers?ids=${selectedRowIds.join(',')}`, {
-              method: 'DELETE',
-          });
-          if (!response.ok) {
-              const errorData = await response.json();
-              throw new Error(errorData.message || 'Gagal menghapus supplier terpilih');
-          }
-          
-          const result = await response.json();
-          
-          toast.success('Sukses', { description: result.message || `${selectedRowCount} supplier berhasil dihapus.` });
-          // Refetch data from current page or page 1 if current page becomes empty
-          const newTotalPages = Math.ceil((pagination.totalItems - selectedRowCount) / pagination.limit);
-          fetchSuppliers(pagination.page > newTotalPages ? Math.max(1, newTotalPages) : pagination.page);
-      } catch (err: any) {
-          toast.error('Error', { description: err.message || 'Gagal menghapus supplier terpilih.' });
-      } finally {
-          setIsBulkDeleting(false);
+    if (selectedRowCount === 0) return;
+    setIsBulkDeleting(true);
+    try {
+      // Panggil API untuk menghapus supplier terpilih
+      const response = await fetch(`/api/products/suppliers?ids=${selectedRowIds.join(',')}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Gagal menghapus supplier terpilih');
       }
+
+      const result = await response.json();
+
+      toast.success('Sukses', { description: result.message || `${selectedRowCount} supplier berhasil dihapus.` });
+      // Refetch data from current page or page 1 if current page becomes empty
+      const newTotalPages = Math.ceil((pagination.totalItems - selectedRowCount) / pagination.limit);
+      fetchSuppliers(pagination.page > newTotalPages ? Math.max(1, newTotalPages) : pagination.page);
+    } catch (err: any) {
+      toast.error('Error', { description: err.message || 'Gagal menghapus supplier terpilih.' });
+    } finally {
+      setIsBulkDeleting(false);
+    }
   }, [selectedRowCount, selectedRowIds, fetchSuppliers, pagination.totalItems, pagination.limit, pagination.page]); // Added dependencies
 
   return (
@@ -322,29 +336,29 @@ export default function SuppliersPage() {
           </div>
           <div className="flex gap-2">
             {selectedRowCount > 0 && (
-                <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                        <Button variant="destructive" disabled={isBulkDeleting}>
-                            {isBulkDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-                            Hapus ({selectedRowCount})
-                        </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>Konfirmasi Hapus Massal</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                Apakah Anda yakin ingin menghapus {selectedRowCount} supplier terpilih? Tindakan ini tidak dapat diurungkan.
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel disabled={isBulkDeleting}>Batal</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleBulkDelete} disabled={isBulkDeleting} className="bg-red-600 hover:bg-red-700">
-                                {isBulkDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                Hapus
-                            </AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" disabled={isBulkDeleting}>
+                    {isBulkDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                    Hapus ({selectedRowCount})
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Konfirmasi Hapus Massal</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Apakah Anda yakin ingin menghapus {selectedRowCount} supplier terpilih? Tindakan ini tidak dapat diurungkan.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={isBulkDeleting}>Batal</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleBulkDelete} disabled={isBulkDeleting} className="bg-red-600 hover:bg-red-700">
+                      {isBulkDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                      Hapus
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             )}
             <Button onClick={() => router.push('/products/suppliers/add')}>
               <Plus className="mr-2 h-4 w-4" /> Tambah Supplier

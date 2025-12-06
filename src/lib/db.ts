@@ -1,5 +1,11 @@
 import { PrismaClient } from '@prisma/client';
-import { Redis } from 'redis';
+import { createClient } from 'redis';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { Pool } from 'pg';
+import * as schema from './db/schema';
+import * as dotenv from 'dotenv';
+
+dotenv.config();
 
 // Prevent multiple instances of Prisma Client in development
 const globalForPrisma = global as unknown as { prisma: PrismaClient };
@@ -7,12 +13,18 @@ export const prisma = globalForPrisma.prisma || new PrismaClient();
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
+// Drizzle Client
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
+export const db = drizzle(pool, { schema });
+
 // Redis client for real-time inventory updates
 let redisClient: any;
 
 export async function getRedisClient() {
   if (!redisClient) {
-    redisClient = await Redis.createClient({
+    redisClient = await createClient({
       url: process.env.REDIS_URL,
     }).connect();
   }
@@ -107,20 +119,20 @@ export async function processTransaction(transactionData: any) {
     // Update inventory based on transaction type
     for (const item of transaction.items) {
       let quantityChange = item.quantity;
-      
+
       // For sales and transfers out, we reduce inventory
-      if (transactionData.type === 'SALE' || 
-         (transactionData.type === 'TRANSFER' && transactionData.direction === 'OUT')) {
+      if (transactionData.type === 'SALE' ||
+        (transactionData.type === 'TRANSFER' && transactionData.direction === 'OUT')) {
         quantityChange = -quantityChange;
       }
 
       await updateInventory(item.productId, transactionData.warehouseId, quantityChange);
-      
+
       // If it's a transfer, update the destination warehouse too
       if (transactionData.type === 'TRANSFER' && transactionData.destinationWarehouseId) {
         await updateInventory(
-          item.productId, 
-          transactionData.destinationWarehouseId, 
+          item.productId,
+          transactionData.destinationWarehouseId,
           item.quantity
         );
       }
@@ -137,7 +149,7 @@ export async function processTransaction(transactionData: any) {
 // Function to get inventory value
 export async function getInventoryValue(warehouseId?: string) {
   const whereClause = warehouseId ? { warehouseId } : {};
-  
+
   const inventories = await prisma.inventory.findMany({
     where: whereClause,
     include: {
@@ -146,6 +158,6 @@ export async function getInventoryValue(warehouseId?: string) {
   });
 
   return inventories.reduce((total, inv) => {
-    return total + (inv.quantity * inv.product.cost);
+    return total + (inv.quantity * (inv.product.cost || 0));
   }, 0);
 }

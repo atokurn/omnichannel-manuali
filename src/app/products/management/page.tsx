@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { DataTable } from "@/components/data-table/data-table"; // Ensure DataTable is imported
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Eye, FileEdit, Trash2, Plus, Loader2, ArrowUpDown, ChevronDown, ChevronRight } from "lucide-react"; // Add Chevron icons
+import { Eye, FileEdit, Trash2, Plus, Loader2, ArrowUpDown, ChevronDown, ChevronRight, MoreHorizontal } from "lucide-react"; // Add Chevron icons
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ProductImageTooltip } from "@/components/ui/image-tooltip";
@@ -46,6 +46,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"; // Import Table components
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator"; // Import Separator
 import { DataTablePagination } from '@/components/data-table/data-table-pagination'; // Import DataTablePagination directly
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Import Select components
@@ -138,9 +145,9 @@ function VariantDetails({ combinations }: { combinations: VariantCombination[] }
             <TableRow key={variant.id}>
               {/* Sel untuk gambar varian */}
               <TableCell>
-                <ProductImageTooltip 
-                  imageUrl={variant.imageUrl || '/placeholder.svg'} 
-                  productName={`Varian ${Object.values(variant.options).join(', ')}`} 
+                <ProductImageTooltip
+                  imageUrl={variant.imageUrl || '/placeholder.svg'}
+                  productName={`Varian ${Object.values(variant.options).join(', ')}`}
                   alt={`Varian ${Object.values(variant.options).join(', ')}`}
                 >
                   <Image
@@ -172,260 +179,247 @@ function VariantDetails({ combinations }: { combinations: VariantCombination[] }
 const getColumns = (refreshData: () => void): ColumnDef<Product>[] => [
   {
     id: "select",
-header: ({ table }) => (
-<Checkbox
-checked={
-table.getIsAllPageRowsSelected() ||
-(table.getIsSomePageRowsSelected() && "indeterminate")
-}
-onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-aria-label="Select all"
-/>
-),
-cell: ({ row }) => (
-<Checkbox
-checked={row.getIsSelected()}
-onCheckedChange={(value) => row.toggleSelected(!!value)}
-aria-label="Select row"
-/>
-),
-enableSorting: false,
-enableHiding: false,
-size: 40, // Adjust size as needed
-},
-// REMOVED Expand/Collapse Column from here
-// Product Column
-{
-accessorKey: "name",
-header: "Produk",
-cell: ({ row }) => {
-const product = row.original;
-return (
-<div className="flex items-center gap-2">
-<ProductImageTooltip imageUrl={product.mainImage} productName={product.name} alt={product.name}>
-<Image
-src={product.mainImage || '/placeholder.svg'} // Gunakan mainImage
-alt={product.name}
-width={40}
-height={40}
-className="rounded object-cover"
-/>
-</ProductImageTooltip>
-<div>
-<div className="font-medium">{product.name}</div>
-<div className="text-xs text-muted-foreground">SKU Induk: {product.sku || '-'}</div>
-<div className="text-xs text-muted-foreground">ID Produk: {product.id}</div>
-</div>
-</div>
-);
-},
-size: 300, // Adjust size
-},
-// Category Column
-{
-accessorKey: "category",
-header: "Kategori",
-cell: ({ row }) => row.original.category || '-',
-size: 100,
-},
-// Price Column
-{
-accessorKey: "price",
-header: ({ column }) => (
-<Button
-variant="ghost"
-onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
->
-Harga Jual
-<ArrowUpDown className="ml-2 h-4 w-4" />
-</Button>
-),
-cell: ({ row }) => {
-        const product = row.original;
-        if (product.hasVariants) {
-          const minPrice = product.minVariantPrice;
-          const maxPrice = product.maxVariantPrice;
+    header: ({ table }) => (
+      <Checkbox
+        checked={
+          table.getIsAllPageRowsSelected() ||
+          (table.getIsSomePageRowsSelected() && "indeterminate")
+        }
+        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+        aria-label="Select all"
+      />
+    ),
+    cell: ({ row }) => (
+      <Checkbox
+        checked={row.getIsSelected()}
+        onCheckedChange={(value) => row.toggleSelected(!!value)}
+        aria-label="Select row"
+      />
+    ),
+    enableSorting: false,
+    enableHiding: false,
+    size: 40, // Adjust size as needed
+  },
+  // REMOVED Expand/Collapse Column from here
+  // Product Column
+  {
+    accessorKey: "name",
+    header: "Produk",
+    cell: ({ row }) => {
+      const product = row.original;
+      return (
+        <div className="flex items-center gap-2">
+          <ProductImageTooltip imageUrl={product.mainImage} productName={product.name} alt={product.name}>
+            <Image
+              src={product.mainImage || '/placeholder.svg'} // Gunakan mainImage
+              alt={product.name}
+              width={40}
+              height={40}
+              className="rounded object-cover"
+            />
+          </ProductImageTooltip>
+          <div>
+            <div className="font-medium">{product.name}</div>
+            <div className="text-xs text-muted-foreground">SKU Induk: {product.sku || '-'}</div>
+            <div className="text-xs text-muted-foreground">ID Produk: {product.id}</div>
+          </div>
+        </div>
+      );
+    },
+    size: 300, // Adjust size
+  },
+  // Category Column
+  {
+    accessorKey: "category",
+    header: "Kategori",
+    cell: ({ row }) => row.original.category || '-',
+    size: 100,
+  },
+  // Price Column
+  {
+    accessorKey: "price",
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
+        Harga Jual
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
+    cell: ({ row }) => {
+      const product = row.original;
+      if (product.hasVariants) {
+        const minPrice = product.minVariantPrice;
+        const maxPrice = product.maxVariantPrice;
 
-          if (minPrice !== null && maxPrice !== null) {
-            if (minPrice === maxPrice) {
-              return `Rp ${formatNumberWithSeparator(minPrice)}`;
-            } else {
-              return `Rp ${formatNumberWithSeparator(minPrice)} - Rp ${formatNumberWithSeparator(maxPrice)}`;
-            }
+        if (minPrice !== null && maxPrice !== null) {
+          if (minPrice === maxPrice) {
+            return `Rp ${formatNumberWithSeparator(minPrice)}`;
           } else {
-            // Fallback if variant prices are missing, though ideally they should exist
-            return product.price !== null ? `Rp ${formatNumberWithSeparator(product.price)}` : '-'; 
+            return `Rp ${formatNumberWithSeparator(minPrice)} - Rp ${formatNumberWithSeparator(maxPrice)}`;
           }
         } else {
-          // Product without variants
+          // Fallback if variant prices are missing, though ideally they should exist
           return product.price !== null ? `Rp ${formatNumberWithSeparator(product.price)}` : '-';
         }
-      },
-size: 120,
-},
-// Stock Column
-{
-accessorKey: "totalStock",
-header: ({ column }) => (
-<Button
-variant="ghost"
-onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
->
-Stok
-<ArrowUpDown className="ml-2 h-4 w-4" />
-</Button>
-),
-cell: ({ row }) => formatNumberWithSeparator(row.original.totalStock),
-size: 80,
-},
-// Variants Column
-{
-accessorKey: "hasVariants",
-header: "Varian",
-cell: ({ row }) => {
-const product = row.original;
-return product.hasVariants ? (
-<Badge variant="secondary">Ya ({product.variantCount})</Badge>
-) : (
-<Badge variant="outline">Tidak</Badge>
-);
-},
-size: 80,
-},
-// Sync Status Column
-{
-accessorKey: "syncStatus",
-header: "Sinkronisasi",
-cell: ({ row }) => {
-// TODO: Implement sync status display logic (e.g., icons, tooltips)
-return '-'; // Placeholder
-},
-size: 120,
-},
-// Created At Column
-{
-accessorKey: "createdAt",
-header: ({ column }) => (
-<Button
-variant="ghost"
-onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
->
-Dibuat Pada
-<ArrowUpDown className="ml-2 h-4 w-4" />
-</Button>
-),
-cell: ({ row }) => {
-const date = new Date(row.original.createdAt);
-return date.toLocaleDateString('id-ID'); // Format date as needed
-},
-size: 120,
-},
-// Actions Column
-{
-id: "actions",
-header: "Aksi",
-cell: ({ row }) => {
-const product = row.original;
-const router = useRouter(); // Get router inside cell
-const [isDeleting, setIsDeleting] = useState(false);
+      } else {
+        // Product without variants
+        return product.price !== null ? `Rp ${formatNumberWithSeparator(product.price)}` : '-';
+      }
+    },
+    size: 120,
+  },
+  // Stock Column
+  {
+    accessorKey: "totalStock",
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
+        Stok
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
+    cell: ({ row }) => formatNumberWithSeparator(row.original.totalStock),
+    size: 80,
+  },
+  // Variants Column
+  {
+    accessorKey: "hasVariants",
+    header: "Varian",
+    cell: ({ row }) => {
+      const product = row.original;
+      return product.hasVariants ? (
+        <Badge variant="secondary">Ya ({product.variantCount})</Badge>
+      ) : (
+        <Badge variant="outline">Tidak</Badge>
+      );
+    },
+    size: 80,
+  },
+  // Sync Status Column
+  {
+    accessorKey: "syncStatus",
+    header: "Sinkronisasi",
+    cell: ({ row }) => {
+      // TODO: Implement sync status display logic (e.g., icons, tooltips)
+      return '-'; // Placeholder
+    },
+    size: 120,
+  },
+  // Created At Column
+  {
+    accessorKey: "createdAt",
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
+        Dibuat Pada
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
+    cell: ({ row }) => {
+      const date = new Date(row.original.createdAt);
+      return date.toLocaleDateString('id-ID'); // Format date as needed
+    },
+    size: 120,
+  },
+  // Actions Column
+  {
+    id: "actions",
+    header: "Aksi",
+    cell: ({ row }) => {
+      const product = row.original;
+      const router = useRouter(); // Get router inside cell
+      const [isDeleting, setIsDeleting] = useState(false);
 
-const handleDelete = async () => {
-  if (!product || !product.id) {
-    toast.error('Error Hapus', { description: 'ID Produk tidak valid.' });
-    console.error('handleDelete error: Invalid product ID', product);
-    return;
-  }
+      const handleDelete = async () => {
+        if (!product || !product.id) {
+          toast.error('Error Hapus', { description: 'ID Produk tidak valid.' });
+          console.error('handleDelete error: Invalid product ID', product);
+          return;
+        }
 
-  setIsDeleting(true);
-  try {
-    const response = await fetch(`/api/products/${product.id}`, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        // Tambahkan header lain yang mungkin diperlukan, seperti X-Tenant-Id jika ada
-      },
-    });
+        setIsDeleting(true);
+        try {
+          const response = await fetch(`/api/products/${product.id}`, {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+              // Tambahkan header lain yang mungkin diperlukan, seperti X-Tenant-Id jika ada
+            },
+          });
 
-    const responseData = await response.json(); // Selalu coba parse JSON
+          const responseData = await response.json(); // Selalu coba parse JSON
 
-    if (!response.ok) {
-      // Log error dari server jika ada
-      console.error('Server error on delete:', responseData);
-      throw new Error(responseData.error || responseData.message || `Gagal menghapus produk (status: ${response.status}).`);
-    }
+          if (!response.ok) {
+            // Log error dari server jika ada
+            console.error('Server error on delete:', responseData);
+            throw new Error(responseData.error || responseData.message || `Gagal menghapus produk (status: ${response.status}).`);
+          }
 
-    toast.success('Sukses', { description: responseData.message || `Produk "${product.name}" berhasil dihapus.` });
-    refreshData(); // Panggil refreshData yang diteruskan dari komponen
-  } catch (err: any) {
-    console.error('Error deleting product:', err);
-    toast.error('Error Hapus', { description: err.message || 'Terjadi kesalahan saat menghapus produk.' });
-  } finally {
-    setIsDeleting(false);
-  }
-};
+          toast.success('Sukses', { description: responseData.message || `Produk "${product.name}" berhasil dihapus.` });
+          refreshData(); // Panggil refreshData yang diteruskan dari komponen
+        } catch (err: any) {
+          console.error('Error deleting product:', err);
+          toast.error('Error Hapus', { description: err.message || 'Terjadi kesalahan saat menghapus produk.' });
+        } finally {
+          setIsDeleting(false);
+        }
+      };
 
-return (
-<div className="flex items-center gap-1">
-<TooltipProvider>
-<Tooltip>
-<TooltipTrigger asChild>
-<Button variant="ghost" size="icon" onClick={() => router.push(`/products/management/view/${product.id}`)}>
-<Eye className="h-4 w-4" />
-</Button>
-</TooltipTrigger>
-<TooltipContent>
-<p>Lihat Detail</p>
-</TooltipContent>
-</Tooltip>
-</TooltipProvider>
-<TooltipProvider>
-<Tooltip>
-<TooltipTrigger asChild>
-<Button variant="ghost" size="icon" onClick={() => router.push(`/products/management/edit/${product.id}`)}>
-<FileEdit className="h-4 w-4" />
-</Button>
-</TooltipTrigger>
-<TooltipContent>
-<p>Edit Produk</p>
-</TooltipContent>
-</Tooltip>
-</TooltipProvider>
-<AlertDialog>
-<TooltipProvider>
-<Tooltip>
-<TooltipTrigger asChild>
-<AlertDialogTrigger asChild>
-<Button variant="ghost" size="icon" className="text-red-600 hover:text-red-700" disabled={isDeleting}>
-{isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-</Button>
-</AlertDialogTrigger>
-</TooltipTrigger>
-<TooltipContent>
-<p>Hapus Produk</p>
-</TooltipContent>
-</Tooltip>
-</TooltipProvider>
-<AlertDialogContent>
-<AlertDialogHeader>
-<AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
-<AlertDialogDescription>
-Apakah Anda yakin ingin menghapus produk "{product.name}"? Tindakan ini tidak dapat diurungkan.
-</AlertDialogDescription>
-</AlertDialogHeader>
-<AlertDialogFooter>
-<AlertDialogCancel disabled={isDeleting}>Batal</AlertDialogCancel>
-<AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-red-600 hover:bg-red-700">
-{isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-Hapus
-</AlertDialogAction>
-</AlertDialogFooter>
-</AlertDialogContent>
-</AlertDialog>
-</div>
-);
-},
-size: 100,
-},
+      return (
+        <>
+          <AlertDialog open={isDeleting} onOpenChange={setIsDeleting}>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-8 w-8 p-0">
+                  <span className="sr-only">Buka menu</span>
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Aksi</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => router.push(`/products/management/view/${product.id}`)}>
+                  <Eye className="mr-2 h-4 w-4" />
+                  Lihat Detail
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.push(`/products/management/edit/${product.id}`)}>
+                  <FileEdit className="mr-2 h-4 w-4" />
+                  Edit Produk
+                </DropdownMenuItem>
+                <AlertDialogTrigger asChild>
+                  <DropdownMenuItem className="text-red-600 focus:text-red-700 focus:bg-red-100">
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Hapus Produk
+                  </DropdownMenuItem>
+                </AlertDialogTrigger>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Apakah Anda yakin ingin menghapus produk "{product.name}"? Tindakan ini tidak dapat diurungkan.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={isDeleting}>Batal</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-red-600 hover:bg-red-700">
+                  {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Hapus
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </>
+      );
+    },
+    size: 100,
+  },
 ];
 
 export default function ProductManagementPage() {
@@ -513,7 +507,7 @@ export default function ProductManagementPage() {
       rowSelection,
       // pagination: paginationState, // Use individual pageIndex and pageSize for DataTable
       pagination: {
-        pageIndex: currentPage -1, // Tanstack table uses 0-based index
+        pageIndex: currentPage - 1, // Tanstack table uses 0-based index
         pageSize: pageSize,
       },
       expanded,
@@ -709,9 +703,9 @@ export default function ProductManagementPage() {
                           {/* Expander Row - Simplified, toggle handled by cell if needed or via row.getToggleExpandedHandler() */}
                           {row.getCanExpand() && (
                             <TableRow>
-                              <TableCell 
-                                colSpan={columns.length} 
-                                className="p-0 cursor-pointer hover:bg-muted/75" 
+                              <TableCell
+                                colSpan={columns.length}
+                                className="p-0 cursor-pointer hover:bg-muted/75"
                                 onClick={row.getToggleExpandedHandler()} // Ensure this handler is correctly used
                               >
                                 <div className="flex items-center px-4 py-2 bg-muted/50">
@@ -722,7 +716,7 @@ export default function ProductManagementPage() {
                                     {row.getIsExpanded() ? 'Sembunyikan Varian' : 'Tampilkan Varian'}
                                   </span>
                                 </div>
-                                <Separator /> 
+                                <Separator />
                               </TableCell>
                             </TableRow>
                           )}
@@ -778,7 +772,7 @@ export default function ProductManagementPage() {
                 currentPage={currentPage}
                 pageCount={totalPages}
                 onPageChange={handlePageChange}
-                // pageSize, onPageSizeChange, totalItems are not props of DataTablePagination
+              // pageSize, onPageSizeChange, totalItems are not props of DataTablePagination
               />
             )}
 
