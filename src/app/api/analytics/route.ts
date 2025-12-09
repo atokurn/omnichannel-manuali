@@ -1,94 +1,110 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/db'; // Reverted to named import
-import { TransactionType } from '@prisma/client';
+import { db } from '@/lib/db';
+import { inventories, transactions, transactionItems, products } from '@/lib/db/schema';
+import { eq, desc, and, gte, lte } from 'drizzle-orm';
+
+// Enum values based on schema definition
+const TransactionType = {
+  PURCHASE: 'PURCHASE',
+  SALE: 'SALE',
+  TRANSFER: 'TRANSFER',
+  ADJUSTMENT: 'ADJUSTMENT'
+} as const;
 
 export async function GET() {
   try {
-    // Calculate Total Inventory Value
-    const inventoryItems = await prisma.inventoryItem.findMany({
-      include: {
+    // 1. Calculate Total Inventory Value
+    // We need all inventory items and their product cost
+    const inventoryItems = await db.query.inventories.findMany({
+      with: {
         product: {
-          select: { purchasePrice: true },
-        },
-      },
+          columns: { cost: true }
+        }
+      }
     });
+
     const totalInventoryValue = inventoryItems.reduce((sum, item) => {
-      return sum + item.quantity * (item.product.purchasePrice ?? 0);
+      // Use 'cost' from product as proxy for purchasePrice. 
+      // If cost is null, assume 0.
+      return sum + (item.quantity * (item.product?.cost ?? 0));
     }, 0);
 
-    // Find Low Stock Products
-    // The incorrect block has been removed.
+    // 2. Find Low Stock Products
+    // We need to compare inventory quantity vs product minStockLevel.
+    // Inventory is per warehouse/shelf. Product minStockLevel is global (per product).
+    // So we should aggregate inventory by product first?
+    // Or check if ANY inventory entry is low? 
+    // Usually "Low Stock" means "Total stock for product across all warehouses < minStockLevel".
+    // Efficient way: Fetch all products with inventories.
 
-    // Correcting Low Stock Logic - Prisma cannot directly compare column to column in `where` like this.
-    // Fetch all items and filter in application code, or use raw SQL if performance is critical.
-    const allItems = await prisma.inventoryItem.findMany({
-        include: {
-            product: {
-                select: { id: true, name: true, minStockLevel: true }
-            }
+    // We fetch products and their inventories.
+    const allProducts = await db.query.products.findMany({
+      columns: { id: true, name: true, minStockLevel: true },
+      with: {
+        inventories: {
+          columns: { quantity: true }
         }
-    });
-    const filteredLowStockProducts = allItems.filter(item => item.quantity < item.product.minStockLevel); // Corrected variable name
-    const lowStockProductsCount = filteredLowStockProducts.length;
-    const lowStockProducts = filteredLowStockProducts; // Already includes product details
-
-    // Get Recent Transactions (last 10)
-    const recentTransactions = await prisma.transaction.findMany({
-      orderBy: {
-        date: 'desc',
-      },
-      take: 10, // Fetch more if needed by the dashboard slice
+      }
     });
 
-    // Calculate Monthly Stats
+    const lowStockProducts = allProducts.filter(product => {
+      const totalQuantity = product.inventories.reduce((acc, inv) => acc + inv.quantity, 0);
+      return totalQuantity < product.minStockLevel;
+    }).map(p => ({
+      ...p,
+      totalQuantity: p.inventories.reduce((acc, inv) => acc + inv.quantity, 0)
+    }));
+
+    const lowStockProductsCount = lowStockProducts.length;
+
+    // 3. Get Recent Transactions (last 10)
+    const recentTransactionsData = await db.query.transactions.findMany({
+      orderBy: [desc(transactions.date)],
+      limit: 10,
+      with: {
+        createdBy: { columns: { name: true } }
+      }
+    });
+
+    // 4. Calculate Monthly Stats
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-    const monthlyTransactions = await prisma.transaction.findMany({
-      where: {
-        date: {
-          gte: startOfMonth,
-          lte: endOfMonth,
-        },
-      },
-      include: {
-        items: {
-          include: {
-            product: true,
-          },
-        },
-      },
+    const monthlyTransactions = await db.query.transactions.findMany({
+      where: (transactions, { and, gte, lte }) => and(
+        gte(transactions.date, startOfMonth),
+        lte(transactions.date, endOfMonth)
+      ),
+      with: {
+        items: true
+      }
     });
 
     let monthlySales = 0;
     let monthlyPurchasesCost = 0;
 
     monthlyTransactions.forEach(transaction => {
+      // Calculate total amount for this transaction from items
+      const transactionTotal = transaction.items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
+
       if (transaction.type === TransactionType.SALE) {
-        monthlySales += transaction.totalAmount ?? 0;
+        monthlySales += transactionTotal;
       } else if (transaction.type === TransactionType.PURCHASE) {
-        // Calculate cost of goods for purchases
-        transaction.items.forEach(item => {
-            monthlyPurchasesCost += item.quantity * (item.product.purchasePrice ?? 0);
-        });
+        monthlyPurchasesCost += transactionTotal;
       }
-      // Note: Profit calculation might need more complex logic depending on COGS method
     });
-    
-    // Simplified profit calculation (Sales - Purchase Costs in the period)
-    // A more accurate profit calculation would involve Cost of Goods Sold (COGS)
-    // based on the specific items sold during the month, which is more complex.
-    const monthlyProfit = monthlySales - monthlyPurchasesCost; 
+
+    const monthlyProfit = monthlySales - monthlyPurchasesCost;
 
     const analyticsData = {
       totalInventoryValue,
       lowStockProductsCount,
-      lowStockProducts: lowStockProducts.slice(0, 5), // Return only top 5 for dashboard preview
-      recentTransactions: recentTransactions.slice(0, 5), // Return only top 5 for dashboard preview
+      lowStockProducts: lowStockProducts.slice(0, 5),
+      recentTransactions: recentTransactionsData,
       monthlyStats: {
         sales: monthlySales,
-        purchases: monthlyPurchasesCost, // Renamed for clarity, represents cost
+        purchases: monthlyPurchasesCost,
         profit: monthlyProfit,
       },
     };

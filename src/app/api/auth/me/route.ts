@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { db } from '@/lib/db';
+import { users } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
 import { jwtVerify } from 'jose';
 
 const JWT_SECRET = new TextEncoder().encode(
@@ -30,15 +32,19 @@ export async function GET(request: NextRequest) {
     }
 
     // Dapatkan user dengan tenant dan roles
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      include: {
+    const user = await db.query.users.findFirst({
+      where: (users, { eq }) => eq(users.id, userId),
+      with: {
         tenant: true,
         userRoles: {
-          include: {
+          with: {
             role: {
-              include: {
-                permissions: true
+              with: {
+                permissions: {
+                  with: {
+                    permission: true
+                  }
+                }
               }
             }
           }
@@ -83,7 +89,7 @@ export async function GET(request: NextRequest) {
       roles: user.userRoles.map(ur => ({
         id: ur.role.id,
         name: ur.role.name,
-        permissions: ur.role.permissions
+        permissions: ur.role.permissions.map(rp => rp.permission)
       }))
     };
 

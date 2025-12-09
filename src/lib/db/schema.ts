@@ -9,7 +9,8 @@ import {
     json,
     unique,
     pgEnum,
-    primaryKey
+    primaryKey,
+    index
 } from 'drizzle-orm/pg-core';
 
 // Enums (Prisma enums are usually created as types in Postgres)
@@ -33,12 +34,30 @@ export const materialStatusEnum = pgEnum('MaterialStatus', [
     'NONAKTIF'
 ]);
 
+export enum MaterialStatus {
+    AKTIF = 'AKTIF',
+    NONAKTIF = 'NONAKTIF'
+}
+
 export const syncStatusEnum = pgEnum('SyncStatus', [
     'PENDING',
     'IN_PROGRESS',
     'SUCCESS',
     'FAILED',
     'PARTIAL_SUCCESS'
+]);
+
+export const productionStatusEnum = pgEnum('ProductionStatus', [
+    'PLANNED',
+    'IN_PROGRESS',
+    'COMPLETED',
+    'CANCELLED'
+]);
+
+export const productStockBatchSourceEnum = pgEnum('ProductStockBatchSource', [
+    'PRODUCTION',
+    'PURCHASE',
+    'ADJUSTMENT'
 ]);
 
 // Tables
@@ -274,6 +293,63 @@ export const materialDynamicPrices = pgTable('MaterialDynamicPrice', {
     };
 });
 
+export const materialStockBatches = pgTable('MaterialStockBatch', {
+    id: text('id').primaryKey(),
+    materialId: text('materialId').notNull().references(() => materials.id, { onDelete: 'cascade' }),
+    batchCode: text('batchCode').notNull(),
+    qtyTotal: doublePrecision('qtyTotal').notNull(),
+    qtyRemaining: doublePrecision('qtyRemaining').notNull(),
+    costPerUnit: doublePrecision('costPerUnit').notNull(),
+    receivedAt: timestamp('receivedAt', { mode: 'date', precision: 3 }).notNull().defaultNow(),
+    expirationDate: timestamp('expirationDate', { mode: 'date', precision: 3 }),
+    warehouseId: text('warehouseId').notNull().references(() => warehouses.id),
+    createdAt: timestamp('createdAt', { mode: 'date', precision: 3 }).notNull().defaultNow(),
+    updatedAt: timestamp('updatedAt', { mode: 'date', precision: 3 }).notNull().defaultNow().$onUpdate(() => new Date())
+});
+
+export const productionBatches = pgTable('ProductionBatch', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenantId').notNull().references(() => tenants.id),
+    batchCode: text('batchCode').notNull(),
+    productId: text('productId').notNull().references(() => products.id),
+    plannedQty: integer('plannedQty').notNull(),
+    producedQty: integer('producedQty'),
+    status: productionStatusEnum('status').notNull().default('PLANNED'),
+    startedAt: timestamp('startedAt', { mode: 'date', precision: 3 }),
+    completedAt: timestamp('completedAt', { mode: 'date', precision: 3 }),
+    totalMaterialCost: doublePrecision('totalMaterialCost'),
+    overheadCost: doublePrecision('overheadCost'),
+    totalCost: doublePrecision('totalCost'),
+    hppPerUnit: doublePrecision('hppPerUnit'),
+    createdAt: timestamp('createdAt', { mode: 'date', precision: 3 }).notNull().defaultNow(),
+    updatedAt: timestamp('updatedAt', { mode: 'date', precision: 3 }).notNull().defaultNow().$onUpdate(() => new Date())
+});
+
+export const productionMaterialUsages = pgTable('ProductionMaterialUsage', {
+    id: text('id').primaryKey(),
+    productionBatchId: text('productionBatchId').notNull().references(() => productionBatches.id, { onDelete: 'cascade' }),
+    materialBatchId: text('materialBatchId').notNull().references(() => materialStockBatches.id),
+    qtyUsed: doublePrecision('qtyUsed').notNull(),
+    costAtUsage: doublePrecision('costAtUsage').notNull(),
+    createdAt: timestamp('createdAt', { mode: 'date', precision: 3 }).notNull().defaultNow(),
+    updatedAt: timestamp('updatedAt', { mode: 'date', precision: 3 }).notNull().defaultNow().$onUpdate(() => new Date())
+});
+
+export const productStockBatches = pgTable('ProductStockBatch', {
+    id: text('id').primaryKey(),
+    productId: text('productId').notNull().references(() => products.id),
+    warehouseId: text('warehouseId').notNull().references(() => warehouses.id),
+    batchCode: text('batchCode').notNull(),
+    source: productStockBatchSourceEnum('source').notNull(),
+    referenceId: text('referenceId'), // ID of ProductionBatch or Purchase Transaction
+    qtyTotal: integer('qtyTotal').notNull(),
+    qtyRemaining: integer('qtyRemaining').notNull(),
+    costPerUnit: doublePrecision('costPerUnit').notNull(),
+    receivedAt: timestamp('receivedAt', { mode: 'date', precision: 3 }).notNull().defaultNow(),
+    createdAt: timestamp('createdAt', { mode: 'date', precision: 3 }).notNull().defaultNow(),
+    updatedAt: timestamp('updatedAt', { mode: 'date', precision: 3 }).notNull().defaultNow().$onUpdate(() => new Date())
+});
+
 export const warehouses = pgTable('Warehouse', {
     id: text('id').primaryKey(),
     tenantId: text('tenantId').notNull().references(() => tenants.id),
@@ -351,8 +427,18 @@ export const transactionItems = pgTable('TransactionItem', {
     materialId: text('materialId').references(() => materials.id, { onDelete: 'set null' }),
     quantity: integer('quantity').notNull(),
     price: doublePrecision('price').notNull(),
+    cogs: doublePrecision('cogs'), // Added COGS column
     createdAt: timestamp('createdAt', { mode: 'date', precision: 3 }).notNull().defaultNow(),
     updatedAt: timestamp('updatedAt', { mode: 'date', precision: 3 }).notNull().defaultNow().$onUpdate(() => new Date())
+});
+
+export const transactionItemBatchUsages = pgTable('TransactionItemBatchUsage', {
+    id: text('id').primaryKey(),
+    transactionItemId: text('transactionItemId').notNull().references(() => transactionItems.id, { onDelete: 'cascade' }),
+    productStockBatchId: text('productStockBatchId').notNull().references(() => productStockBatches.id),
+    qtyUsed: doublePrecision('qtyUsed').notNull(),
+    costAtUsage: doublePrecision('costAtUsage').notNull(),
+    createdAt: timestamp('createdAt', { mode: 'date', precision: 3 }).notNull().defaultNow()
 });
 
 
@@ -379,7 +465,8 @@ export const usersRelations = relations(users, ({ one, many }) => ({
 
 export const rolesRelations = relations(roles, ({ one, many }) => ({
     tenant: one(tenants, { fields: [roles.tenantId], references: [tenants.id] }),
-    userRoles: many(userRoles)
+    userRoles: many(userRoles),
+    permissions: many(rolePermissions)
 }));
 
 
@@ -404,7 +491,9 @@ export const productsRelations = relations(products, ({ one, many }) => ({
     variantCombos: many(productVariantCombinations),
     inventories: many(inventories),
     transactionItems: many(transactionItems),
-    compositions: many(productCompositions)
+    compositions: many(productCompositions),
+    productionBatches: many(productionBatches),
+    stockBatches: many(productStockBatches)
 }));
 
 export const productVariantsRelations = relations(productVariants, ({ one, many }) => ({
@@ -436,7 +525,8 @@ export const materialsRelations = relations(materials, ({ one, many }) => ({
     category: one(categories, { fields: [materials.categoryId], references: [categories.id] }),
     dynamicPrices: many(materialDynamicPrices),
     transactionItems: many(transactionItems),
-    compositionMaterials: many(compositionMaterials)
+    compositionMaterials: many(compositionMaterials),
+    stockBatches: many(materialStockBatches)
 }));
 
 export const compositionMaterialsRelations = relations(compositionMaterials, ({ one }) => ({
@@ -450,7 +540,9 @@ export const warehousesRelations = relations(warehouses, ({ one, many }) => ({
     areas: many(areas),
     inventoryItems: many(inventories),
     shelves: many(shelves),
-    transactions: many(transactions)
+    transactions: many(transactions),
+    materialStockBatches: many(materialStockBatches),
+    productStockBatches: many(productStockBatches)
 }));
 
 export const areasRelations = relations(areas, ({ one, many }) => ({
@@ -477,11 +569,17 @@ export const transactionsRelations = relations(transactions, ({ one, many }) => 
     items: many(transactionItems)
 }));
 
-export const transactionItemsRelations = relations(transactionItems, ({ one }) => ({
+export const transactionItemsRelations = relations(transactionItems, ({ one, many }) => ({
     transaction: one(transactions, { fields: [transactionItems.transactionId], references: [transactions.id] }),
     product: one(products, { fields: [transactionItems.productId], references: [products.id] }),
     variant: one(productVariantCombinations, { fields: [transactionItems.variantId], references: [productVariantCombinations.id] }),
-    material: one(materials, { fields: [transactionItems.materialId], references: [materials.id] })
+    material: one(materials, { fields: [transactionItems.materialId], references: [materials.id] }),
+    batchUsages: many(transactionItemBatchUsages)
+}));
+
+export const transactionItemBatchUsagesRelations = relations(transactionItemBatchUsages, ({ one }) => ({
+    transactionItem: one(transactionItems, { fields: [transactionItemBatchUsages.transactionItemId], references: [transactionItems.id] }),
+    productBatch: one(productStockBatches, { fields: [transactionItemBatchUsages.productStockBatchId], references: [productStockBatches.id] })
 }));
 
 export const suppliersRelations = relations(suppliers, ({ one }) => ({
@@ -491,3 +589,44 @@ export const suppliersRelations = relations(suppliers, ({ one }) => ({
 export const materialDynamicPricesRelations = relations(materialDynamicPrices, ({ one }) => ({
     material: one(materials, { fields: [materialDynamicPrices.materialId], references: [materials.id] })
 }));
+
+export const materialStockBatchesRelations = relations(materialStockBatches, ({ one, many }) => ({
+    material: one(materials, { fields: [materialStockBatches.materialId], references: [materials.id] }),
+    warehouse: one(warehouses, { fields: [materialStockBatches.warehouseId], references: [warehouses.id] }),
+    usages: many(productionMaterialUsages)
+}));
+
+export const productionBatchesRelations = relations(productionBatches, ({ one, many }) => ({
+    tenant: one(tenants, { fields: [productionBatches.tenantId], references: [tenants.id] }),
+    product: one(products, { fields: [productionBatches.productId], references: [products.id] }),
+    materialUsages: many(productionMaterialUsages)
+}));
+
+export const productionMaterialUsagesRelations = relations(productionMaterialUsages, ({ one }) => ({
+    productionBatch: one(productionBatches, { fields: [productionMaterialUsages.productionBatchId], references: [productionBatches.id] }),
+    materialBatch: one(materialStockBatches, { fields: [productionMaterialUsages.materialBatchId], references: [materialStockBatches.id] })
+}));
+
+export const productStockBatchesRelations = relations(productStockBatches, ({ one }) => ({
+    product: one(products, { fields: [productStockBatches.productId], references: [products.id] }),
+    warehouse: one(warehouses, { fields: [productStockBatches.warehouseId], references: [warehouses.id] })
+}));
+
+// Prisma Implicit Many-to-Many Table for Role Permissions
+export const rolePermissions = pgTable('_RolePermissions', {
+    roleId: text('A').notNull().references(() => roles.id, { onDelete: 'cascade' }),
+    permissionId: text('B').notNull().references(() => permissions.id, { onDelete: 'cascade' })
+}, (t) => ({
+    pk: primaryKey({ columns: [t.roleId, t.permissionId] }),
+    permissionIdx: unique('_RolePermissions_AB_unique').on(t.roleId, t.permissionId),
+    roleIdx: index('_RolePermissions_B_index').on(t.permissionId)
+}));
+
+export const rolePermissionsRelations = relations(rolePermissions, ({ one }) => ({
+    role: one(roles, { fields: [rolePermissions.roleId], references: [roles.id] }),
+    permission: one(permissions, { fields: [rolePermissions.permissionId], references: [permissions.id] })
+}));
+
+// Update Roles Relation to include permissions via join table
+// Note: We need to redefine rolesRelations to add 'permissions' field
+

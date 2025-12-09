@@ -1,8 +1,8 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { db } from '@/lib/db';
+import { categories } from '@/lib/db/schema';
+import { eq, and, inArray, count, desc } from 'drizzle-orm';
 import { z } from 'zod';
-
-const prisma = new PrismaClient();
 
 // Schema validasi untuk kategori
 const CategorySchema = z.object({
@@ -30,38 +30,25 @@ export async function GET(request: NextRequest) {
     }
 
     // Ambil data dari database dengan pagination dan filter berdasarkan tenant
-    const [categories, totalCategories] = await prisma.$transaction([
-      prisma.category.findMany({
-        where: {
-          tenantId: tenantId
-        },
-        select: {
-          id: true,
-          name: true,
-          description: true,
-          type: true, // Sertakan tipe dalam select
-          createdAt: true,
-          updatedAt: true,
-        },
-        orderBy: {
-          createdAt: 'desc',
-        },
-        skip: skip,
-        take: limit,
-      }),
-      prisma.category.count({
-        where: {
-          tenantId: tenantId
-        }
-      }),
-    ]);
+    const categoriesData = await db.query.categories.findMany({
+      where: (categories, { eq }) => eq(categories.tenantId, tenantId),
+      limit: limit,
+      offset: skip,
+      orderBy: [desc(categories.createdAt)],
+    });
+
+    const [countResult] = await db.select({ count: count() })
+      .from(categories)
+      .where(eq(categories.tenantId, tenantId));
+
+    const totalCategories = countResult ? countResult.count : 0;
 
     // Format data untuk response
-    const formattedCategories = categories.map(category => ({
+    const formattedCategories = categoriesData.map(category => ({
       id: category.id,
       name: category.name,
       description: category.description || '',
-      type: category.type || '', // Sertakan tipe dalam format
+      type: category.type || '',
       createdAt: category.createdAt.toISOString(),
       updatedAt: category.updatedAt.toISOString(),
     }));
@@ -108,11 +95,8 @@ export async function POST(request: Request) {
     }
 
     // Cek apakah kategori dengan nama yang sama sudah ada dalam tenant yang sama
-    const existingCategory = await prisma.category.findFirst({
-      where: { 
-        name: validation.data.name,
-        tenantId: tenantId
-      }
+    const existingCategory = await db.query.categories.findFirst({
+      where: (categories, { and, eq }) => and(eq(categories.name, validation.data.name), eq(categories.tenantId, tenantId))
     });
 
     if (existingCategory) {
@@ -120,19 +104,21 @@ export async function POST(request: Request) {
     }
 
     // Buat kategori baru dengan tenantId
-    const newCategory = await prisma.category.create({
-      data: {
-        name: validation.data.name,
-        description: validation.data.description,
-        type: validation.data.type, // Simpan tipe
-        tenantId: tenantId
-      },
-    });
+    const [newCategory] = await db.insert(categories).values({
+      id: crypto.randomUUID(),
+      name: validation.data.name,
+      description: validation.data.description,
+      type: validation.data.type,
+      tenantId: tenantId
+    }).returning();
 
     return NextResponse.json(newCategory, { status: 201 });
 
   } catch (error) {
     console.error('Failed to create category:', error);
+    if (error instanceof Error) {
+      console.error(error.message);
+    }
     return NextResponse.json({ message: 'Gagal membuat kategori baru' }, { status: 500 });
   }
 }
@@ -164,18 +150,18 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Hapus kategori, pastikan hanya menghapus dari tenant yang benar
-    const deleteResult = await prisma.category.deleteMany({
-      where: {
-        id: {
-          in: idsToDelete,
-        },
-        tenantId: tenantId, // Tambahkan filter tenantId
-      },
-    });
+    const deleteResult = await db.delete(categories)
+      .where(
+        and(
+          inArray(categories.id, idsToDelete),
+          eq(categories.tenantId, tenantId)
+        )
+      )
+      .returning();
 
     return NextResponse.json({
-      message: `${deleteResult.count} kategori berhasil dihapus`,
-      count: deleteResult.count,
+      message: `${deleteResult.length} kategori berhasil dihapus`,
+      count: deleteResult.length,
     });
 
   } catch (error) {

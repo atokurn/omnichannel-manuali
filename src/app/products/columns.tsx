@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
 import { MoreHorizontal } from "lucide-react"
+import Link from "next/link"
 
 export const columns: ColumnDef<ProductData>[] = [
     {
@@ -115,7 +116,11 @@ export const columns: ColumnDef<ProductData>[] = [
                         >
                             Copy Product ID
                         </DropdownMenuItem>
-                        <DropdownMenuItem>View details</DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                            <Link href={`/products/view/${product.id}`}>
+                                View details
+                            </Link>
+                        </DropdownMenuItem>
                         <DropdownMenuItem>Edit product</DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>

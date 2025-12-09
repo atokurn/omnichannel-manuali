@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { db } from '@/lib/db';
+import { products, inventories, productVariants, productVariantOptions, productVariantCombinations, productImages } from '@/lib/db/schema';
+import { eq, and } from 'drizzle-orm';
 import { getCurrentUser as getUser } from '@/lib/auth';
 import redisClient, { ensureRedisConnection } from '@/lib/redis';
-
-const prisma = new PrismaClient();
 
 // Helper function to get current user, ensuring tenant context
 async function getCurrentUser() {
@@ -30,11 +30,8 @@ export async function DELETE(
     const tenantId = currentUser.tenantId;
 
     // Check if the product exists and belongs to the current tenant
-    const product = await prisma.product.findFirst({
-      where: {
-        id: productId,
-        tenantId: tenantId,
-      },
+    const product = await db.query.products.findFirst({
+      where: (products, { and, eq }) => and(eq(products.id, productId), eq(products.tenantId, tenantId))
     });
 
     if (!product) {
@@ -42,39 +39,16 @@ export async function DELETE(
     }
 
     // Perform deletion
-    // Note: Consider related data that needs to be deleted or handled (e.g., variants, inventory, etc.)
-    // This is a basic deletion. For a real-world scenario, you'd likely need a transaction
-    // and more complex logic to handle related entities.
+    // We transactionally delete related data to ensure integrity, although DB cascades might handle some.
+    // Inventories do NOT cascade based on schema, so we must delete them.
+    await db.transaction(async (tx) => {
+      // 1. Delete Inventory records
+      await tx.delete(inventories).where(eq(inventories.productId, productId));
 
-    // 1. Delete ProductVariantCombinations
-    await prisma.productVariantCombination.deleteMany({
-      where: { productId: productId },
-    });
-
-    // 2. Delete ProductVariantOptions (if they are exclusively linked to variants of this product)
-    // This might be more complex if options can be shared. For simplicity, assuming direct relation.
-    const variants = await prisma.productVariant.findMany({
-      where: { productId: productId },
-      select: { id: true },
-    });
-    const variantIds = variants.map(v => v.id);
-    await prisma.productVariantOption.deleteMany({
-      where: { variantId: { in: variantIds } },
-    });
-
-    // 3. Delete ProductVariants
-    await prisma.productVariant.deleteMany({
-      where: { productId: productId },
-    });
-
-    // 4. Delete Inventory records
-    await prisma.inventory.deleteMany({
-        where: { productId: productId },
-    });
-
-    // 5. Delete the Product itself
-    await prisma.product.delete({
-      where: { id: productId },
+      // 2. Delete Product (Should cascade Variants, Combinations, Options, Images if DB is configured, but explicit delete is safer if unsure)
+      // Schema says Variants/Combinations cascade.
+      // We will just delete Product.
+      await tx.delete(products).where(eq(products.id, productId));
     });
 
     // Invalidate relevant Redis caches
@@ -93,7 +67,6 @@ export async function DELETE(
       }
     } catch (redisError) {
       console.warn(`Redis cache invalidation error for product ${productId}:`, redisError);
-      // Do not let cache errors block the success response
     }
 
     return NextResponse.json({ message: `Produk "${product.name}" berhasil dihapus.` }, { status: 200 });
@@ -101,10 +74,6 @@ export async function DELETE(
   } catch (error: any) {
     console.error(`Error deleting product ${productId}:`, error);
     let errorMessage = 'Gagal menghapus produk.';
-    if (error.code === 'P2025') { // Prisma error code for record not found
-        errorMessage = 'Produk tidak ditemukan.';
-        return NextResponse.json({ error: errorMessage }, { status: 404 });
-    }
     if (error instanceof Error) {
       errorMessage = error.message;
     }
@@ -126,48 +95,55 @@ export async function GET(
     const currentUser = await getCurrentUser();
     const tenantId = currentUser.tenantId;
 
-    const product = await prisma.product.findFirst({
-      where: {
-        id: productId,
-        tenantId: tenantId,
-      },
-      include: {
+    const product = await db.query.products.findFirst({
+      where: (products, { and, eq }) => and(eq(products.id, productId), eq(products.tenantId, tenantId)),
+      with: {
         category: true,
         variants: {
-          include: {
-            options: true,
-          },
+          with: {
+            options: true
+          }
         },
-        combinations: true,
+        // combinations: true, // Drizzle Relation name might be 'variantCombos' in schema relations?
+        // Checking schema relations: productsRelations -> variantCombos: many(productVariantCombinations)
+        variantCombos: true,
         inventories: {
-          include: {
+          with: {
             shelf: {
-              include: {
+              with: {
                 area: {
-                  include: {
-                    warehouse: true,
+                  with: {
+                    warehouse: true
                   }
                 }
               }
             }
           }
         }
-        // Add other relations as needed
-      },
+      }
     });
 
     if (!product) {
       return NextResponse.json({ error: 'Produk tidak ditemukan.' }, { status: 404 });
     }
 
-    // Process product data if necessary (e.g., calculate total stock, price ranges)
-    // Similar to the GET all products endpoint logic
+    // Map 'variantCombos' back to 'combinations' for frontend compatibility if needed, 
+    // or just assume frontend handles it. 
+    // Original code returned 'combinations'.
+    // We should map it.
+    const productWithCombinations = {
+      ...product,
+      combinations: product.variantCombos,
+      variantCombos: undefined, // remove internal name
+    };
+
+    // Process product data (total stock, etc) - Similar to list logic
     let totalStock = 0;
     let minVariantPrice: number | null = null;
     let maxVariantPrice: number | null = null;
     let processedCombinations: any[] = [];
 
-    if (product.hasVariants && product.combinations) {
+    if (productWithCombinations.hasVariants && productWithCombinations.combinations && productWithCombinations.combinations.length > 0) {
       const cacheKey = `product:${product.id}:combinations_with_imageUrl_v1`;
       let cachedDataString: string | null = null;
       try {
@@ -181,49 +157,40 @@ export async function GET(
         try {
           processedCombinations = JSON.parse(cachedDataString);
         } catch (parseError) {
-          cachedDataString = null; 
+          cachedDataString = null;
         }
       }
-      
-      if (!cachedDataString) {
-        const rawCombinations = await prisma.productVariantCombination.findMany({
-          where: { productId: product.id },
-          select: { 
-            id: true, 
-            combinationId: true,
-            options: true,
-            price: true, 
-            quantity: true,
-            sku: true,
-            weight: true,
-            weightUnit: true,
-            createdAt: true,
-            updatedAt: true
-          },
-        });
 
-        const productVariantOptionsWithImages = await prisma.productVariantOption.findMany({
-          where: {
-            variant: {
-              productId: product.id,
-            },
-            image: { not: null },
-          },
-          select: {
-            value: true,
-            image: true,
-            variant: { select: { name: true } },
-          },
-        });
+      if (!cachedDataString) {
+        // We already fetched combinations in 'product', but need images logic again?
+        // Yes, reusing the logic to fetch option images.
+        // We can optimize this but let's stick to the logic for consistency.
+
+        const rawCombinations = productWithCombinations.combinations; // Already fetched
+
+        // Fetch options with images
+        const productVariantOptionsWithImages = await db.select({
+          value: productVariantOptions.value,
+          image: productVariantOptions.image,
+          variantName: productVariants.name
+        })
+          .from(productVariantOptions)
+          .innerJoin(productVariants, eq(productVariantOptions.variantId, productVariants.id))
+          .where(
+            and(
+              eq(productVariants.productId, product.id),
+              sql`${productVariantOptions.image} IS NOT NULL`
+            )
+          );
 
         const findRepresentativeImage = (
           comboOpts: Record<string, string>,
-          allOptsWithImgs: Array<{value: string, image: string | null, variant: {name: string}}>
+          allOptsWithImgs: Array<{ value: string, image: string | null, variantName: string }>
         ): string | null => {
           for (const variantNameKey in comboOpts) {
             const optionVal = comboOpts[variantNameKey];
             const foundOpt = allOptsWithImgs.find(
-              opt => opt.variant.name === variantNameKey && opt.value === optionVal && opt.image
+              opt => opt.variantName === variantNameKey && opt.value === optionVal && opt.image
             );
             if (foundOpt && foundOpt.image) {
               return foundOpt.image;
@@ -232,11 +199,11 @@ export async function GET(
           return null;
         };
 
-        processedCombinations = rawCombinations.map(combo => ({
+        processedCombinations = rawCombinations.map((combo: any) => ({
           ...combo,
           imageUrl: findRepresentativeImage(combo.options as Record<string, string>, productVariantOptionsWithImages),
         }));
-        
+
         try {
           await redisClient.set(cacheKey, JSON.stringify(processedCombinations), { EX: 300 });
         } catch (redisSetError) {
@@ -250,18 +217,16 @@ export async function GET(
         minVariantPrice = Math.min(...prices);
         maxVariantPrice = Math.max(...prices);
       }
-    } else if (product.inventories) {
-      totalStock = product.inventories.reduce((sum, inv) => sum + inv.quantity, 0);
+    } else if (productWithCombinations.inventories) {
+      totalStock = productWithCombinations.inventories.reduce((sum: number, inv: any) => sum + inv.quantity, 0);
     }
 
     const responseProduct = {
-      ...product,
+      ...productWithCombinations,
       totalStock,
       minVariantPrice,
       maxVariantPrice,
-      combinations: product.hasVariants ? processedCombinations : undefined,
-      // Remove redundant nested data if already processed
-      // inventories: undefined, // if stock is calculated
+      combinations: productWithCombinations.hasVariants ? processedCombinations : undefined,
     };
 
     return NextResponse.json(responseProduct, { status: 200 });

@@ -1,9 +1,9 @@
-import { NextResponse, NextRequest } from 'next/server'; // Import NextRequest
-import { PrismaClient, MaterialStatus } from '@prisma/client';
+import { NextResponse, NextRequest } from 'next/server';
+import { db } from '@/lib/db';
+import { materials, materialDynamicPrices, categories, materialStockBatches } from '@/lib/db/schema';
+import { eq, and, inArray, count, desc } from 'drizzle-orm';
 import { z } from 'zod';
-import redisClient, { ensureRedisConnection } from '@/lib/redis'; // Import Redis client and connection helper
-
-const prisma = new PrismaClient();
+import redisClient, { ensureRedisConnection } from '@/lib/redis';
 
 // Zod schema for validation
 const DynamicPriceSchema = z.object({
@@ -12,6 +12,12 @@ const DynamicPriceSchema = z.object({
     message: 'Harga harus berupa angka positif',
   }),
 });
+
+// Assuming MaterialStatus enum values
+const MaterialStatusEnum = {
+  AKTIF: 'AKTIF',
+  NONAKTIF: 'NONAKTIF'
+} as const;
 
 const MaterialSchema = z.object({
   name: z.string().min(1, { message: 'Nama material tidak boleh kosong' }),
@@ -27,16 +33,17 @@ const MaterialSchema = z.object({
     message: 'Harga dasar harus berupa angka positif',
   }),
   description: z.string().optional(),
-  status: z.enum([MaterialStatus.AKTIF, MaterialStatus.NONAKTIF]),
+  status: z.enum([MaterialStatusEnum.AKTIF, MaterialStatusEnum.NONAKTIF]),
   isDynamicPrice: z.boolean(),
-  imageUrl: z.string().optional(), // Tambahkan validasi untuk imageUrl
+  imageUrl: z.string().optional(),
   categoryId: z.string().min(1, { message: 'Kategori harus dipilih' }),
+  warehouseId: z.string().optional(),
   dynamicPrices: z.array(DynamicPriceSchema).optional(),
 });
 
 export async function GET(request: NextRequest) {
   try {
-    await ensureRedisConnection(); // Pastikan koneksi Redis aktif
+    await ensureRedisConnection();
 
     const tenantId = request.headers.get('X-Tenant-Id');
 
@@ -49,65 +56,51 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(url.searchParams.get('limit') || '10', 10);
     const skip = (page - 1) * limit;
 
-    // Buat kunci cache yang unik berdasarkan tenant, halaman, dan batas
     const cacheKey = `materials:tenant:${tenantId}:page:${page}:limit:${limit}`;
-
-    // Coba ambil data dari cache Redis
     const cachedData = await redisClient.get(cacheKey);
 
     if (cachedData) {
       console.log(`Cache hit for key: ${cacheKey}`);
-      // Jika data ada di cache, parse dan kembalikan
       return NextResponse.json(JSON.parse(cachedData));
     }
 
     console.log(`Cache miss for key: ${cacheKey}. Fetching from DB.`);
-    // Jika data tidak ada di cache, ambil dari database
-    const [materials, totalMaterials] = await prisma.$transaction([
-      prisma.material.findMany({
-        where: { tenantId: tenantId }, // Filter berdasarkan tenantId
-        select: {
-          id: true,
-          name: true,
-          code: true,
-          unit: true,
-          initialStock: true,
-          minStockLevel: true, // Tambahkan minStockLevel
-          basePrice: true, // Tambahkan basePrice untuk estimasi harga
-          status: true,
-          createdAt: true,
-          imageUrl: true,
-          categoryId: true,
-          category: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-        },
-        orderBy: {
-          createdAt: 'desc',
-        },
-        skip: skip,
-        take: limit,
-      }),
-      prisma.material.count({ where: { tenantId: tenantId } }), // Filter berdasarkan tenantId
-    ]);
 
-    // Format data dengan menambahkan basePrice untuk estimasi harga dan kategori
-    const formattedMaterials = materials.map(material => ({
-        id: material.id,
-        name: material.name,
-        code: material.code,
-        unit: material.unit,
-        stock: material.initialStock,
-        minStockLevel: material.minStockLevel, // Tambahkan minStockLevel
-        basePrice: material.basePrice, // Tambahkan basePrice untuk estimasi harga
-        status: material.status,
-        createdAt: material.createdAt.toISOString(),
-        imageUrl: material.imageUrl,
-        categoryId: material.categoryId,
-        category: material.category ? material.category.name : null,
+    // Fetch materials with category
+    const materialsData = await db.query.materials.findMany({
+      where: (materials, { eq }) => eq(materials.tenantId, tenantId),
+      orderBy: [desc(materials.createdAt)],
+      limit: limit,
+      offset: skip,
+      with: {
+        category: {
+          columns: {
+            id: true,
+            name: true
+          }
+        }
+      }
+    });
+
+    const [countResult] = await db.select({ count: count() })
+      .from(materials)
+      .where(eq(materials.tenantId, tenantId));
+
+    const totalMaterials = countResult ? countResult.count : 0;
+
+    const formattedMaterials = materialsData.map(material => ({
+      id: material.id,
+      name: material.name,
+      code: material.code,
+      unit: material.unit,
+      stock: material.initialStock,
+      minStockLevel: material.minStockLevel,
+      basePrice: material.basePrice,
+      status: material.status,
+      createdAt: material.createdAt.toISOString(),
+      imageUrl: material.imageUrl,
+      categoryId: material.categoryId,
+      category: material.category ? material.category.name : null,
     }));
 
     const totalPages = Math.ceil(totalMaterials / limit);
@@ -122,40 +115,32 @@ export async function GET(request: NextRequest) {
       }
     };
 
-    // Simpan data ke cache Redis dengan waktu kedaluwarsa (misal: 1 jam)
     await redisClient.set(cacheKey, JSON.stringify(responseData), {
-      EX: 3600, // Kedaluwarsa dalam 1 jam (3600 detik)
+      EX: 3600,
     });
-    console.log(`Cache set for key: ${cacheKey}`); // Log cache set
+    console.log(`Cache set for key: ${cacheKey}`);
 
     return NextResponse.json(responseData);
 
   } catch (error) {
     console.error('Failed to fetch materials:', error);
-    // Jika error berasal dari Redis, mungkin log secara berbeda
     if (error instanceof Error && error.message.includes('Redis')) {
-        return NextResponse.json({ message: 'Masalah koneksi cache, coba lagi nanti.' }, { status: 503 }); // Service Unavailable
+      return NextResponse.json({ message: 'Masalah koneksi cache, coba lagi nanti.' }, { status: 503 });
     }
     return NextResponse.json({ message: 'Gagal mengambil data material' }, { status: 500 });
   }
 }
 
 
-export async function POST(request: NextRequest) { // Change to NextRequest
+export async function POST(request: NextRequest) {
   try {
-    await ensureRedisConnection(); // Pastikan koneksi Redis aktif
+    await ensureRedisConnection();
 
     const tenantId = request.headers.get('X-Tenant-Id');
 
     if (!tenantId) {
       return NextResponse.json({ message: 'Tenant ID not found in headers' }, { status: 400 });
     }
-
-    // Optional: Validate tenantId exists in the database if needed
-    // const tenantExists = await prisma.tenant.findUnique({ where: { id: tenantId } });
-    // if (!tenantExists) {
-    //   return NextResponse.json({ message: 'Invalid Tenant ID' }, { status: 400 });
-    // }
 
     const body = await request.json();
     const validation = MaterialSchema.safeParse(body);
@@ -166,60 +151,101 @@ export async function POST(request: NextRequest) { // Change to NextRequest
 
     const { dynamicPrices, ...materialData } = validation.data;
 
-    // Convert string numbers to actual numbers
     const initialStockNumber = parseInt(materialData.initialStock, 10);
     const basePriceNumber = parseFloat(materialData.basePrice);
-    const minStockLevelNumber = parseInt(materialData.minStockLevel, 10); // Convert minStockLevel to integer
+    const minStockLevelNumber = parseInt(materialData.minStockLevel, 10);
 
-    // Ensure imageUrl is included in the data
-    const newMaterial = await prisma.material.create({
-      data: {
-        ...materialData,
-        initialStock: initialStockNumber,
-        basePrice: basePriceNumber,
-        minStockLevel: minStockLevelNumber, // Use the converted integer value
-        tenantId: tenantId, // Pass tenantId directly
-        // imageUrl is already included in materialData from validation.data
-        dynamicPrices: materialData.isDynamicPrice && dynamicPrices && dynamicPrices.length > 0
-          ? {
-              create: dynamicPrices.map(dp => ({
-                supplier: dp.supplier,
-                price: parseFloat(dp.price),
-              })),
-            }
-          : undefined,
-      },
-      include: {
-        dynamicPrices: true, // Include dynamic prices in the response
-      },
-    });
-
-    // Invalidate cache setelah membuat material baru
-    // Hapus cache yang spesifik untuk tenant ini
-    const keys = await redisClient.keys(`materials:tenant:${tenantId}:page:*`);
-    if (keys.length > 0) {
-      console.log(`Invalidating cache keys for tenant ${tenantId}:`, keys); // Log keys to be deleted
-      await redisClient.del(keys);
-      console.log(`Cache invalidated for tenant ${tenantId}.`); // Log successful invalidation
-    } else {
-      console.log(`No cache keys found to invalidate for tenant ${tenantId}.`); // Log if no keys found
+    // Validate warehouseId if initialStock > 0
+    if (initialStockNumber > 0 && !materialData.warehouseId) {
+      return NextResponse.json({ message: 'Pilih gudang untuk stok awal.' }, { status: 400 });
     }
 
-    return NextResponse.json(newMaterial, { status: 201 });
+    const result = await db.transaction(async (tx) => {
+      // Create material
+      const [newMaterial] = await tx.insert(materials).values({
+        id: crypto.randomUUID(),
+        name: materialData.name,
+        code: materialData.code,
+        unit: materialData.unit,
+        initialStock: initialStockNumber,
+        minStockLevel: minStockLevelNumber,
+        basePrice: basePriceNumber,
+        description: materialData.description,
+        status: materialData.status,
+        isDynamicPrice: materialData.isDynamicPrice,
+        imageUrl: materialData.imageUrl,
+        categoryId: materialData.categoryId,
+        tenantId: tenantId
+      }).returning();
+
+      // Create dynamic prices
+      if (materialData.isDynamicPrice && dynamicPrices && dynamicPrices.length > 0) {
+        await tx.insert(materialDynamicPrices).values(
+          dynamicPrices.map(dp => ({
+            id: crypto.randomUUID(),
+            materialId: newMaterial.id,
+            supplier: dp.supplier,
+            price: parseFloat(dp.price)
+          }))
+        );
+      }
+
+      // Create Material Stock Batch if initial stock > 0
+      if (initialStockNumber > 0 && materialData.warehouseId) {
+        const batchCode = `BATCH-${Date.now()}`; // Simple batch code generation
+
+        await tx.insert(materialStockBatches).values({
+          id: crypto.randomUUID(),
+          materialId: newMaterial.id,
+          batchCode: batchCode,
+          qtyTotal: initialStockNumber,
+          qtyRemaining: initialStockNumber,
+          costPerUnit: basePriceNumber,
+          receivedAt: new Date(),
+          warehouseId: materialData.warehouseId,
+        });
+      }
+
+      // Return full material with prices for response consistency
+      // Note: Drizzle insert returning doesn't include relations. 
+      // We can fetch it back or construct it.
+      // Constructing it is cheaper.
+      return {
+        ...newMaterial,
+        dynamicPrices: materialData.isDynamicPrice && dynamicPrices ? dynamicPrices : []
+      };
+    });
+
+    // Invalidate cache
+    const keys = await redisClient.keys(`materials:tenant:${tenantId}:page:*`);
+    if (keys.length > 0) {
+      console.log(`Invalidating cache keys for tenant ${tenantId}:`, keys);
+      await redisClient.del(keys);
+      console.log(`Cache invalidated for tenant ${tenantId}.`);
+    }
+
+    return NextResponse.json(result, { status: 201 });
 
   } catch (error) {
     console.error('Failed to create material:', error);
-    // Check for unique constraint violation (code)
-    if (error instanceof Error && 'code' in error && error.code === 'P2002' && 'meta' in error && error.meta?.target?.includes('code')) {
-        return NextResponse.json({ message: 'Kode material sudah digunakan.' }, { status: 409 }); // Conflict
+    if (error instanceof Error && 'code' in error && error.code === 'P2002') { // Prisma P2002 code check is invalid for Drizzle error usually
+      // Drizzle/Postgres error code for unique violation is 23505
+      // But error object structure depends on driver (node-postgres)
+      // Assuming generic error message or checking properties if available
+      return NextResponse.json({ message: 'Kode material mungkin sudah digunakan.' }, { status: 409 });
     }
+    // Check for postgres unique constraint error
+    if (typeof error === 'object' && error !== null && 'code' in error && (error as any).code === '23505') {
+      return NextResponse.json({ message: 'Kode material sudah digunakan.' }, { status: 409 });
+    }
+
     return NextResponse.json({ message: 'Gagal membuat material baru.' }, { status: 500 });
   }
 }
 
 export async function DELETE(request: NextRequest) {
   try {
-    await ensureRedisConnection(); // Pastikan koneksi Redis aktif
+    await ensureRedisConnection();
 
     const tenantId = request.headers.get('X-Tenant-Id');
 
@@ -240,37 +266,29 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ message: 'Tidak ada ID yang diberikan untuk dihapus' }, { status: 400 });
     }
 
-    // Validate that all IDs are valid (optional but recommended)
-    // For simplicity, we assume IDs are valid UUIDs or CUIDs as per Prisma schema
+    const deleteResult = await db.delete(materials)
+      .where(
+        and(
+          inArray(materials.id, idsToDelete),
+          eq(materials.tenantId, tenantId)
+        )
+      )
+      .returning();
 
-    const deleteResult = await prisma.material.deleteMany({
-      where: {
-        id: {
-          in: idsToDelete,
-        },
-        tenantId: tenantId, // Tambahkan filter tenantId untuk keamanan
-      },
-    });
-
-    if (deleteResult.count === 0) {
+    if (deleteResult.length === 0) {
       return NextResponse.json({ message: 'Tidak ada material yang ditemukan dengan ID yang diberikan' }, { status: 404 });
     }
 
-    // Invalidate cache setelah menghapus material
-    // Gunakan pola kunci yang sama dengan yang digunakan saat menyimpan cache
     const keys = await redisClient.keys(`materials:tenant:${tenantId}:page:*`);
     if (keys.length > 0) {
       await redisClient.del(keys);
       console.log(`Invalidated ${keys.length} material cache keys for tenant ${tenantId} after DELETE.`);
-    } else {
-      console.log(`No cache keys found to invalidate for tenant ${tenantId} after DELETE.`);
     }
 
-    return NextResponse.json({ message: `${deleteResult.count} material berhasil dihapus` }, { status: 200 });
+    return NextResponse.json({ message: `${deleteResult.length} material berhasil dihapus` }, { status: 200 });
 
   } catch (error) {
     console.error('Failed to delete materials:', error);
-    // Handle potential errors, e.g., foreign key constraints if materials are linked elsewhere
     return NextResponse.json({ message: 'Gagal menghapus material' }, { status: 500 });
   }
 }

@@ -11,37 +11,37 @@ import { ArrowLeft, Edit } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
-export default function MaterialViewPage() {
+export default function ProductViewPage() {
     const router = useRouter();
     const params = useParams();
     const id = params.id as string;
 
-    const [material, setMaterial] = useState<any | null>(null);
+    const [product, setProduct] = useState<any | null>(null);
     const [batches, setBatches] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isLoadingBatches, setIsLoadingBatches] = useState(false);
 
     useEffect(() => {
-        const fetchMaterial = async () => {
+        const fetchProduct = async () => {
             try {
-                const res = await fetch(`/api/products/materials/${id}`);
-                if (!res.ok) throw new Error('Gagal memuat material');
+                const res = await fetch(`/api/products/${id}`);
+                if (!res.ok) throw new Error('Gagal memuat produk');
                 const data = await res.json();
-                setMaterial(data);
+                setProduct(data);
             } catch (err: any) {
                 toast.error(err.message);
             } finally {
                 setIsLoading(false);
             }
         };
-        fetchMaterial();
+        fetchProduct();
     }, [id]);
 
     const fetchBatches = async () => {
-        if (batches.length > 0) return; // Already loaded
+        if (batches.length > 0) return;
         setIsLoadingBatches(true);
         try {
-            const res = await fetch(`/api/products/materials/${id}/batches`);
+            const res = await fetch(`/api/products/${id}/batches`);
             if (res.ok) {
                 const data = await res.json();
                 setBatches(data);
@@ -54,26 +54,26 @@ export default function MaterialViewPage() {
     };
 
     if (isLoading) return <div className="p-8">Memuat detail...</div>;
-    if (!material) return <div className="p-8">Material tidak ditemukan</div>;
+    if (!product) return <div className="p-8">Produk tidak ditemukan</div>;
 
     return (
         <div className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                    <Button variant="outline" size="icon" onClick={() => router.push('/products/materials')}>
+                    <Button variant="outline" size="icon" onClick={() => router.push('/products')}>
                         <ArrowLeft className="h-4 w-4" />
                     </Button>
                     <div>
                         <h1 className="text-xl font-bold flex items-center gap-2">
-                            {material.name}
-                            <Badge variant={material.status === 'AKTIF' ? 'default' : 'secondary'}>
-                                {material.status}
+                            {product.name}
+                            <Badge variant={product.status === 'In Stock' ? 'default' : 'secondary'}>
+                                {product.status}
                             </Badge>
                         </h1>
-                        <p className="text-muted-foreground">{material.code}</p>
+                        <p className="text-muted-foreground">{product.sku || '-'}</p>
                     </div>
                 </div>
-                <Button onClick={() => router.push(`/products/materials/edit/${id}`)}>
+                <Button onClick={() => router.push(`/products/management/edit/${id}`)}> {/* Assuming edit path */}
                     <Edit className="mr-2 h-4 w-4" /> Edit
                 </Button>
             </div>
@@ -84,53 +84,47 @@ export default function MaterialViewPage() {
                 <TabsList>
                     <TabsTrigger value="detail">Detail Informasi</TabsTrigger>
                     <TabsTrigger value="batches">Stok Batches (FIFO)</TabsTrigger>
-                    {/* <TabsTrigger value="history">Riwayat Transaksi</TabsTrigger> */}
                 </TabsList>
 
                 <TabsContent value="detail" className="mt-4">
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                         <Card>
                             <CardHeader>
-                                <CardTitle>Info Dasar</CardTitle>
+                                <CardTitle>Info Produk</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <div>
                                     <div className="text-sm font-medium text-muted-foreground">Kategori</div>
-                                    <div>{material.category?.name || '-'}</div>
+                                    <div>{product.category?.name || '-'}</div>
                                 </div>
                                 <div>
-                                    <div className="text-sm font-medium text-muted-foreground">Satuan</div>
-                                    <div>{material.unit}</div>
+                                    <div className="text-sm font-medium text-muted-foreground">Harga Jual</div>
+                                    <div className="text-lg font-bold">Rp {product.price?.toLocaleString()}</div>
                                 </div>
                                 <div>
                                     <div className="text-sm font-medium text-muted-foreground">Stok Total</div>
-                                    <div className="text-lg font-bold">{material.initialStock}</div> {/* Note: Currently api returns initialStock. We should probably return 'current stock' properly if we updated it anywhere? Schema has initialStock column, wait. We updated inventories or materialStockBatches. The simple material row might be stale if we don't sync it. But user requirement said "Existing aggregate inventory counts might need adjustments". For now displaying initialStock which is the simple view source. */}
+                                    <div className="text-lg font-bold">{product.stock}</div>
                                 </div>
                             </CardContent>
                         </Card>
 
                         <Card>
                             <CardHeader>
-                                <CardTitle>Harga</CardTitle>
+                                <CardTitle>Inventaris Gudang</CardTitle>
                             </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div>
-                                    <div className="text-sm font-medium text-muted-foreground">Harga Dasar</div>
-                                    <div>Rp {parseFloat(material.basePrice).toLocaleString()}</div>
+                            <CardContent>
+                                <div className="space-y-2">
+                                    {product.inventories && product.inventories.length > 0 ? (
+                                        product.inventories.map((inv: any) => (
+                                            <div key={inv.id} className="flex justify-between border-b pb-1 last:border-0">
+                                                <span>{inv.warehouse?.name}</span>
+                                                <span className="font-mono">{inv.quantity}</span>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="text-muted-foreground">Belum ada inventaris</div>
+                                    )}
                                 </div>
-                                {material.isDynamicPrice && (
-                                    <div>
-                                        <div className="text-sm font-medium text-muted-foreground mb-2">Harga Supplier</div>
-                                        <div className="space-y-1">
-                                            {material.dynamicPrices?.map((dp: any) => (
-                                                <div key={dp.id} className="flex justify-between text-sm border-b pb-1 last:border-0">
-                                                    <span>{dp.supplier}</span>
-                                                    <span>Rp {parseFloat(dp.price).toLocaleString()}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
                             </CardContent>
                         </Card>
                     </div>
@@ -139,9 +133,9 @@ export default function MaterialViewPage() {
                 <TabsContent value="batches" className="mt-4">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Batch Stok Material</CardTitle>
+                            <CardTitle>Batch Stok Produk Jadi</CardTitle>
                             <CardDescription>
-                                Daftar batch penerimaan material yang diurutkan berdasarkan tanggal terima (FIFO).
+                                Daftar batch produk yang tersedia untuk penjualan (FIFO).
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -149,12 +143,12 @@ export default function MaterialViewPage() {
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Batch Code</TableHead>
+                                        <TableHead>Sumber</TableHead>
                                         <TableHead>Gudang</TableHead>
                                         <TableHead>Qty Awal</TableHead>
                                         <TableHead>Qty Sisa</TableHead>
-                                        <TableHead>Harga Beli</TableHead>
-                                        <TableHead>Tgl Terima</TableHead>
-                                        <TableHead>Tgl Kadaluarsa</TableHead>
+                                        <TableHead>HPP (Cost)</TableHead>
+                                        <TableHead>Tgl Masuk</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -170,12 +164,12 @@ export default function MaterialViewPage() {
                                         batches.map((b) => (
                                             <TableRow key={b.id}>
                                                 <TableCell className="font-mono">{b.batchCode}</TableCell>
+                                                <TableCell><Badge variant="outline">{b.source}</Badge></TableCell>
                                                 <TableCell>{b.warehouseName}</TableCell>
-                                                <TableCell>{b.qtyTotal} {material.unit}</TableCell>
-                                                <TableCell className="font-bold">{b.qtyRemaining} {material.unit}</TableCell>
-                                                <TableCell>Rp {b.costPerUnit.toLocaleString()}</TableCell>
+                                                <TableCell>{b.qtyTotal}</TableCell>
+                                                <TableCell className="font-bold">{b.qtyRemaining}</TableCell>
+                                                <TableCell>Rp {b.costPerUnit?.toLocaleString()}</TableCell>
                                                 <TableCell>{format(new Date(b.receivedAt), 'dd MMM yyyy')}</TableCell>
-                                                <TableCell>{b.expirationDate ? format(new Date(b.expirationDate), 'dd MMM yyyy') : '-'}</TableCell>
                                             </TableRow>
                                         ))
                                     )}

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { db } from '@/lib/db';
+import { suppliers } from '@/lib/db/schema';
+import { eq, and, inArray, count, desc } from 'drizzle-orm';
 import { z } from 'zod';
-
-const prisma = new PrismaClient();
 
 // Skema validasi untuk data supplier (POST)
 const SupplierPostSchema = z.object({
@@ -14,9 +14,6 @@ const SupplierPostSchema = z.object({
   status: z.enum(['Aktif', 'Nonaktif']).default('Aktif'),
 });
 
-// Skema validasi untuk data supplier (PUT)
-const SupplierPutSchema = SupplierPostSchema.partial(); // Semua field opsional untuk update
-
 // GET: Mengambil daftar supplier dengan pagination
 export async function GET(request: NextRequest) {
   try {
@@ -25,10 +22,6 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(url.searchParams.get('limit') || '10', 10);
     const skip = (page - 1) * limit;
 
-    // Dapatkan tenantId dari request (asumsi middleware auth sudah menyediakan user)
-    // const user = (request as any).user; // Baris ini bisa dihapus jika tidak digunakan
-    // const tenantId = user?.tenantId || '00000000-0000-0000-0000-000000000000'; // Hapus baris ini
-
     // Dapatkan tenantId dari header request yang ditambahkan oleh middleware
     const tenantId = request.headers.get('X-Tenant-Id');
 
@@ -36,28 +29,22 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: 'Tenant ID tidak ditemukan di request' }, { status: 401 });
     }
 
-    const [suppliers, totalSuppliers] = await prisma.$transaction([
-      prisma.supplier.findMany({
-        where: {
-          tenantId: tenantId
-        },
-        orderBy: {
-          createdAt: 'desc',
-        },
-        skip: skip,
-        take: limit,
-      }),
-      prisma.supplier.count({
-        where: {
-          tenantId: tenantId
-        }
-      }),
-    ]);
+    const suppliersData = await db.query.suppliers.findMany({
+      where: (suppliers, { eq }) => eq(suppliers.tenantId, tenantId),
+      limit: limit,
+      offset: skip,
+      orderBy: [desc(suppliers.createdAt)],
+    });
 
+    const [countResult] = await db.select({ count: count() })
+      .from(suppliers)
+      .where(eq(suppliers.tenantId, tenantId));
+
+    const totalSuppliers = countResult ? countResult.count : 0;
     const totalPages = Math.ceil(totalSuppliers / limit);
 
     return NextResponse.json({
-      data: suppliers,
+      data: suppliersData,
       pagination: {
         page,
         limit,
@@ -82,11 +69,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ errors: validation.error.flatten().fieldErrors }, { status: 400 });
     }
 
-    // Dapatkan tenantId dari request (asumsi middleware auth sudah menyediakan user)
-    // const user = (request as any).user; // Baris ini bisa dihapus jika tidak digunakan
-    // const tenantId = user?.tenantId || '00000000-0000-0000-0000-000000000000'; // Hapus baris ini
-
-    // Dapatkan tenantId dari header request yang ditambahkan oleh middleware
     const tenantId = request.headers.get('X-Tenant-Id');
 
     if (!tenantId) {
@@ -94,11 +76,8 @@ export async function POST(request: Request) {
     }
 
     // Cek apakah supplier dengan email yang sama sudah ada dalam tenant yang sama
-    const existingSupplier = await prisma.supplier.findFirst({
-      where: { 
-        email: validation.data.email,
-        tenantId: tenantId
-      }
+    const existingSupplier = await db.query.suppliers.findFirst({
+      where: (suppliers, { and, eq }) => and(eq(suppliers.email, validation.data.email), eq(suppliers.tenantId, tenantId))
     });
 
     if (existingSupplier) {
@@ -106,12 +85,11 @@ export async function POST(request: Request) {
     }
 
     // Buat supplier baru dengan tenantId
-    const newSupplier = await prisma.supplier.create({
-      data: {
-        ...validation.data,
-        tenantId: tenantId
-      },
-    });
+    const [newSupplier] = await db.insert(suppliers).values({
+      id: crypto.randomUUID(),
+      ...validation.data,
+      tenantId: tenantId
+    }).returning();
 
     return NextResponse.json(newSupplier, { status: 201 });
 
@@ -137,33 +115,35 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ message: 'Tidak ada ID yang valid untuk dihapus' }, { status: 400 });
     }
 
-    // Dapatkan tenantId dari header request
     const tenantId = request.headers.get('X-Tenant-Id');
 
     if (!tenantId) {
       return NextResponse.json({ message: 'Tenant ID tidak ditemukan di request' }, { status: 401 });
     }
 
-    const deleteResult = await prisma.supplier.deleteMany({
-      where: {
-        id: {
-          in: idsToDelete,
-        },
-        tenantId: tenantId, // Tambahkan filter tenantId
-      },
-    });
+    const deleteResult = await db.delete(suppliers)
+      .where(
+        and(
+          inArray(suppliers.id, idsToDelete),
+          eq(suppliers.tenantId, tenantId)
+        )
+      )
+      .returning();
 
-    if (deleteResult.count === 0) {
+    if (deleteResult.length === 0) {
+      // Could be none found, or none matched tenant filter
+      // If client sent valid IDs but they didn't match tenant, we return 404 effectively for "not found in your tenant"
+      // or success with 0 count? Original code returned 404 if count === 0.
       return NextResponse.json({ message: 'Tidak ada supplier yang ditemukan dengan ID yang diberikan' }, { status: 404 });
     }
 
-    return NextResponse.json({ message: `${deleteResult.count} supplier berhasil dihapus` });
+    return NextResponse.json({ message: `${deleteResult.length} supplier berhasil dihapus` });
 
   } catch (error) {
     console.error('Failed to delete suppliers:', error);
-    // Handle potential foreign key constraint errors if suppliers are linked to other tables
-    if (error instanceof Error && 'code' in error && error.code === 'P2003') {
-        return NextResponse.json({ message: 'Gagal menghapus supplier karena masih terkait dengan data lain (misal: pesanan pembelian).' }, { status: 409 });
+    // Handle potential foreign key constraint errors
+    if (error instanceof Error && error.message.includes('foreign key constraint')) {
+      return NextResponse.json({ message: 'Gagal menghapus supplier karena masih terkait dengan data lain (misal: pesanan pembelian).' }, { status: 409 });
     }
     return NextResponse.json({ message: 'Gagal menghapus supplier' }, { status: 500 });
   }

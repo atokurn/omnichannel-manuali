@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { db } from '@/lib/db';
+import { users, userRoles, roles } from '@/lib/db/schema';
+import { eq, and, count, desc } from 'drizzle-orm';
 import { hash } from 'bcrypt';
 import { z } from 'zod';
 
-const prisma = new PrismaClient();
 const SALT_ROUNDS = 10;
 
 // Schema validasi untuk user
@@ -33,40 +34,28 @@ export async function GET(request: NextRequest) {
     }
 
     // Ambil data dari database dengan pagination dan filter berdasarkan tenant
-    const [users, totalUsers] = await prisma.$transaction([
-      prisma.user.findMany({
-        where: {
-          tenantId: tenantId
-        },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          status: true,
-          lastLogin: true,
-          createdAt: true,
-          updatedAt: true,
-          userRoles: {
-            include: {
-              role: true
-            }
+    const usersData = await db.query.users.findMany({
+      where: (users, { eq }) => eq(users.tenantId, tenantId),
+      orderBy: [desc(users.createdAt)],
+      limit: limit,
+      offset: skip,
+      with: {
+        userRoles: {
+          with: {
+            role: true
           }
-        },
-        orderBy: {
-          createdAt: 'desc',
-        },
-        skip: skip,
-        take: limit,
-      }),
-      prisma.user.count({
-        where: {
-          tenantId: tenantId
         }
-      }),
-    ]);
+      }
+    });
+
+    const [countResult] = await db.select({ count: count() })
+      .from(users)
+      .where(eq(users.tenantId, tenantId));
+
+    const totalUsers = countResult ? countResult.count : 0;
 
     // Format data untuk response
-    const formattedUsers = users.map(user => ({
+    const formattedUsers = usersData.map(user => ({
       id: user.id,
       name: user.name,
       email: user.email,
@@ -122,11 +111,8 @@ export async function POST(request: Request) {
     }
 
     // Cek apakah email sudah digunakan dalam tenant yang sama
-    const existingUser = await prisma.user.findFirst({
-      where: { 
-        email: validation.data.email,
-        tenantId: tenantId
-      }
+    const existingUser = await db.query.users.findFirst({
+      where: (users, { and, eq }) => and(eq(users.email, validation.data.email), eq(users.tenantId, tenantId))
     });
 
     if (existingUser) {
@@ -136,46 +122,41 @@ export async function POST(request: Request) {
     // Hash password
     const hashedPassword = await hash(validation.data.password, SALT_ROUNDS);
 
-    // Buat user baru
-    const newUser = await prisma.user.create({
-      data: {
+    // Transactional create
+    const newUserWithRoles = await db.transaction(async (tx) => {
+      const [newUser] = await tx.insert(users).values({
+        id: crypto.randomUUID(),
         name: validation.data.name,
         email: validation.data.email,
         password: hashedPassword,
         tenantId: tenantId,
-        status: 'active',
-      },
-    });
+        status: 'active'
+      }).returning();
 
-    // Tambahkan role untuk user
-    await prisma.userRole.create({
-      data: {
+      await tx.insert(userRoles).values({
         userId: newUser.id,
-        roleId: validation.data.roleId,
-      },
-    });
+        roleId: validation.data.roleId
+      });
 
-    // Ambil user dengan role untuk response
-    const userWithRoles = await prisma.user.findUnique({
-      where: { id: newUser.id },
-      include: {
-        userRoles: {
-          include: {
-            role: true
-          }
-        }
-      },
-    });
+      // Re-fetch to return mostly full structure expected by frontend (with role names), or just construct it.
+      // Constructing it is cheaper, but we need role name.
+      // Let's fetch role name.
+      const role = await tx.query.roles.findFirst({
+        where: eq(roles.id, validation.data.roleId),
+        columns: { id: true, name: true }
+      });
 
-    if (!userWithRoles) {
-      throw new Error('Failed to fetch newly created user');
-    }
+      return {
+        ...newUser,
+        userRoles: role ? [{ role }] : []
+      };
+    });
 
     // Format response tanpa password
-    const { password, ...userWithoutPassword } = userWithRoles;
+    const { password, ...userWithoutPassword } = newUserWithRoles;
     const formattedUser = {
       ...userWithoutPassword,
-      roles: userWithRoles.userRoles.map(ur => ({
+      roles: newUserWithRoles.userRoles.map((ur: any) => ({
         id: ur.role.id,
         name: ur.role.name
       }))

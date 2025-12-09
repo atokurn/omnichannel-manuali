@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { db } from '@/lib/db';
+import { products, inventories, productVariants, productVariantOptions, productVariantCombinations } from '@/lib/db/schema';
+import { eq, like, or, and, sql, desc, count } from 'drizzle-orm';
+import { getCurrentUser as getUser } from '@/lib/auth';
+import redisClient, { ensureRedisConnection } from '@/lib/redis';
 
-import { getCurrentUser as getUser } from '@/lib/auth'; // Import getCurrentUser
-import redisClient, { ensureRedisConnection } from '@/lib/redis'; // Import Redis client
-
-const prisma = new PrismaClient();
-
-// Pindahkan fungsi getCurrentUser ke luar handler agar bisa dipakai di GET juga
+// Helper to get user
 async function getCurrentUser() {
   const user = await getUser();
   if (!user || !user.id || !user.tenantId) {
@@ -20,144 +19,131 @@ export async function POST(request: Request) {
     const body = await request.json();
     console.log('Received product data:', body);
 
-    // Validasi data
     if (!body.productName) {
       return NextResponse.json({ error: 'Nama produk wajib diisi' }, { status: 400 });
     }
 
-    // Dapatkan user dari sesi login aktif
     const currentUser = await getCurrentUser();
-    
-    if (!currentUser || !currentUser.id || !currentUser.tenantId) {
-      throw new Error('User tidak terautentikasi atau data user tidak lengkap');
+    const tenantId = currentUser.tenantId;
+
+    // Generate SKU logic using Drizzle
+    async function generateSKU(productName: string, hasVariant: boolean): Promise<string> {
+      const prefix = productName
+        .replace(/[^a-zA-Z0-9]/g, '')
+        .substring(0, 3)
+        .toUpperCase();
+
+      const variantMarker = hasVariant ? 'V-' : '';
+      const uniqueDigits = Math.floor(100000 + Math.random() * 900000).toString();
+
+      const skuCandidate = `PRD-${prefix}-${variantMarker}${uniqueDigits}`;
+
+      const existingSKU = await db.query.products.findFirst({
+        where: (products, { eq }) => eq(products.sku, skuCandidate)
+      });
+
+      if (existingSKU) {
+        return generateSKU(productName, hasVariant);
+      }
+      return skuCandidate;
     }
-    
-    // Simpan produk dasar
-    const newProduct = await prisma.product.create({
-      data: {
+
+    // Start Transaction
+    const result = await db.transaction(async (tx) => {
+      const sku = await generateSKU(body.productName, body.addVariant);
+      const price = body.addVariant ? 0 : parseFloat(body.defaultPrice.replace(/[.,]/g, ''));
+
+      // 1. Create Product
+      const [newProduct] = await tx.insert(products).values({
+        id: crypto.randomUUID(),
         name: body.productName,
         description: body.productDescription || '',
-        price: body.addVariant ? 0 : parseFloat(body.defaultPrice.replace(/[.,]/g, '')),
+        price: price,
         mainImage: body.mainImage || '',
         hasVariants: body.addVariant || false,
-        // Field wajib untuk relasi dengan User
-        createdBy: {
-          connect: { id: currentUser.id }
-        },
-        // Field wajib untuk relasi dengan Tenant
-        tenant: {
-          connect: { id: currentUser.tenantId }
-        },
-        // Tambahkan field lain yang diperlukan
-        sku: await generateSKU(body.productName, body.addVariant) // Generate SKU dengan format yang lebih baik
-      },
-    });
-    
-    // Jika produk tidak memiliki varian, simpan kuantitas stok ke Inventory
-    // Catatan: Ini memerlukan setidaknya satu warehouse dan shelf yang tersedia
-    if (!body.addVariant && body.defaultQuantity) {
-      // Dapatkan warehouse default (gunakan warehouse pertama jika tersedia)
-      const defaultWarehouse = await prisma.warehouse.findFirst({
-        where: { tenantId: currentUser.tenantId },
-        include: { shelves: { include: { area: true }, take: 1 } }
-      });
-      
-      if (defaultWarehouse && defaultWarehouse.shelves.length > 0) {
-        const defaultShelf = defaultWarehouse.shelves[0];
-        
-        // Simpan data inventory
-        await prisma.inventory.create({
-          data: {
+        createdById: currentUser.id,
+        tenantId: tenantId,
+        sku: sku,
+        // Defaults as per schema if not provided
+        minStockLevel: 0
+      }).returning();
+
+      // 2. Inventory for non-variant products
+      if (!body.addVariant && body.defaultQuantity) {
+        // Find default warehouse for tenant
+        const defaultWarehouse = await tx.query.warehouses.findFirst({
+          where: (warehouses, { eq }) => eq(warehouses.tenantId, tenantId),
+          with: {
+            shelves: {
+              limit: 1
+            }
+          }
+        });
+
+        if (defaultWarehouse && defaultWarehouse.shelves.length > 0) {
+          const defaultShelf = defaultWarehouse.shelves[0];
+          await tx.insert(inventories).values({
+            id: crypto.randomUUID(),
             quantity: parseInt(body.defaultQuantity),
             productId: newProduct.id,
             shelfId: defaultShelf.id,
             warehouseId: defaultWarehouse.id
-          }
-        });
-      } else {
-        console.warn('Tidak dapat menyimpan data inventory: Warehouse atau shelf tidak tersedia');
-      }
-    }
-    
-    // Simpan ID user untuk digunakan di fungsi lain
-    const userId = currentUser.id;
-
-    /**
-     * Fungsi untuk menghasilkan SKU (Stock Keeping Unit) yang unik dan terstruktur
-     * Format: PRD-[3 huruf pertama nama produk]-[V jika memiliki varian]-[6 digit angka unik]
-     * Contoh: PRD-BAJ-V-123456 (untuk produk "Baju" dengan varian)
-     * Contoh: PRD-SEP-654321 (untuk produk "Sepatu" tanpa varian)
-     */
-    async function generateSKU(productName: string, hasVariant: boolean): Promise<string> {
-      // Ambil 3 huruf pertama dari nama produk (uppercase) dan hilangkan karakter non-alfanumerik
-      const prefix = productName
-        .replace(/[^a-zA-Z0-9]/g, '') // Hapus karakter non-alfanumerik
-        .substring(0, 3) // Ambil 3 karakter pertama
-        .toUpperCase(); // Ubah ke uppercase
-      
-      // Tambahkan penanda varian jika produk memiliki varian
-      const variantMarker = hasVariant ? 'V-' : '';
-      
-      // Generate 6 digit angka unik
-      const uniqueDigits = Math.floor(100000 + Math.random() * 900000).toString();
-      
-      // Cek apakah SKU sudah ada di database
-      const skuCandidate = `PRD-${prefix}-${variantMarker}${uniqueDigits}`;
-      const existingSKU = await prisma.product.findFirst({
-        where: { sku: skuCandidate }
-      });
-      
-      // Jika SKU sudah ada, generate ulang dengan rekursif
-      if (existingSKU) {
-        return generateSKU(productName, hasVariant);
-      }
-      
-      return skuCandidate;
-    }
-
-    // Jika produk memiliki varian, simpan varian dan kombinasi
-    if (body.addVariant && body.variants && body.variants.length > 0) {
-      // Simpan varian
-      for (const variant of body.variants) {
-        if (variant.name && variant.options && variant.options.length > 0) {
-          const newVariant = await prisma.productVariant.create({
-            data: {
-              name: variant.name,
-              productId: newProduct.id,
-              options: {
-                create: variant.options
-                  .filter(option => option.value.trim() !== '')
-                  .map(option => ({
-                    value: option.value,
-                    image: option.image || null
-                  }))
-              }
-            }
           });
+        } else {
+          console.warn('Tidak dapat menyimpan data inventory: Warehouse atau shelf tidak tersedia');
         }
       }
 
-      // Simpan kombinasi varian
-      if (body.variantCombinations && body.variantCombinations.length > 0) {
-        for (const combo of body.variantCombinations) {
-          await prisma.productVariantCombination.create({
-            data: {
+      // 3. Variants
+      if (body.addVariant && body.variants && body.variants.length > 0) {
+        for (const variant of body.variants) {
+          if (variant.name && variant.options && variant.options.length > 0) {
+            // Create Variant
+            const [newVariant] = await tx.insert(productVariants).values({
+              id: crypto.randomUUID(),
+              name: variant.name,
+              productId: newProduct.id
+            }).returning();
+
+            // Create Options
+            const validOptions = variant.options.filter((o: any) => o.value.trim() !== '');
+            if (validOptions.length > 0) {
+              await tx.insert(productVariantOptions).values(
+                validOptions.map((opt: any) => ({
+                  id: crypto.randomUUID(),
+                  value: opt.value,
+                  image: opt.image || null,
+                  variantId: newVariant.id
+                }))
+              );
+            }
+          }
+        }
+
+        // 4. Combinations
+        if (body.variantCombinations && body.variantCombinations.length > 0) {
+          await tx.insert(productVariantCombinations).values(
+            body.variantCombinations.map((combo: any) => ({
+              id: crypto.randomUUID(),
               productId: newProduct.id,
               combinationId: combo.combinationId,
               options: combo.options,
-              price: parseFloat(combo.price.replace(/[.,]/g, '')),
+              price: parseFloat(combo.price.toString().replace(/[.,]/g, '')),
               quantity: parseInt(combo.quantity),
               sku: combo.sku || '',
               weight: parseFloat(combo.weight),
               weightUnit: combo.weightUnit || 'g'
-            }
-          });
+            }))
+          );
         }
       }
-    }
 
-    console.log('Product created successfully:', newProduct);
-    return NextResponse.json({ message: 'Product created successfully', product: newProduct }, { status: 201 });
+      return newProduct;
+    });
+
+    console.log('Product created successfully:', result);
+    return NextResponse.json({ message: 'Product created successfully', product: result }, { status: 201 });
+
   } catch (error) {
     console.error('Error creating product:', error);
     let errorMessage = 'Failed to create product';
@@ -168,7 +154,6 @@ export async function POST(request: Request) {
   }
 }
 
-// GET handler untuk mengambil daftar produk dengan pagination dan search
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -176,33 +161,32 @@ export async function GET(request: Request) {
     const limit = parseInt(searchParams.get('limit') || '10');
     const search = searchParams.get('search') || '';
 
-    // Dapatkan user saat ini untuk mendapatkan tenantId
     const currentUser = await getCurrentUser();
     const tenantId = currentUser.tenantId;
-
-    // Calculate skip for pagination
     const skip = (page - 1) * limit;
 
-    // Build where condition for search AND tenant filtering
-    const baseWhereCondition = {
-      tenantId: tenantId, // Filter berdasarkan tenantId
-    };
+    // Filters
+    // Postgres specific case-insensitive like (ILIKE)
+    const searchConditionsPg = search
+      ? or(
+        sql`${products.name} ILIKE ${`%${search}%`}`,
+        sql`${products.sku} ILIKE ${`%${search}%`}`,
+        sql`${products.description} ILIKE ${`%${search}%`}`
+      )
+      : undefined;
 
-    const searchCondition = search
-      ? {
-          OR: [
-            { name: { contains: search, mode: 'insensitive' } },
-            { sku: { contains: search, mode: 'insensitive' } },
-            { description: { contains: search, mode: 'insensitive' } },
-          ],
-        }
-      : {};
+    const whereCondition = searchConditionsPg
+      ? and(eq(products.tenantId, tenantId), searchConditionsPg)
+      : eq(products.tenantId, tenantId);
 
-    const whereCondition = { ...baseWhereCondition, ...searchCondition };
-
-    // Fetch products with pagination and search
-    const productsRaw = await prisma.product.findMany({
-      select: { // Tambahkan select untuk memilih field secara eksplisit
+    // Fetch products
+    const productsData = await db.query.products.findMany({
+      where: whereCondition,
+      limit: limit,
+      offset: skip,
+      orderBy: [desc(products.createdAt)],
+      // Select specific fields + relations
+      columns: {
         id: true,
         name: true,
         description: true,
@@ -219,44 +203,39 @@ export async function GET(request: Request) {
         preorderDays: true,
         purchaseLimit: true,
         hasVariants: true,
-        mainImage: true, // Sertakan mainImage
+        mainImage: true,
         createdAt: true,
         updatedAt: true,
         createdById: true,
         categoryId: true,
         tenantId: true,
-        // Relasi yang diperlukan untuk perhitungan
+      },
+      with: {
         variants: {
-          select: { id: true }
+          columns: { id: true }
         },
         inventories: {
-          select: { quantity: true }
+          columns: { quantity: true }
         }
-      },
-      where: whereCondition,
-      skip: skip,
-      take: limit,
-      orderBy: {
-        createdAt: 'desc', // Default sort by creation date
-      },
-      // include dihapus karena sudah menggunakan select
+      }
     });
 
-    // Get total count for pagination
-    const totalProducts = await prisma.product.count({
-      where: whereCondition,
-    });
+    // Count
+    const [countResult] = await db.select({ count: count() })
+      .from(products)
+      .where(whereCondition);
 
-    // Process products to add total stock, price range, and variant combinations
-    const products = await Promise.all(productsRaw.map(async (product) => {
+    const totalProducts = countResult ? countResult.count : 0;
+
+    // Process logic (Redis caching etc) - Mostly copied from original
+    const productsProcessed = await Promise.all(productsData.map(async (product) => {
       let totalStock = 0;
       let minVariantPrice: number | null = null;
       let maxVariantPrice: number | null = null;
-      // let combinations: any[] = []; // Initialize combinations array - Will be replaced by processedCombinations
       let processedCombinations: any[] = [];
 
       if (product.hasVariants) {
-        const cacheKey = `product:${product.id}:combinations_with_imageUrl_v1`; // New cache key
+        const cacheKey = `product:${product.id}:combinations_with_imageUrl_v1`;
         let cachedDataString: string | null = null;
         try {
           await ensureRedisConnection();
@@ -268,56 +247,54 @@ export async function GET(request: Request) {
         if (cachedDataString) {
           try {
             processedCombinations = JSON.parse(cachedDataString);
-            console.log(`Cache hit for ${cacheKey}`);
           } catch (parseError) {
-            console.error(`Error parsing cached data for ${cacheKey}:`, parseError);
-            cachedDataString = null; // Force DB fetch if cache is corrupted
+            cachedDataString = null;
           }
         }
-        
-        if (!cachedDataString) { // If cache miss or parse error
-          console.log(`Cache miss or parse error for ${cacheKey}, fetching and processing...`);
-          // Fetch raw combinations specifically for this product from DB
-          const rawCombinations = await prisma.productVariantCombination.findMany({
-            where: { productId: product.id },
-            select: { 
-              id: true, 
+
+        if (!cachedDataString) {
+          const rawCombinations = await db.query.productVariantCombinations.findMany({
+            where: (combinations, { eq }) => eq(combinations.productId, product.id),
+            columns: {
+              id: true,
               combinationId: true,
               options: true,
-              price: true, 
+              price: true,
               quantity: true,
               sku: true,
               weight: true,
               weightUnit: true,
               createdAt: true,
               updatedAt: true
-            },
+            }
           });
 
-          // Fetch all ProductVariantOptions with images for this product
-          const productVariantOptionsWithImages = await prisma.productVariantOption.findMany({
-            where: {
-              variant: {
-                productId: product.id,
-              },
-              image: { not: null }, // Only options with images
-            },
-            select: {
-              value: true,
-              image: true,
-              variant: { select: { name: true } }, // To match option by variant name and value
-            },
-          });
+          // Fetch options with images
+          // Note: Drizzle Relational Query might be easier here to go from Variant -> Option.
+          // Or standard select from Options where variant.productId = product.id.
+          // Using join:
+          const productVariantOptionsWithImages = await db.select({
+            value: productVariantOptions.value,
+            image: productVariantOptions.image,
+            variantName: productVariants.name
+          })
+            .from(productVariantOptions)
+            .innerJoin(productVariants, eq(productVariantOptions.variantId, productVariants.id))
+            .where(
+              and(
+                eq(productVariants.productId, product.id),
+                sql`${productVariantOptions.image} IS NOT NULL`
+              )
+            );
 
-          // Helper function to find a representative image for a combination
           const findRepresentativeImage = (
             comboOpts: Record<string, string>,
-            allOptsWithImgs: Array<{value: string, image: string | null, variant: {name: string}}>
+            allOptsWithImgs: Array<{ value: string, image: string | null, variantName: string }>
           ): string | null => {
             for (const variantNameKey in comboOpts) {
               const optionVal = comboOpts[variantNameKey];
               const foundOpt = allOptsWithImgs.find(
-                opt => opt.variant.name === variantNameKey && opt.value === optionVal && opt.image
+                opt => opt.variantName === variantNameKey && opt.value === optionVal && opt.image
               );
               if (foundOpt && foundOpt.image) {
                 return foundOpt.image;
@@ -326,54 +303,49 @@ export async function GET(request: Request) {
             return null;
           };
 
-          // Process rawCombinations to add imageUrl
           processedCombinations = rawCombinations.map(combo => ({
             ...combo,
             imageUrl: findRepresentativeImage(combo.options as Record<string, string>, productVariantOptionsWithImages),
           }));
-          
-          // Store processedCombinations in Redis
+
           try {
-            await redisClient.set(cacheKey, JSON.stringify(processedCombinations), { EX: 300 }); // Cache for 5 minutes
-          } catch (redisSetError) {
-            console.warn(`Redis SET error for key ${cacheKey}:`, redisSetError);
-          }
+            await redisClient.set(cacheKey, JSON.stringify(processedCombinations), { EX: 300 });
+          } catch (e) { console.warn(e); }
         }
 
-        // Calculate stock and price range from processedCombinations
         totalStock = processedCombinations.reduce((sum, combo) => sum + (combo.quantity || 0), 0);
-
         if (processedCombinations.length > 0) {
           const prices = processedCombinations.map(c => c.price);
           minVariantPrice = Math.min(...prices);
           maxVariantPrice = Math.max(...prices);
         }
+
       } else {
-        // Sum stock from inventory entries for non-variant product
-        totalStock = product.inventories.reduce((sum, inv) => sum + inv.quantity, 0);
+        // Non-variant stock
+        if (product.inventories) {
+          totalStock = product.inventories.reduce((sum, inv) => sum + inv.quantity, 0);
+        }
       }
 
       return {
         ...product,
-        mainImage: product.mainImage, // Pastikan mainImage disertakan secara eksplisit
         totalStock,
-        variantCount: product.variants.length, // Add variant count
-        minVariantPrice, // Add min variant price
-        maxVariantPrice, // Add max variant price
-        combinations: product.hasVariants ? processedCombinations : undefined, // Include processedCombinations (with imageUrl)
-        // Hapus relasi yang tidak perlu lagi setelah perhitungan
+        variantCount: product.variants.length,
+        minVariantPrice,
+        maxVariantPrice,
+        combinations: product.hasVariants ? processedCombinations : undefined,
         variants: undefined,
-        inventories: undefined,
+        inventories: undefined
       };
     }));
 
-
     return NextResponse.json({
-      data: products,
+      data: productsProcessed,
       total: totalProducts,
       page,
       limit,
     });
+
   } catch (error) {
     console.error('Error fetching products:', error);
     let errorMessage = 'Failed to fetch products';

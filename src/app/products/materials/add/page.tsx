@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Switch } from '@/components/ui/switch';
 // import { useToast } from '@/components/ui/use-toast'; // Remove useToast import
 import { toast } from 'sonner'; // Import toast from sonner
-import { MaterialStatus } from '@prisma/client'; // Import MaterialStatus
+import { MaterialStatus } from '@/lib/db/schema'; // Import MaterialStatus
 import Image from 'next/image'; // Import Image component
 import { cn } from '@/lib/utils'; // Import cn for conditional classes
 import { Combobox } from "@/components/ui/combobox";
@@ -31,6 +31,7 @@ interface MaterialFormData {
   isDynamicPrice: boolean;
   imageUrl?: string; // Add optional imageUrl
   categoryId: string; // Add category field
+  warehouseId: string; // Add warehouseId
 }
 
 // Data dummy untuk satuan
@@ -91,9 +92,12 @@ export default function AddMaterialPage() {
     isDynamicPrice: false,
     imageUrl: '', // Initialize imageUrl
     categoryId: '', // Initialize categoryId
+    warehouseId: '', // Add warehouseId
   });
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoadingCategories, setIsLoadingCategories] = useState(false);
+  const [warehouses, setWarehouses] = useState<{ id: string; name: string }[]>([]); // State for warehouses
+  const [isLoadingWarehouses, setIsLoadingWarehouses] = useState(false); // State for loading warehouses
   const [dynamicPrices, setDynamicPrices] = useState<DynamicPrice[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [formErrors, setFormErrors] = useState<FormErrors>({}); // State for errors
@@ -101,7 +105,7 @@ export default function AddMaterialPage() {
   const [imageFile, setImageFile] = useState<File | null>(null); // State for the image file
   const [isDragging, setIsDragging] = useState(false); // State for drag-and-drop
 
-  // Fetch categories when component mounts
+  // Fetch categories and warehouses when component mounts
   useEffect(() => {
     const fetchCategories = async () => {
       setIsLoadingCategories(true);
@@ -120,7 +124,30 @@ export default function AddMaterialPage() {
       }
     };
 
+    const fetchWarehouses = async () => {
+      setIsLoadingWarehouses(true);
+      try {
+        const response = await fetch('/api/warehouses');
+        if (!response.ok) {
+          // Silently fail or log, as warehouses might be empty initially
+          console.warn('Failed to fetch warehouses');
+          return;
+        }
+        const result = await response.json();
+        setWarehouses(result);
+        if (result.length > 0) {
+          // Automatically select the first warehouse as default if available
+          setFormData(prev => ({ ...prev, warehouseId: result[0].id }));
+        }
+      } catch (error) {
+        console.error('Error fetching warehouses:', error);
+      } finally {
+        setIsLoadingWarehouses(false);
+      }
+    };
+
     fetchCategories();
+    fetchWarehouses();
   }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -172,7 +199,7 @@ export default function AddMaterialPage() {
     e.stopPropagation();
     // Only set isDragging to false if the leave event is not going to a child element
     if (e.currentTarget.contains(e.relatedTarget as Node)) {
-        return;
+      return;
     }
     setIsDragging(false);
   };
@@ -209,7 +236,7 @@ export default function AddMaterialPage() {
       setFormErrors((prev) => ({ ...prev, isDynamicPrice: undefined }));
     }
     if (formErrors.dynamicPrices) {
-        setFormErrors((prev) => ({ ...prev, dynamicPrices: undefined }));
+      setFormErrors((prev) => ({ ...prev, dynamicPrices: undefined }));
     }
   };
 
@@ -223,20 +250,20 @@ export default function AddMaterialPage() {
     );
     // Clear specific dynamic price error
     if (formErrors.dynamicPrices?.[index]?.[field]) {
-        setFormErrors(prev => {
-            const newErrors = { ...prev };
-            if (newErrors.dynamicPrices?.[index]) {
-                newErrors.dynamicPrices[index][field] = undefined;
-                // Clean up empty error objects
-                if (!newErrors.dynamicPrices[index].supplier && !newErrors.dynamicPrices[index].price) {
-                    delete newErrors.dynamicPrices[index];
-                }
-                if (Object.keys(newErrors.dynamicPrices).length === 0) {
-                    delete newErrors.dynamicPrices;
-                }
-            }
-            return newErrors;
-        });
+      setFormErrors(prev => {
+        const newErrors = { ...prev };
+        if (newErrors.dynamicPrices?.[index]) {
+          newErrors.dynamicPrices[index][field] = undefined;
+          // Clean up empty error objects
+          if (!newErrors.dynamicPrices[index].supplier && !newErrors.dynamicPrices[index].price) {
+            delete newErrors.dynamicPrices[index];
+          }
+          if (Object.keys(newErrors.dynamicPrices).length === 0) {
+            delete newErrors.dynamicPrices;
+          }
+        }
+        return newErrors;
+      });
     }
   };
 
@@ -367,9 +394,9 @@ export default function AddMaterialPage() {
           </div>
         </div>
 
-        {/* Display general errors */} 
+        {/* Display general errors */}
         {formErrors.general && (
-            <p className="text-sm text-red-500 mb-4">{formErrors.general}</p>
+          <p className="text-sm text-red-500 mb-4">{formErrors.general}</p>
         )}
 
         <div className="grid gap-4 md:grid-cols-[1fr_250px] lg:grid-cols-3 lg:gap-8">
@@ -438,36 +465,51 @@ export default function AddMaterialPage() {
                       {formErrors.categoryId && <p className="text-sm text-red-500">{formErrors.categoryId[0]}</p>}
                     </div>
                   </div>
-                   <div className="grid grid-cols-2 gap-3">
-                      <div className="grid gap-3">
-                        <Label htmlFor="initialStock">Stok Awal</Label>
-                        <Input
-                          id="initialStock"
-                          name="initialStock"
-                          type="number"
-                          placeholder="Masukkan jumlah stok awal"
-                          className={`${formErrors.initialStock ? 'border-red-500' : ''}`}
-                          value={formData.initialStock}
-                          onChange={handleInputChange}
-                          required
-                        />
-                        {formErrors.initialStock && <p className="text-sm text-red-500">{formErrors.initialStock[0]}</p>}
-                      </div>
-                      <div className="grid gap-3">
-                        <Label htmlFor="minStockLevel">Minimal Stok</Label>
-                        <Input
-                          id="minStockLevel"
-                          name="minStockLevel"
-                          type="number"
-                          placeholder="Masukkan jumlah minimal stok"
-                          className={`${formErrors.minStockLevel ? 'border-red-500' : ''}`}
-                          value={formData.minStockLevel}
-                          onChange={handleInputChange}
-                          required
-                        />
-                        {formErrors.minStockLevel && <p className="text-sm text-red-500">{formErrors.minStockLevel[0]}</p>}
-                      </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="grid gap-3">
+                      <Label htmlFor="initialStock">Stok Awal</Label>
+                      <Input
+                        id="initialStock"
+                        name="initialStock"
+                        type="number"
+                        placeholder="Masukkan jumlah stok awal"
+                        className={`${formErrors.initialStock ? 'border-red-500' : ''}`}
+                        value={formData.initialStock}
+                        onChange={handleInputChange}
+                        required
+                      />
+                      {formErrors.initialStock && <p className="text-sm text-red-500">{formErrors.initialStock[0]}</p>}
                     </div>
+                    {/* Warehouse Selection */}
+                    <div className="grid gap-3">
+                      <Label htmlFor="warehouseId">Gudang (Stok Awal)</Label>
+                      <Combobox
+                        options={warehouses.map(wh => ({ value: wh.id, label: wh.name }))}
+                        value={formData.warehouseId}
+                        onValueChange={(value) => handleSelectChange('warehouseId', value)}
+                        placeholder="Pilih gudang"
+                        emptyMessage="Tidak ada gudang ditemukan"
+                        searchPlaceholder="Cari gudang..."
+                        disabled={isLoadingWarehouses}
+                      />
+                      {/* Only show error if initial stock is > 0 and warehouse is not selected, or if generic warehouse error exists */}
+                      {formErrors.general && formData.initialStock && parseInt(formData.initialStock) > 0 && !formData.warehouseId && <p className="text-sm text-red-500">Pilih gudang untuk stok awal</p>}
+                    </div>
+                    <div className="grid gap-3">
+                      <Label htmlFor="minStockLevel">Minimal Stok</Label>
+                      <Input
+                        id="minStockLevel"
+                        name="minStockLevel"
+                        type="number"
+                        placeholder="Masukkan jumlah minimal stok"
+                        className={`${formErrors.minStockLevel ? 'border-red-500' : ''}`}
+                        value={formData.minStockLevel}
+                        onChange={handleInputChange}
+                        required
+                      />
+                      {formErrors.minStockLevel && <p className="text-sm text-red-500">{formErrors.minStockLevel[0]}</p>}
+                    </div>
+                  </div>
                   <div className="grid gap-3">
                     <Label htmlFor="description">Deskripsi (Opsional)</Label>
                     <Textarea
@@ -478,7 +520,7 @@ export default function AddMaterialPage() {
                       onChange={handleInputChange}
                       className={`min-h-32 ${formErrors.description ? 'border-red-500' : ''}`}
                     />
-                     {formErrors.description && <p className="text-sm text-red-500">{formErrors.description[0]}</p>}
+                    {formErrors.description && <p className="text-sm text-red-500">{formErrors.description[0]}</p>}
                   </div>
                 </div>
               </CardContent>
@@ -505,7 +547,7 @@ export default function AddMaterialPage() {
                       onChange={handleInputChange}
                       required
                     />
-                     {formErrors.basePrice && <p className="text-sm text-red-500">{formErrors.basePrice[0]}</p>}
+                    {formErrors.basePrice && <p className="text-sm text-red-500">{formErrors.basePrice[0]}</p>}
                   </div>
                   <div className="flex items-center space-x-2">
                     <Switch

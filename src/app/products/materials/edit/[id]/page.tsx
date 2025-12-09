@@ -14,7 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { Loader2, Trash2 } from 'lucide-react';
-import { MaterialStatus } from '@prisma/client';
+import { MaterialStatus } from '@/lib/db/schema';
 import Image from 'next/image'; // Import Image
 import { cn } from '@/lib/utils'; // Import cn
 import { Upload, X } from 'lucide-react'; // Import Upload and X icons
@@ -127,7 +127,7 @@ export default function EditMaterialPage() {
     e.preventDefault();
     e.stopPropagation();
     if (e.currentTarget.contains(e.relatedTarget as Node)) {
-        return;
+      return;
     }
     setIsDragging(false);
   };
@@ -222,7 +222,7 @@ export default function EditMaterialPage() {
 
     // Remove dynamicPrices if isDynamicPrice is false
     if (!payload.isDynamicPrice) {
-        payload.dynamicPrices = []; // Ensure empty array is sent if toggled off
+      payload.dynamicPrices = []; // Ensure empty array is sent if toggled off
     }
 
     // 4. Send PUT request
@@ -242,22 +242,22 @@ export default function EditMaterialPage() {
           Object.keys(errors).forEach((key) => {
             // Need to handle nested errors for dynamicPrices potentially
             if (key === 'dynamicPrices' && typeof errors[key] === 'object') {
-                 Object.keys(errors[key]).forEach(indexStr => {
-                    const index = parseInt(indexStr, 10);
-                    if (!isNaN(index) && typeof errors[key][index] === 'object') {
-                        Object.keys(errors[key][index]).forEach(field => {
-                            form.setError(`dynamicPrices.${index}.${field as 'supplier' | 'price'}`, {
-                                type: 'manual',
-                                message: errors[key][index][field]?.join(', ') || 'Error',
-                            });
-                        });
-                    }
-                 });
+              Object.keys(errors[key]).forEach(indexStr => {
+                const index = parseInt(indexStr, 10);
+                if (!isNaN(index) && typeof errors[key][index] === 'object') {
+                  Object.keys(errors[key][index]).forEach(field => {
+                    form.setError(`dynamicPrices.${index}.${field as 'supplier' | 'price'}`, {
+                      type: 'manual',
+                      message: errors[key][index][field]?.join(', ') || 'Error',
+                    });
+                  });
+                }
+              });
             } else {
-                 form.setError(key as keyof MaterialFormValues, {
-                    type: 'manual',
-                    message: errors[key]?.join(', ') || 'Error tidak diketahui',
-                 });
+              form.setError(key as keyof MaterialFormValues, {
+                type: 'manual',
+                message: errors[key]?.join(', ') || 'Error tidak diketahui',
+              });
             }
           });
           toast.error('Error Validasi', { description: 'Silakan periksa kembali isian form.' });
@@ -298,28 +298,28 @@ export default function EditMaterialPage() {
   // --- Main Render --- 
   return (
     <div className="flex flex-1 flex-col gap-4 p-4">
-      {/* Header section */} 
+      {/* Header section */}
       <div className="flex items-center gap-4 mb-4">
-         {/* Back button */} 
-         <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => router.back()}>...</Button>
-         {/* Title */} 
-         <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold tracking-tight sm:grow-0">
-            {isFetching ? <Skeleton className="h-6 w-48" /> : `Edit Material: ${form.getValues('name') || '...'}`}
-         </h1>
-         {/* Action Buttons */} 
-         <div className="hidden items-center gap-2 md:ml-auto md:flex">
-            <Button variant="outline" size="sm" onClick={() => router.back()} disabled={isFetching || isLoading}>Batal</Button>
-            <Button size="sm" type="submit" form="edit-material-form" disabled={isLoading || isFetching}>
-              {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-              Simpan Perubahan
-            </Button>
-         </div>
+        {/* Back button */}
+        <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => router.back()}>...</Button>
+        {/* Title */}
+        <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold tracking-tight sm:grow-0">
+          {isFetching ? <Skeleton className="h-6 w-48" /> : `Edit Material: ${form.getValues('name') || '...'}`}
+        </h1>
+        {/* Action Buttons */}
+        <div className="hidden items-center gap-2 md:ml-auto md:flex">
+          <Button variant="outline" size="sm" onClick={() => router.back()} disabled={isFetching || isLoading}>Batal</Button>
+          <Button size="sm" type="submit" form="edit-material-form" disabled={isLoading || isFetching}>
+            {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+            Simpan Perubahan
+          </Button>
+        </div>
       </div>
 
       <form id="edit-material-form" onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4 md:grid-cols-[1fr_250px] lg:grid-cols-3 lg:gap-8">
-        {/* Left Column: Material Details & Pricing */} 
+        {/* Left Column: Material Details & Pricing */}
         <div className="grid auto-rows-max items-start gap-4 lg:col-span-2 lg:gap-8">
-          {/* --- Material Details Card --- */} 
+          {/* --- Material Details Card --- */}
           <Card>
             <CardHeader>
               {isFetching ? (
@@ -373,7 +373,7 @@ export default function EditMaterialPage() {
             </CardContent>
           </Card>
 
-          {/* --- Pricing Card --- */} 
+          {/* --- Pricing Card --- */}
           <Card>
             <CardHeader>
               {isFetching ? (
@@ -443,9 +443,9 @@ export default function EditMaterialPage() {
           </Card>
         </div>
 
-        {/* Right Column: Image & Status */} 
+        {/* Right Column: Image & Status */}
         <div className="grid auto-rows-max items-start gap-4 lg:gap-8">
-          {/* --- Image Upload Card --- */} 
+          {/* --- Image Upload Card --- */}
           <Card
             className={cn(
               'overflow-hidden',
@@ -525,7 +525,7 @@ export default function EditMaterialPage() {
             </CardContent>
           </Card>
 
-          {/* --- Status Card --- */} 
+          {/* --- Status Card --- */}
           <Card>
             <CardHeader>
               {isFetching ? (
@@ -556,13 +556,13 @@ export default function EditMaterialPage() {
           </Card>
         </div>
 
-        {/* Mobile Save/Cancel Buttons */} 
+        {/* Mobile Save/Cancel Buttons */}
         <div className="flex items-center justify-center gap-2 md:hidden mt-6">
-           <Button variant="outline" size="sm" onClick={() => router.back()} disabled={isFetching || isLoading}>Batal</Button>
-           <Button size="sm" type="submit" form="edit-material-form" disabled={isLoading || isFetching}>
-             {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-             Simpan Perubahan
-           </Button>
+          <Button variant="outline" size="sm" onClick={() => router.back()} disabled={isFetching || isLoading}>Batal</Button>
+          <Button size="sm" type="submit" form="edit-material-form" disabled={isLoading || isFetching}>
+            {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+            Simpan Perubahan
+          </Button>
         </div>
       </form>
     </div>

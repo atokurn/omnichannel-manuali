@@ -1,23 +1,25 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { SiteHeader } from '@/components/site-header';
 import { OrdersSidebar } from '@/components/orders-sidebar';
-import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
+import { SidebarProvider } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Calendar as CalendarIcon, Clock } from 'lucide-react'; // Added Clock
+import { ArrowLeft, Calendar as CalendarIcon, Clock, Plus, Trash2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar as CalendarComponent } from '@/components/ui/calendar'; // Renamed to avoid conflict
-import { format, setHours, setMinutes, setSeconds } from 'date-fns'; // Added setHours, setMinutes, setSeconds
-import { id } from 'date-fns/locale'; // Import locale for Indonesian date format
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { format, setHours, setMinutes, setSeconds } from 'date-fns';
+import { id } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { Combobox } from "@/components/ui/combobox";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { toast } from 'sonner';
 
-// Interface untuk data form penjualan
 interface SaleFormData {
   orderId: string;
   orderDate: Date | undefined;
@@ -28,9 +30,16 @@ interface SaleFormData {
   platformFees: string;
   affiliateCommission: string;
   refund: string;
+  warehouseId: string;
 }
 
-// Data dummy untuk platform
+interface SaleItem {
+  key: string; // unique key for UI list
+  productId: string;
+  quantity: number;
+  price: number;
+}
+
 const platformOptions = [
   { id: 'shopee', name: 'Shopee' },
   { id: 'tokopedia', name: 'Tokopedia' },
@@ -43,7 +52,7 @@ export default function AddSalePage() {
   const router = useRouter();
   const [formData, setFormData] = useState<SaleFormData>({
     orderId: '',
-    orderDate: new Date(), // Default ke tanggal hari ini
+    orderDate: new Date(),
     platform: '',
     income: '0',
     priceAfterDiscount: '0',
@@ -51,20 +60,50 @@ export default function AddSalePage() {
     platformFees: '0',
     affiliateCommission: '0',
     refund: '0',
+    warehouseId: ''
   });
+
+  const [items, setItems] = useState<SaleItem[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
+  const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [orderHour, setOrderHour] = useState<string>(format(formData.orderDate ?? new Date(), 'HH'));
   const [orderMinute, setOrderMinute] = useState<string>(format(formData.orderDate ?? new Date(), 'mm'));
 
-  // Fungsi untuk menangani perubahan input umum
-  const handleInputChange = (field: keyof SaleFormData, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [prodRes, wareRes] = await Promise.all([
+          fetch('/api/products?limit=100'),
+          fetch('/api/warehouses')
+        ]);
 
-    // Hapus error untuk field yang diubah
+        if (prodRes.ok) {
+          const data = await prodRes.json();
+          setProducts(data.data || []);
+        }
+        if (wareRes.ok) {
+          const data = await wareRes.json();
+          setWarehouses(data);
+          if (data.length > 0) {
+            setFormData(prev => ({ ...prev, warehouseId: data[0].id }));
+          }
+        }
+      } catch (err) {
+        console.error(err);
+        toast.error("Gagal memuat data produk/gudang");
+      } finally {
+        setIsLoadingData(false);
+      }
+    };
+    loadData();
+  }, []);
+
+  const handleInputChange = (field: keyof SaleFormData, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
       setErrors(prev => {
         const newErrors = { ...prev };
@@ -74,7 +113,30 @@ export default function AddSalePage() {
     }
   };
 
-  // Fungsi untuk menangani perubahan tanggal dari kalender
+  const addItem = () => {
+    setItems([...items, { key: crypto.randomUUID(), productId: '', quantity: 1, price: 0 }]);
+  };
+
+  const removeItem = (key: string) => {
+    setItems(items.filter(i => i.key !== key));
+  };
+
+  const updateItem = (key: string, field: keyof SaleItem, value: any) => {
+    setItems(items.map(i => {
+      if (i.key === key) {
+        const updated = { ...i, [field]: value };
+        // Auto-fetch price if product changes? 
+        if (field === 'productId') {
+          const prod = products.find(p => p.id === value);
+          if (prod) updated.price = prod.price;
+        }
+        return updated;
+      }
+      return i;
+    }));
+  };
+
+  // Date handlers...
   const handleDateSelect = (selectedDate: Date | undefined) => {
     if (selectedDate) {
       const currentHour = parseInt(orderHour);
@@ -82,16 +144,11 @@ export default function AddSalePage() {
       const newDate = setSeconds(setMinutes(setHours(selectedDate, currentHour), currentMinute), 0);
       setFormData(prev => ({ ...prev, orderDate: newDate }));
       if (errors.orderDate) {
-        setErrors(prev => {
-          const newErrors = { ...prev };
-          delete newErrors.orderDate;
-          return newErrors;
-        });
+        setErrors(prev => { const newErrors = { ...prev }; delete newErrors.orderDate; return newErrors; });
       }
     }
   };
 
-  // Fungsi untuk menangani perubahan waktu (jam/menit)
   const handleTimeChange = (type: 'hour' | 'minute', value: string) => {
     let numericValue = parseInt(value);
     if (isNaN(numericValue)) numericValue = 0;
@@ -100,20 +157,17 @@ export default function AddSalePage() {
     if (type === 'hour') {
       if (numericValue < 0) numericValue = 0;
       if (numericValue > 23) numericValue = 23;
-      const formattedHour = numericValue.toString().padStart(2, '0');
-      setOrderHour(formattedHour);
+      setOrderHour(numericValue.toString().padStart(2, '0'));
       newDate = setHours(newDate, numericValue);
     } else {
       if (numericValue < 0) numericValue = 0;
       if (numericValue > 59) numericValue = 59;
-      const formattedMinute = numericValue.toString().padStart(2, '0');
-      setOrderMinute(formattedMinute);
+      setOrderMinute(numericValue.toString().padStart(2, '0'));
       newDate = setMinutes(newDate, numericValue);
     }
     setFormData(prev => ({ ...prev, orderDate: setSeconds(newDate, 0) }));
   };
 
-  // Fungsi untuk mengatur waktu ke saat ini
   const setTimeToNow = () => {
     const now = new Date();
     setFormData(prev => ({ ...prev, orderDate: now }));
@@ -121,42 +175,51 @@ export default function AddSalePage() {
     setOrderMinute(format(now, 'mm'));
   };
 
-  // Fungsi untuk validasi form (contoh sederhana)
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {};
-    if (!formData.orderId.trim()) newErrors.orderId = 'Order ID harus diisi';
-    if (!formData.orderDate) newErrors.orderDate = 'Tanggal Order harus diisi';
-    if (!formData.platform) newErrors.platform = 'Platform harus dipilih';
-    // Tambahkan validasi lain jika perlu (misal: angka harus positif)
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  // Fungsi untuk menangani submit form
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (validateForm()) {
-      // Pastikan orderDate sudah termasuk waktu yang benar
-      const finalOrderDate = setSeconds(setMinutes(setHours(formData.orderDate ?? new Date(), parseInt(orderHour)), parseInt(orderMinute)), 0);
-      const dataToSubmit = { ...formData, orderDate: finalOrderDate };
+    if (!formData.orderId.trim()) { toast.error("Order ID wajib diisi"); return; }
+    if (!formData.warehouseId) { toast.error("Gudang wajib dipilih"); return; }
+    if (items.length === 0) { toast.error("Minimal satu produk harus dipilih"); return; }
 
-      console.log('Data Penjualan yang akan disimpan:', dataToSubmit);
-      // Logika penyimpanan data ke backend
-      // ...
-
-      // Redirect ke halaman daftar penjualan setelah berhasil
-      router.push('/orders/sales');
+    // Check incomplete items
+    for (const item of items) {
+      if (!item.productId) { toast.error("Semua baris produk harus dipilih"); return; }
+      if (item.quantity <= 0) { toast.error("Jumlah qty harus positif"); return; }
     }
-  };
 
-  // Fungsi untuk kembali ke halaman sebelumnya
-  const handleBack = () => {
-    router.push('/orders/sales');
-  };
+    setIsSubmitting(true);
+    try {
+      const finalOrderDate = setSeconds(setMinutes(setHours(formData.orderDate ?? new Date(), parseInt(orderHour)), parseInt(orderMinute)), 0);
 
-  // Fungsi untuk membatalkan
-  const handleCancel = () => {
-    router.push('/orders/sales'); // Atau reset form
+      const payload = {
+        orderId: formData.orderId,
+        date: finalOrderDate.toISOString(),
+        warehouseId: formData.warehouseId,
+        items: items.map(i => ({ productId: i.productId, quantity: i.quantity, price: i.price })),
+        notes: `Platform: ${formData.platform}, Income: ${formData.income}`,
+        // We could send financial data as 'notes' or specific fields if backend supported them.
+        // For now backend validates 'items' mostly.
+      };
+
+      const res = await fetch('/api/sales', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const result = await res.json();
+        throw new Error(result.message || 'Gagal menyimpan penjualan');
+      }
+
+      toast.success("Penjualan berhasil disimpan!");
+      router.push('/orders/sales');
+
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -167,174 +230,152 @@ export default function AddSalePage() {
           <OrdersSidebar />
           <main className="flex-1 p-4 pl-[--sidebar-width]">
             <Card>
-              <CardHeader className="flex flex-row items-center">
-                 <Button variant="ghost" size="icon" onClick={handleBack} className="mr-2">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Button variant="ghost" size="icon" onClick={() => router.push('/orders/sales')}>
                     <ArrowLeft className="h-4 w-4" />
                   </Button>
-                <div>
-                  <CardTitle>Sale Information</CardTitle>
-                  <CardDescription>Enter the sale details</CardDescription>
+                  <div>
+                    <CardTitle>Catat Penjualan Baru</CardTitle>
+                    <CardDescription>Masukkan detail penjualan dan produk yang terjual.</CardDescription>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Kolom Kiri */}
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="orderId">Order ID</Label>
-                      <Input
-                        id="orderId"
-                        placeholder="Enter order ID"
-                        value={formData.orderId}
-                        onChange={(e) => handleInputChange('orderId', e.target.value)}
-                      />
-                      {errors.orderId && <p className="text-red-500 text-sm mt-1">{errors.orderId}</p>}
+                <form onSubmit={handleSubmit} className="space-y-8">
+
+                  {/* Bagian 1: Detail Transaksi */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 border rounded-lg bg-muted/20">
+                    <div className="space-y-4">
+                      <div>
+                        <Label>Order ID</Label>
+                        <Input value={formData.orderId} onChange={(e) => handleInputChange('orderId', e.target.value)} placeholder="Contoh: INV-2023001" />
+                      </div>
+                      <div>
+                        <Label>Platform</Label>
+                        <Select onValueChange={(val) => handleInputChange('platform', val)} value={formData.platform}>
+                          <SelectTrigger><SelectValue placeholder="Pilih Platform" /></SelectTrigger>
+                          <SelectContent>
+                            {platformOptions.map((opt) => <SelectItem key={opt.id} value={opt.id}>{opt.name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Income Total (Financial Report)</Label>
+                        <Input type="number" value={formData.income} onChange={(e) => handleInputChange('income', e.target.value)} />
+                      </div>
                     </div>
-                    <div>
-                      <Label htmlFor="platform">Platform</Label>
-                      <Select onValueChange={(value) => handleInputChange('platform', value)} value={formData.platform}>
-                        <SelectTrigger id="platform">
-                          <SelectValue placeholder="Select platform" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {platformOptions.map((option) => (
-                            <SelectItem key={option.id} value={option.id}>
-                              {option.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {errors.platform && <p className="text-red-500 text-sm mt-1">{errors.platform}</p>}
-                    </div>
-                    <div>
-                      <Label htmlFor="priceAfterDiscount">Price After Discount</Label>
-                      <Input
-                        id="priceAfterDiscount"
-                        type="number"
-                        placeholder="0"
-                        value={formData.priceAfterDiscount}
-                        onChange={(e) => handleInputChange('priceAfterDiscount', e.target.value)}
-                      />
-                      {/* Tambahkan validasi error jika perlu */}
-                    </div>
-                    <div>
-                      <Label htmlFor="platformFees">Platform Fees</Label>
-                      <Input
-                        id="platformFees"
-                        type="number"
-                        placeholder="0"
-                        value={formData.platformFees}
-                        onChange={(e) => handleInputChange('platformFees', e.target.value)}
-                      />
-                    </div>
-                     <div>
-                      <Label htmlFor="refund">Refund</Label>
-                      <Input
-                        id="refund"
-                        type="number"
-                        placeholder="0"
-                        value={formData.refund}
-                        onChange={(e) => handleInputChange('refund', e.target.value)}
-                      />
+                    <div className="space-y-4">
+                      <div>
+                        <Label>Tanggal Order</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formData.orderDate && "text-muted-foreground")}>
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {formData.orderDate ? format(formData.orderDate, "dd MMMM yyyy, HH:mm", { locale: id }) : <span>Pilih tanggal</span>}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0 flex flex-col sm:flex-row">
+                            <CalendarComponent mode="single" selected={formData.orderDate} onSelect={handleDateSelect} initialFocus locale={id} />
+                            <div className="p-3 border-t sm:border-t-0 sm:border-l border-border flex flex-col items-center justify-center space-y-4">
+                              <div className="flex items-center space-x-2">
+                                <Clock className="h-5 w-5 text-muted-foreground" />
+                                <span className="font-medium">Waktu</span>
+                              </div>
+                              <div className="flex items-center space-x-1">
+                                <Input type="number" min="0" max="23" value={orderHour} onChange={(e) => handleTimeChange('hour', e.target.value)} className="w-16 h-9 text-center" />
+                                <span>:</span>
+                                <Input type="number" min="0" max="59" value={orderMinute} onChange={(e) => handleTimeChange('minute', e.target.value)} className="w-16 h-9 text-center" />
+                              </div>
+                              <Button variant="outline" size="sm" onClick={setTimeToNow} className="w-full">Hari ini</Button>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                      <div>
+                        <Label>Gudang Asal (Stok Keluar)</Label>
+                        <Select onValueChange={(val) => handleInputChange('warehouseId', val)} value={formData.warehouseId}>
+                          <SelectTrigger><SelectValue placeholder="Pilih Gudang" /></SelectTrigger>
+                          <SelectContent>
+                            {warehouses.map((w) => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Kolom Kanan */}
-                  <div className="grid gap-4">
-                    <div>
-                      <Label htmlFor="orderDate">Order Date</Label>
-                       <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant={"outline"}
-                            className={cn(
-                              "w-full justify-start text-left font-normal",
-                              !formData.orderDate && "text-muted-foreground"
-                            )}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {formData.orderDate ? format(formData.orderDate, "dd MMMM yyyy, HH:mm", { locale: id }) : <span>Pilih tanggal</span>}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0 flex flex-col sm:flex-row">
-                          <CalendarComponent
-                            mode="single"
-                            selected={formData.orderDate}
-                            onSelect={handleDateSelect}
-                            initialFocus
-                            locale={id} // Gunakan locale Indonesia
-                          />
-                           <div className="p-3 border-t sm:border-t-0 sm:border-l border-border flex flex-col items-center justify-center space-y-4">
-                                <div className="flex items-center space-x-2">
-                                  <Clock className="h-5 w-5 text-muted-foreground" />
-                                  <span className="font-medium">Waktu</span>
-                                </div>
-                                <div className="flex items-center space-x-1">
+                  {/* Bagian 2: Produk / Line Items */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-medium">Item Penjualan (Pengurangan Stok & COGS)</h3>
+                      <Button type="button" size="sm" onClick={addItem}><Plus className="mr-2 h-4 w-4" /> Tambah Produk</Button>
+                    </div>
+
+                    <div className="border rounded-md">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[40%]">Produk</TableHead>
+                            <TableHead className="w-[20%]">Harga Satuan</TableHead>
+                            <TableHead className="w-[20%]">Jumlah</TableHead>
+                            <TableHead className="w-[10%]">Total</TableHead>
+                            <TableHead className="w-[10%]"></TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {items.length === 0 ? (
+                            <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Belum ada item. Klik "Tambah Produk".</TableCell></TableRow>
+                          ) : (
+                            items.map((item) => (
+                              <TableRow key={item.key}>
+                                <TableCell>
+                                  <Combobox
+                                    options={products.map(p => ({ value: p.id, label: p.name }))}
+                                    value={item.productId}
+                                    onValueChange={(val) => updateItem(item.key, 'productId', val)}
+                                    placeholder="Pilih Produk..."
+                                  />
+                                </TableCell>
+                                <TableCell>
                                   <Input
                                     type="number"
-                                    min="0"
-                                    max="23"
-                                    value={orderHour}
-                                    onChange={(e) => handleTimeChange('hour', e.target.value)}
-                                    className="w-16 h-9 text-center"
-                                    aria-label="Jam"
+                                    value={item.price}
+                                    onChange={(e) => updateItem(item.key, 'price', parseFloat(e.target.value))}
                                   />
-                                  <span>:</span>
+                                </TableCell>
+                                <TableCell>
                                   <Input
                                     type="number"
-                                    min="0"
-                                    max="59"
-                                    value={orderMinute}
-                                    onChange={(e) => handleTimeChange('minute', e.target.value)}
-                                    className="w-16 h-9 text-center"
-                                    aria-label="Menit"
+                                    min="1"
+                                    value={item.quantity}
+                                    onChange={(e) => updateItem(item.key, 'quantity', parseInt(e.target.value))}
                                   />
-                                </div>
-                                <Button variant="outline" size="sm" onClick={setTimeToNow} className="w-full">
-                                  Hari ini
-                                </Button>
-                              </div>
-                        </PopoverContent>
-                      </Popover>
-                      {errors.orderDate && <p className="text-red-500 text-sm mt-1">{errors.orderDate}</p>}
-                    </div>
-                    <div>
-                      <Label htmlFor="income">Income</Label>
-                      <Input
-                        id="income"
-                        type="number"
-                        placeholder="0"
-                        value={formData.income}
-                        onChange={(e) => handleInputChange('income', e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="totalFees">Total Fees</Label>
-                      <Input
-                        id="totalFees"
-                        type="number"
-                        placeholder="0"
-                        value={formData.totalFees}
-                        onChange={(e) => handleInputChange('totalFees', e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="affiliateCommission">Affiliate Commission</Label>
-                      <Input
-                        id="affiliateCommission"
-                        type="number"
-                        placeholder="0"
-                        value={formData.affiliateCommission}
-                        onChange={(e) => handleInputChange('affiliateCommission', e.target.value)}
-                      />
+                                </TableCell>
+                                <TableCell>
+                                  Rp {(item.price * item.quantity).toLocaleString()}
+                                </TableCell>
+                                <TableCell>
+                                  <Button variant="ghost" size="icon" onClick={() => removeItem(item.key)} className="text-red-500 hover:text-red-700">
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          )}
+                        </TableBody>
+                      </Table>
                     </div>
                   </div>
+
+                  <div className="flex justify-end gap-2 pt-4">
+                    <Button variant="outline" type="button" onClick={() => router.push('/orders/sales')}>Batal</Button>
+                    <Button type="submit" disabled={isSubmitting || isLoadingData}>
+                      {isSubmitting ? 'Menyimpan...' : 'Simpan Transaksi'}
+                    </Button>
+                  </div>
+
                 </form>
               </CardContent>
-              <CardFooter className="flex justify-end gap-2">
-                <Button variant="outline" onClick={handleCancel}>Batal</Button>
-                <Button onClick={handleSubmit}>Simpan Penjualan</Button>
-              </CardFooter>
             </Card>
           </main>
         </div>

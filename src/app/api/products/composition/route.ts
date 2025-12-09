@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/db';
+import { db } from '@/lib/db';
+import { productCompositions, compositionMaterials } from '@/lib/db/schema';
+import { eq, and, count, desc } from 'drizzle-orm';
 import { z } from 'zod';
 
 // Skema validasi untuk material dalam komposisi
@@ -36,51 +38,49 @@ export async function POST(request: NextRequest) {
 
     // Validasi tambahan: productId harus ada jika bukan template, templateName harus ada jika template
     if (!isTemplate && !productId) {
-        return NextResponse.json({ message: 'Product ID harus diisi jika bukan template' }, { status: 400 });
+      return NextResponse.json({ message: 'Product ID harus diisi jika bukan template' }, { status: 400 });
     }
     if (isTemplate && (!templateName || templateName.trim() === '')) {
-        return NextResponse.json({ message: 'Nama template harus diisi jika merupakan template' }, { status: 400 });
+      return NextResponse.json({ message: 'Nama template harus diisi jika merupakan template' }, { status: 400 });
     }
 
     // Mulai transaksi database
-    const newComposition = await prisma.$transaction(async (tx) => {
+    const result = await db.transaction(async (tx) => {
       // Buat entri ProductComposition
-      const composition = await tx.productComposition.create({
-        data: {
-          tenantId: tenantId,
-          productId: isTemplate ? null : productId,
-          isTemplate: isTemplate,
-          templateName: isTemplate ? templateName : null,
-          // materials akan dibuat setelahnya
-        },
-      });
+      const [composition] = await tx.insert(productCompositions).values({
+        id: crypto.randomUUID(),
+        tenantId: tenantId,
+        productId: isTemplate ? null : productId,
+        isTemplate: isTemplate,
+        templateName: isTemplate ? templateName : null,
+      }).returning();
 
       // Buat entri CompositionMaterial untuk setiap material
-      await tx.compositionMaterial.createMany({
-        data: materials.map(material => ({
-          compositionId: composition.id,
-          materialId: material.materialId,
-          quantity: material.quantity,
-          tenantId: tenantId, // Pastikan tenantId juga ada di CompositionMaterial
-        })),
-      });
+      const materialsToInsert = materials.map(material => ({
+        id: crypto.randomUUID(),
+        compositionId: composition.id,
+        materialId: material.materialId,
+        quantity: material.quantity,
+        tenantId: tenantId,
+      }));
+
+      await tx.insert(compositionMaterials).values(materialsToInsert);
 
       // Ambil kembali komposisi yang baru dibuat beserta materialnya
-      return tx.productComposition.findUnique({
-        where: { id: composition.id },
-        include: {
-          materials: true, // Sertakan material yang baru dibuat
-        },
+      return tx.query.productCompositions.findFirst({
+        where: eq(productCompositions.id, composition.id),
+        with: {
+          materials: true
+        }
       });
     });
 
-    return NextResponse.json(newComposition, { status: 201 });
+    return NextResponse.json(result, { status: 201 });
 
   } catch (error) {
     console.error('Gagal menyimpan komposisi produk:', error);
-    // Handle error spesifik Prisma jika perlu
-    if (error instanceof Error && error.message.includes('prisma')) {
-        return NextResponse.json({ message: 'Terjadi kesalahan database saat menyimpan komposisi' }, { status: 500 });
+    if (error instanceof Error) {
+      return NextResponse.json({ message: error.message }, { status: 500 });
     }
     return NextResponse.json({ message: 'Gagal menyimpan komposisi produk' }, { status: 500 });
   }
@@ -98,34 +98,35 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(url.searchParams.get('limit') || '10', 10);
     const skip = (page - 1) * limit;
 
-    const [compositions, totalItems] = await prisma.$transaction([
-      prisma.productComposition.findMany({
-        where: { tenantId },
-        skip: skip,
-        take: limit,
-        include: {
-          product: { // Include product to get the name
-            select: {
-              name: true,
-            },
-          },
-          _count: { // Count related materials
-            select: { materials: true },
-          },
+    const compositionsData = await db.query.productCompositions.findMany({
+      where: (productCompositions, { eq }) => eq(productCompositions.tenantId, tenantId),
+      limit: limit,
+      offset: skip,
+      orderBy: [desc(productCompositions.createdAt)],
+      with: {
+        product: {
+          columns: { name: true }
         },
-        orderBy: {
-          createdAt: 'desc', // Or any other desired order
-        },
-      }),
-      prisma.productComposition.count({ where: { tenantId } }),
-    ]);
+        materials: true // We fetch all materials, then count them in JS or use aggregate count logic if optimized
+      }
+    });
 
-    const formattedCompositions = compositions.map(comp => ({
+    // Efficient counting in Drizzle often requires simpler query or subqueries.
+    // fetch `materials` here, array length is count. If many materials, better distinct query.
+    // But original code used `_count`. 
+    // We already fetched materials array.
+
+    const [countResult] = await db.select({ count: count() })
+      .from(productCompositions)
+      .where(eq(productCompositions.tenantId, tenantId));
+
+    const totalItems = countResult ? countResult.count : 0;
+
+    const formattedCompositions = compositionsData.map(comp => ({
       id: comp.id,
-      // Use templateName if it's a template, otherwise use productName
       productName: comp.isTemplate ? comp.templateName : comp.product?.name ?? 'Produk Tidak Ditemukan',
-      materialCount: comp._count.materials,
-      createdAt: comp.createdAt.toISOString(), // Format date as ISO string
+      materialCount: comp.materials.length,
+      createdAt: comp.createdAt.toISOString(),
       isTemplate: comp.isTemplate,
     }));
 

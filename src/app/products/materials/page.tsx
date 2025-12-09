@@ -10,7 +10,7 @@ import { Plus, Eye, FileEdit, Trash2, Loader2, MoreHorizontal, ArrowUpDown, Penc
 import { Badge } from '@/components/ui/badge';
 import { DataTableSkeleton } from '@/components/data-table/data-table-skeleton'; // Import the skeleton component
 import { FormattedMaterial, PaginationState } from '@/lib/types';
-import { MaterialStatus } from '@prisma/client';
+import { MaterialStatus } from '@/lib/db/schema';
 import { toast } from 'sonner';
 import { Checkbox } from '@/components/ui/checkbox'; // Import Checkbox
 import { ColumnDef, RowSelectionState } from '@tanstack/react-table'; // Import types for DataTable
@@ -45,13 +45,13 @@ interface ProductMaterial {
 
 // Interface for API response with pagination
 interface ApiResponse {
-    data: ProductMaterial[];
-    pagination: {
-        page: number;
-        limit: number;
-        totalItems: number;
-        totalPages: number;
-    };
+  data: ProductMaterial[];
+  pagination: {
+    page: number;
+    limit: number;
+    totalItems: number;
+    totalPages: number;
+  };
 }
 
 // formatNumber function remains the same
@@ -450,14 +450,14 @@ export default function ProductMaterialsPage() {
         throw new Error('Gagal mengambil data material');
       }
       const result: ApiResponse = await response.json();
-      
+
       // Tambahkan kalkulasi totalValue berdasarkan basePrice dan stock
       const materialsWithTotalValue = result.data.map(material => ({
         ...material,
         basePrice: material.basePrice || 0,
         totalValue: (material.basePrice || 0) * (material.stock || 0)
       }));
-      
+
       setMaterials(materialsWithTotalValue);
       setPagination(result.pagination);
       setRowSelection({}); // Reset selection on data fetch
@@ -487,27 +487,27 @@ export default function ProductMaterialsPage() {
 
   const selectedRowCount = Object.keys(rowSelection).length;
   const selectedRowIds = useMemo(() => {
-      return Object.keys(rowSelection).map(index => materials[parseInt(index)]?.id).filter(Boolean);
+    return Object.keys(rowSelection).map(index => materials[parseInt(index)]?.id).filter(Boolean);
   }, [rowSelection, materials]);
 
   const handleBulkDelete = useCallback(async () => {
-      if (selectedRowCount === 0) return;
-      setIsBulkDeleting(true);
-      try {
-          const response = await fetch(`/api/products/materials?ids=${selectedRowIds.join(',')}`, {
-              method: 'DELETE',
-          });
-          if (!response.ok) {
-              const errorData = await response.json();
-              throw new Error(errorData.message || 'Gagal menghapus material terpilih');
-          }
-          toast.success('Sukses', { description: `${selectedRowCount} material berhasil dihapus.` });
-          fetchMaterials(1); // Refetch data from page 1 after bulk delete
-      } catch (err: any) {
-          toast.error('Error', { description: err.message || 'Gagal menghapus material terpilih.' });
-      } finally {
-          setIsBulkDeleting(false);
+    if (selectedRowCount === 0) return;
+    setIsBulkDeleting(true);
+    try {
+      const response = await fetch(`/api/products/materials?ids=${selectedRowIds.join(',')}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Gagal menghapus material terpilih');
       }
+      toast.success('Sukses', { description: `${selectedRowCount} material berhasil dihapus.` });
+      fetchMaterials(1); // Refetch data from page 1 after bulk delete
+    } catch (err: any) {
+      toast.error('Error', { description: err.message || 'Gagal menghapus material terpilih.' });
+    } finally {
+      setIsBulkDeleting(false);
+    }
   }, [selectedRowCount, selectedRowIds, fetchMaterials]); // Added dependencies
 
   return (
@@ -522,29 +522,29 @@ export default function ProductMaterialsPage() {
           </div>
           <div className="flex gap-2">
             {selectedRowCount > 0 && (
-                <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                        <Button variant="destructive" disabled={isBulkDeleting}>
-                            {isBulkDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-                            Hapus ({selectedRowCount})
-                        </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>Konfirmasi Hapus Massal</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                Apakah Anda yakin ingin menghapus {selectedRowCount} material terpilih? Tindakan ini tidak dapat diurungkan.
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel disabled={isBulkDeleting}>Batal</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleBulkDelete} disabled={isBulkDeleting} className="bg-red-600 hover:bg-red-700">
-                                {isBulkDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                Hapus
-                            </AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" disabled={isBulkDeleting}>
+                    {isBulkDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                    Hapus ({selectedRowCount})
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Konfirmasi Hapus Massal</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Apakah Anda yakin ingin menghapus {selectedRowCount} material terpilih? Tindakan ini tidak dapat diurungkan.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={isBulkDeleting}>Batal</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleBulkDelete} disabled={isBulkDeleting} className="bg-red-600 hover:bg-red-700">
+                      {isBulkDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                      Hapus
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             )}
             <Button onClick={() => router.push('/products/materials/add')}>
               <Plus className="mr-2 h-4 w-4" /> Tambah Material
