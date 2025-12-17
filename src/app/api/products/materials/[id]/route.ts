@@ -37,11 +37,11 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     const cachedData = await redisClient.get(cacheKey);
 
     if (cachedData) {
-      console.log(`Cache hit for key: ${cacheKey}`);
+      console.log({ message: 'Cache hit', cacheKey });
       return NextResponse.json(JSON.parse(cachedData));
     }
 
-    console.log(`Cache miss for key: ${cacheKey}. Fetching from DB.`);
+    console.log({ message: 'Cache miss, fetching from DB', cacheKey });
 
     const material = await db.query.materials.findFirst({
       where: eq(materials.id, id),
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
 
     return NextResponse.json(formattedMaterial);
   } catch (error) {
-    console.error(`Failed to fetch material ${id}:`, error);
+    console.error({ message: 'Failed to fetch material', id, error });
     if (error instanceof Error && error.message.includes('Redis')) {
       return NextResponse.json({ message: 'Masalah koneksi cache, coba lagi nanti.' }, { status: 503 });
     }
@@ -157,7 +157,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
     const listKeys = await redisClient.keys(`materials:tenant:${tenantId}:page:*`);
     if (listKeys.length > 0) {
       await redisClient.del(listKeys);
-      console.log(`Invalidated cache for ${cacheKey} and ${listKeys.length} list keys for tenant ${tenantId} after PUT.`);
+      console.log({ message: 'Invalidated cache after PUT', cacheKey, tenantId, listKeysCount: listKeys.length });
     }
 
     // Format response
@@ -174,7 +174,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
     return NextResponse.json(formattedMaterial);
 
   } catch (error: any) {
-    console.error(`Failed to update material ${id}:`, error);
+    console.error({ message: 'Failed to update material', id, error });
     if (error.code === '23505') { // Postgres unique violation (e.g. code)
       return NextResponse.json({ message: 'Kode material sudah digunakan.' }, { status: 409 });
     }

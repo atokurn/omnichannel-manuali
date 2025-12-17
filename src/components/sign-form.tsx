@@ -18,7 +18,7 @@ export function SignForm({
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setError(null)
@@ -48,7 +48,7 @@ export function SignForm({
           }
         } catch (parseError) {
           // Handle cases where response is not JSON or parsing fails
-          console.error('Failed to parse error response:', parseError);
+          console.error({ message: 'Failed to parse error response', parseError });
           errorMessage = `An unexpected error occurred: ${response.status}`;
         }
         throw new Error(errorMessage);
@@ -56,12 +56,13 @@ export function SignForm({
 
       // Handle successful login (misalnya, redirect atau simpan token)
       const data = await response.json(); // Assuming successful login returns user data
-      console.log('Login successful:', data);
+      console.log({ message: 'Login successful', data });
       // Redirect to dashboard after successful login
       window.location.href = '/products'; // Or your desired redirect path
 
-    } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred')
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
+      setError(errorMessage);
     } finally {
       setIsLoading(false)
     }
@@ -71,7 +72,7 @@ export function SignForm({
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card className="overflow-hidden p-0">
         <CardContent className="grid p-0 md:grid-cols-2">
-          <form onSubmit={handleSubmit} className="p-6 md:p-8">
+          <form onSubmit={onSubmit} className="p-6 md:p-8">
             <div className="flex flex-col gap-6">
               <div className="flex flex-col items-center text-center">
                 <h1 className="text-2xl font-bold">Welcome back</h1>

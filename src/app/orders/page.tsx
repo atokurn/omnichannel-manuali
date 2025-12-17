@@ -5,7 +5,7 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar"
 
-export const description = "Orders management page"
+// Orders management page
 
 export default function Page() {
   return (

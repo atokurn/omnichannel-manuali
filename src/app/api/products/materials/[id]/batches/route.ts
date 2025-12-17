@@ -5,13 +5,13 @@ import { eq, desc } from 'drizzle-orm';
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    context: { params: Promise<{ id: string }> }
 ) {
     try {
         const tenantId = request.headers.get('X-Tenant-Id');
         if (!tenantId) return NextResponse.json({ message: 'Tenant ID required' }, { status: 400 });
 
-        const { id } = params;
+        const { id } = await context.params;
 
         const batches = await db.query.materialStockBatches.findMany({
             where: eq(materialStockBatches.materialId, id),
@@ -37,7 +37,7 @@ export async function GET(
         return NextResponse.json(formatted);
 
     } catch (error) {
-        console.error('Failed to fetch material batches:', error);
+        console.error({ message: 'Failed to fetch material batches', error });
         return NextResponse.json({ message: 'Failed to fetch batches' }, { status: 500 });
     }
 }

@@ -34,10 +34,12 @@ export const materialStatusEnum = pgEnum('MaterialStatus', [
     'NONAKTIF'
 ]);
 
-export enum MaterialStatus {
-    AKTIF = 'AKTIF',
-    NONAKTIF = 'NONAKTIF'
-}
+export const MaterialStatus = {
+    AKTIF: 'AKTIF',
+    NONAKTIF: 'NONAKTIF'
+} as const;
+
+export type MaterialStatusType = typeof MaterialStatus[keyof typeof MaterialStatus];
 
 export const syncStatusEnum = pgEnum('SyncStatus', [
     'PENDING',

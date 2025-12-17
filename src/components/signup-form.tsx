@@ -20,7 +20,7 @@ export function SignupForm({
   const [error, setError] = useState<string | null>(null)
   const router = useRouter(); // Initialize router
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setIsLoading(true)
     setError(null)
@@ -44,19 +44,20 @@ export function SignupForm({
         } catch (jsonError) {
           // If response is not JSON or empty, use the status text
           errorMessage = response.statusText || errorMessage;
-          console.error('Failed to parse error response as JSON:', jsonError);
+          console.error({ message: 'Failed to parse error response as JSON', jsonError });
         }
         throw new Error(errorMessage);
       }
 
       // Handle sukses - contoh: redirect ke halaman login atau dashboard
-      console.log('Pendaftaran berhasil!');
+      console.log({ message: 'Pendaftaran berhasil!' });
       // Redirect to login page after successful signup using Next.js router
       router.push('/sign'); // Use router.push for navigation
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Set the error state with the message from the thrown Error
-      setError(err.message || 'Terjadi kesalahan saat mendaftar.');
+      const errorMessage = err instanceof Error ? err.message : 'Terjadi kesalahan saat mendaftar.';
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -66,7 +67,7 @@ export function SignupForm({
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card className="overflow-hidden p-0">
         <CardContent className="grid p-0 md:grid-cols-2">
-          <form onSubmit={handleSubmit} className="p-6 md:p-8">
+          <form onSubmit={onSubmit} className="p-6 md:p-8">
             <div className="flex flex-col gap-6">
               <div className="flex flex-col items-center text-center">
                 <h1 className="text-2xl font-bold">Create an account</h1>

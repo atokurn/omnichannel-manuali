@@ -32,7 +32,7 @@ export function AddWarehouseDialog({ onAddWarehouse }: AddWarehouseDialogProps) 
     defaultReturning: false
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -40,16 +40,16 @@ export function AddWarehouseDialog({ onAddWarehouse }: AddWarehouseDialogProps) 
     }));
   };
 
-  const handleCheckboxChange = (name: string, checked: boolean) => {
+  const onCheckboxChange = (name: string, checked: boolean) => {
     setFormData(prev => ({
       ...prev,
       [name]: checked
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validasi sederhana
     if (!formData.name) {
       alert('Nama warehouse harus diisi');
@@ -92,7 +92,7 @@ export function AddWarehouseDialog({ onAddWarehouse }: AddWarehouseDialogProps) 
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={onSubmit}>
           <DialogHeader>
             <DialogTitle>Tambah Warehouse Baru</DialogTitle>
             <DialogDescription>
@@ -108,7 +108,7 @@ export function AddWarehouseDialog({ onAddWarehouse }: AddWarehouseDialogProps) 
                 id="name"
                 name="name"
                 value={formData.name}
-                onChange={handleChange}
+                onChange={onChange}
                 className="col-span-3"
                 placeholder="Nama warehouse"
                 required
@@ -122,7 +122,7 @@ export function AddWarehouseDialog({ onAddWarehouse }: AddWarehouseDialogProps) 
                 id="address"
                 name="address"
                 value={formData.address}
-                onChange={handleChange}
+                onChange={onChange}
                 className="col-span-3"
                 placeholder="Alamat lengkap"
               />
@@ -135,7 +135,7 @@ export function AddWarehouseDialog({ onAddWarehouse }: AddWarehouseDialogProps) 
                 id="city"
                 name="city"
                 value={formData.city}
-                onChange={handleChange}
+                onChange={onChange}
                 className="col-span-3"
                 placeholder="Kota"
               />
@@ -149,7 +149,7 @@ export function AddWarehouseDialog({ onAddWarehouse }: AddWarehouseDialogProps) 
                 name="capacity"
                 type="number"
                 value={formData.capacity}
-                onChange={handleChange}
+                onChange={onChange}
                 className="col-span-3"
                 placeholder="Kapasitas dalam m²"
               />
@@ -162,7 +162,7 @@ export function AddWarehouseDialog({ onAddWarehouse }: AddWarehouseDialogProps) 
                 id="manager"
                 name="manager"
                 value={formData.manager}
-                onChange={handleChange}
+                onChange={onChange}
                 className="col-span-3"
                 placeholder="Nama manager"
               />
@@ -173,21 +173,21 @@ export function AddWarehouseDialog({ onAddWarehouse }: AddWarehouseDialogProps) 
               </div>
               <div className="col-span-3 space-y-2">
                 <div className="flex items-center space-x-2">
-                  <Checkbox 
-                    id="defaultShipping" 
+                  <Checkbox
+                    id="defaultShipping"
                     checked={formData.defaultShipping}
-                    onCheckedChange={(checked) => 
-                      handleCheckboxChange('defaultShipping', checked as boolean)
+                    onCheckedChange={(checked) =>
+                      onCheckboxChange('defaultShipping', checked as boolean)
                     }
                   />
                   <Label htmlFor="defaultShipping">Default untuk pengiriman</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <Checkbox 
-                    id="defaultReturning" 
+                  <Checkbox
+                    id="defaultReturning"
                     checked={formData.defaultReturning}
-                    onCheckedChange={(checked) => 
-                      handleCheckboxChange('defaultReturning', checked as boolean)
+                    onCheckedChange={(checked) =>
+                      onCheckboxChange('defaultReturning', checked as boolean)
                     }
                   />
                   <Label htmlFor="defaultReturning">Default untuk pengembalian</Label>

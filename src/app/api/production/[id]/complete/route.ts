@@ -11,13 +11,13 @@ const CompleteProductionSchema = z.object({
 
 export async function POST(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    context: { params: Promise<{ id: string }> }
 ) {
     try {
         const tenantId = request.headers.get('X-Tenant-Id');
         if (!tenantId) return NextResponse.json({ message: 'Tenant ID required' }, { status: 400 });
 
-        const { id } = params;
+        const { id } = await context.params;
         const body = await request.json();
         const validation = CompleteProductionSchema.safeParse(body);
 
@@ -38,8 +38,9 @@ export async function POST(
 
         return NextResponse.json(updatedBatch, { status: 200 });
 
-    } catch (error: any) {
-        console.error('Failed to complete production:', error);
-        return NextResponse.json({ message: error.message || 'Failed to complete production' }, { status: 500 });
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to complete production';
+        console.error({ message: 'Failed to complete production', error });
+        return NextResponse.json({ message: errorMessage }, { status: 500 });
     }
 }

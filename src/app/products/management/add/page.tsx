@@ -85,13 +85,13 @@ const AddProductPage = () => {
 
   const [mainImage, setMainImage] = useState<File | null>(null);
   const [mainImagePreview, setMainImagePreview] = useState<string | null>(null);
-  const [additionalImages, setAdditionalImages] = useState<{[key: string]: File | null}>({});
-  const [additionalImagePreviews, setAdditionalImagePreviews] = useState<{[key: string]: string | null}>({});
+  const [additionalImages, setAdditionalImages] = useState<{ [key: string]: File | null }>({});
+  const [additionalImagePreviews, setAdditionalImagePreviews] = useState<{ [key: string]: string | null }>({});
   const [isDraggingMain, setIsDraggingMain] = useState(false);
   const [isDraggingAdditional, setIsDraggingAdditional] = useState<string | null>(null);
 
   // Fungsi untuk menangani pengiriman formulir
-  const handleSubmit = async () => {
+  const onSubmit = async () => {
     // Validasi data formulir
     if (!mainImage) {
       console.error('Gambar utama produk wajib diisi');
@@ -142,11 +142,11 @@ const AddProductPage = () => {
 
     // Menampilkan loading state
     toast.loading('Sedang mengunggah gambar dan menyimpan produk...');
-    
+
     try {
       // 1. Unggah gambar terlebih dahulu
       const imageUrls = await uploadImages();
-      
+
       // 2. Siapkan data produk dengan URL gambar
       const productData = {
         productName: productName,
@@ -205,13 +205,13 @@ const AddProductPage = () => {
       main: '',
       additional: {} as Record<string, string>
     };
-    
+
     // Unggah gambar utama
     if (mainImage) {
       const mainImageUrl = await uploadImage(mainImage, 'main');
       imageUrls.main = mainImageUrl;
     }
-    
+
     // Unggah gambar tambahan
     for (const [key, file] of Object.entries(additionalImages)) {
       if (file) {
@@ -219,10 +219,10 @@ const AddProductPage = () => {
         imageUrls.additional[key] = additionalImageUrl;
       }
     }
-    
+
     return imageUrls;
   };
-  
+
   // Fungsi untuk mengunggah satu gambar
   const uploadImage = async (file: File, prefix: string) => {
     // Buat FormData untuk mengunggah file
@@ -230,18 +230,18 @@ const AddProductPage = () => {
     formData.append('file', file);
     formData.append('prefix', prefix);
     formData.append('productId', productId);
-    
+
     // Kirim file ke endpoint upload
     const response = await fetch('/api/upload', {
       method: 'POST',
       body: formData,
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.message || 'Gagal mengunggah gambar');
     }
-    
+
     const data = await response.json();
     return data.url; // URL gambar yang sudah diunggah
   };
@@ -285,7 +285,7 @@ const AddProductPage = () => {
   };
 
   // Handle main image upload
-  const handleMainImageUpload = (file: File) => {
+  const onMainImageUpload = (file: File) => {
     // Validate file type
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png'];
     if (!validTypes.includes(file.type)) {
@@ -294,16 +294,16 @@ const AddProductPage = () => {
       toast.error('Format file tidak didukung. Gunakan JPG, JPEG, atau PNG.');
       return;
     }
-    
+
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       console.error('Ukuran file terlalu besar. Maksimal 5MB.');
       toast.error('Ukuran file terlalu besar. Maksimal 5MB.');
       return;
     }
-    
+
     setMainImage(file);
-    
+
     // Create preview URL
     const reader = new FileReader();
     reader.onload = () => {
@@ -311,9 +311,9 @@ const AddProductPage = () => {
     };
     reader.readAsDataURL(file);
   };
-  
+
   // Handle additional image upload
-  const handleAdditionalImageUpload = (label: string, file: File) => {
+  const onAdditionalImageUpload = (label: string, file: File) => {
     // Validate file type
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png'];
     if (!validTypes.includes(file.type)) {
@@ -321,19 +321,19 @@ const AddProductPage = () => {
       toast.error('Format file tidak didukung. Gunakan JPG, JPEG, atau PNG.');
       return;
     }
-    
+
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       console.error('Ukuran file terlalu besar. Maksimal 5MB.');
       toast.error('Ukuran file terlalu besar. Maksimal 5MB.');
       return;
     }
-    
+
     setAdditionalImages(prev => ({
       ...prev,
       [label]: file
     }));
-    
+
     // Create preview URL
     const reader = new FileReader();
     reader.onload = () => {
@@ -344,105 +344,105 @@ const AddProductPage = () => {
     };
     reader.readAsDataURL(file);
   };
-  
+
   // Handle drag events for main image
-  const handleDragEnterMain = useCallback((e: React.DragEvent) => {
+  const onDragEnterMain = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDraggingMain(true);
   }, []);
-  
-  const handleDragLeaveMain = useCallback((e: React.DragEvent) => {
+
+  const onDragLeaveMain = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDraggingMain(false);
   }, []);
-  
-  const handleDragOverMain = useCallback((e: React.DragEvent) => {
+
+  const onDragOverMain = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (!isDraggingMain) {
       setIsDraggingMain(true);
     }
   }, [isDraggingMain]);
-  
-  const handleDropMain = useCallback((e: React.DragEvent) => {
+
+  const onDropMain = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDraggingMain(false);
-    
+
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const file = e.dataTransfer.files[0];
-      handleMainImageUpload(file);
+      onMainImageUpload(file);
       e.dataTransfer.clearData();
     }
   }, []);
-  
+
   // Handle drag events for additional images
-  const handleDragEnterAdditional = useCallback((e: React.DragEvent, label: string) => {
+  const onDragEnterAdditional = useCallback((e: React.DragEvent, label: string) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDraggingAdditional(label);
   }, []);
-  
-  const handleDragLeaveAdditional = useCallback((e: React.DragEvent) => {
+
+  const onDragLeaveAdditional = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDraggingAdditional(null);
   }, []);
-  
-  const handleDragOverAdditional = useCallback((e: React.DragEvent, label: string) => {
+
+  const onDragOverAdditional = useCallback((e: React.DragEvent, label: string) => {
     e.preventDefault();
     e.stopPropagation();
     if (isDraggingAdditional !== label) {
       setIsDraggingAdditional(label);
     }
   }, [isDraggingAdditional]);
-  
-  const handleDropAdditional = useCallback((e: React.DragEvent, label: string) => {
+
+  const onDropAdditional = useCallback((e: React.DragEvent, label: string) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDraggingAdditional(null);
-    
+
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const file = e.dataTransfer.files[0];
-      handleAdditionalImageUpload(label, file);
+      onAdditionalImageUpload(label, file);
       e.dataTransfer.clearData();
     }
   }, []);
-  
+
   // Handle file input change for main image
-  const handleMainImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onMainImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
-      handleMainImageUpload(file);
+      onMainImageUpload(file);
     }
   };
-  
+
   // Handle file input change for additional images
-  const handleAdditionalImageChange = (e: React.ChangeEvent<HTMLInputElement>, label: string) => {
+  const onAdditionalImageChange = (e: React.ChangeEvent<HTMLInputElement>, label: string) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
-      handleAdditionalImageUpload(label, file);
+      onAdditionalImageUpload(label, file);
     }
   };
-  
+
   // Remove main image
-  const handleRemoveMainImage = () => {
+  const onRemoveMainImage = () => {
     setMainImage(null);
     setMainImagePreview(null);
   };
-  
+
   // Remove additional image
-  const handleRemoveAdditionalImage = (label: string) => {
+  const onRemoveAdditionalImage = (label: string) => {
     setAdditionalImages(prev => {
-      const newImages = {...prev};
+      const newImages = { ...prev };
       delete newImages[label];
       return newImages;
     });
-    
+
     setAdditionalImagePreviews(prev => {
-      const newPreviews = {...prev};
+      const newPreviews = { ...prev };
       delete newPreviews[label];
       return newPreviews;
     });
@@ -451,7 +451,7 @@ const AddProductPage = () => {
   // --- Variant Management Functions ---
 
   // Add a new variant section
-  const handleAddVariantSection = () => {
+  const onAddVariantSection = () => {
     if (variants.length < 3) {
       const newVariant: Variant = {
         id: `variant-${Date.now()}`,
@@ -466,12 +466,12 @@ const AddProductPage = () => {
   };
 
   // Remove a variant section
-  const handleRemoveVariantSection = (variantId: string) => {
+  const onRemoveVariantSection = (variantId: string) => {
     setVariants(variants.filter(v => v.id !== variantId));
   };
 
   // Update variant name
-  const handleVariantNameChange = (variantId: string, name: string) => {
+  const onVariantNameChange = (variantId: string, name: string) => {
     const trimmedName = name.trim().toLowerCase();
     // Check if the name already exists in other variants (case-insensitive)
     const isDuplicate = variants.some(
@@ -490,7 +490,7 @@ const AddProductPage = () => {
   };
 
   // Add a new option to a variant
-  const handleAddVariantOption = (variantId: string) => {
+  const onAddVariantOption = (variantId: string) => {
     setVariants(variants.map(v => {
       if (v.id === variantId && v.options.length < 50) { // Limit options if needed
         const newOption: VariantOption = { id: `option-${Date.now()}`, value: '', image: null, charCount: 0 };
@@ -501,12 +501,12 @@ const AddProductPage = () => {
   };
 
   // Remove an option from a variant
-  const handleRemoveVariantOption = (variantId: string, optionId: string) => {
+  const onRemoveVariantOption = (variantId: string, optionId: string) => {
     setVariants(variants.map(v => {
       if (v.id === variantId) {
         // Prevent removing the last option if needed, or handle accordingly
         if (v.options.length > 1) {
-           return { ...v, options: v.options.filter(opt => opt.id !== optionId) };
+          return { ...v, options: v.options.filter(opt => opt.id !== optionId) };
         }
       }
       return v;
@@ -514,7 +514,7 @@ const AddProductPage = () => {
   };
 
   // Update variant option value and char count, automatically add new option if last one is typed into
-  const handleVariantOptionValueChange = (variantId: string, optionId: string, value: string) => {
+  const onVariantOptionValueChange = (variantId: string, optionId: string, value: string) => {
     setVariants(prevVariants => {
       const newVariants = [...prevVariants]; // Create a mutable copy
       const variantIndex = newVariants.findIndex(v => v.id === variantId);
@@ -564,7 +564,7 @@ const AddProductPage = () => {
   // Removed handleAddAnotherInputChange and handleConfirmAddAnother functions
 
   // Handle image upload for an option (basic structure)
-  const handleVariantOptionImageChange = (variantId: string, optionId: string, event: React.ChangeEvent<HTMLInputElement>) => {
+  const onVariantOptionImageChange = (variantId: string, optionId: string, event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       setVariants(variants.map(v => {
@@ -594,7 +594,7 @@ const AddProductPage = () => {
     );
 
     if (optionsArrays.some(arr => arr.length === 0)) {
-        return []; // If any variant has no valid options, no combinations possible
+      return []; // If any variant has no valid options, no combinations possible
     }
 
 
@@ -639,12 +639,12 @@ const AddProductPage = () => {
   React.useEffect(() => {
     const newCombinations = generateVariantCombinations(variants);
     setVariantTableData(newCombinations);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [variants]); // Rerun when variants change
 
 
   // --- Handle Input Changes in Variant Table ---
-  const handleVariantTableInputChange = (combinationId: string, field: keyof VariantCombinationData, value: string) => {
+  const onVariantTableInputChange = (combinationId: string, field: keyof VariantCombinationData, value: string) => {
     setVariantTableData(prevData =>
       prevData.map(item =>
         item.combinationId === combinationId ? { ...item, [field]: value } : item
@@ -652,7 +652,7 @@ const AddProductPage = () => {
     );
   };
 
-  const handleWeightUnitChange = (combinationId: string, unit: 'g' | 'kg') => {
+  const onWeightUnitChange = (combinationId: string, unit: 'g' | 'kg') => {
     setVariantTableData(prevData =>
       prevData.map(item =>
         item.combinationId === combinationId ? { ...item, weightUnit: unit } : item
@@ -661,7 +661,7 @@ const AddProductPage = () => {
   };
 
   // --- Handle Deleting a Variant Combination Row ---
-  const handleRemoveVariantCombination = (combinationIdToRemove: string) => {
+  const onRemoveVariantCombination = (combinationIdToRemove: string) => {
     setVariantTableData(prevData =>
       prevData.filter(item => item.combinationId !== combinationIdToRemove)
     );
@@ -685,16 +685,16 @@ const AddProductPage = () => {
       {/* Header */}
       <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:px-6 py-4 shrink-0">
         <div className="flex items-center gap-2 text-muted-foreground hover:text-foreground cursor-pointer" onClick={() => router.back()}> {/* Add onClick handler */}
-           {/* Add back arrow or similar navigation if needed */}
-           <ArrowLeft className="h-4 w-4" />
-           <span className="text-sm">Kelola produk</span>
+          {/* Add back arrow or similar navigation if needed */}
+          <ArrowLeft className="h-4 w-4" />
+          <span className="text-sm">Kelola produk</span>
         </div>
         <h1 className="text-xl font-semibold ml-4">Tambahkan produk baru</h1>
         {/* Dropdown for TikTok/Tokopedia can be added here */}
         <div className="ml-auto flex items-center gap-2">
-          <Button variant="outline" size="sm"><HelpCircle className="h-4 w-4 mr-1"/> Bantuan</Button>
-          <Button variant="outline" size="sm"><Save className="h-4 w-4 mr-1"/> Simpan sebagai draf</Button>
-          <Button size="sm" onClick={handleSubmit}><SendHorizonal className="h-4 w-4 mr-1"/> Kirim</Button>
+          <Button variant="outline" size="sm"><HelpCircle className="h-4 w-4 mr-1" /> Bantuan</Button>
+          <Button variant="outline" size="sm"><Save className="h-4 w-4 mr-1" /> Simpan sebagai draf</Button>
+          <Button size="sm" onClick={onSubmit}><SendHorizonal className="h-4 w-4 mr-1" /> Kirim</Button>
         </div>
       </header>
 
@@ -739,36 +739,36 @@ const AddProductPage = () => {
               <Card ref={basicInfoRef} id="informasi-dasar">
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle>Informasi dasar</CardTitle>
-                  <Button variant="ghost" size="sm" className="text-primary"><Sparkles className="h-4 w-4 mr-1"/> Optimisasi AI</Button>
+                  <Button variant="ghost" size="sm" className="text-primary"><Sparkles className="h-4 w-4 mr-1" /> Optimisasi AI</Button>
                 </CardHeader>
                 <CardContent className="space-y-6">
 
                   <div className="space-y-2 max-w-3xl mx-auto">
-                    <ImagesSection 
+                    <ImagesSection
                       mainImagePreview={mainImagePreview}
                       isDraggingMain={isDraggingMain}
-                      onDragEnterMain={handleDragEnterMain}
-                      onDragLeaveMain={handleDragLeaveMain}
-                      onDragOverMain={handleDragOverMain}
-                      onDropMain={handleDropMain}
-                      onMainImageChange={handleMainImageChange}
-                      onRemoveMainImage={handleRemoveMainImage}
+                      onDragEnterMain={onDragEnterMain}
+                      onDragLeaveMain={onDragLeaveMain}
+                      onDragOverMain={onDragOverMain}
+                      onDropMain={onDropMain}
+                      onMainImageChange={onMainImageChange}
+                      onRemoveMainImage={onRemoveMainImage}
                       additionalImagePreviews={additionalImagePreviews}
                       isDraggingAdditional={isDraggingAdditional}
-                      onDragEnterAdditional={handleDragEnterAdditional}
-                      onDragLeaveAdditional={handleDragLeaveAdditional}
-                      onDragOverAdditional={handleDragOverAdditional}
-                      onDropAdditional={handleDropAdditional}
-                      onAdditionalImageChange={handleAdditionalImageChange}
-                      onRemoveAdditionalImage={handleRemoveAdditionalImage}
+                      onDragEnterAdditional={onDragEnterAdditional}
+                      onDragLeaveAdditional={onDragLeaveAdditional}
+                      onDragOverAdditional={onDragOverAdditional}
+                      onDropAdditional={onDropAdditional}
+                      onAdditionalImageChange={onAdditionalImageChange}
+                      onRemoveAdditionalImage={onRemoveAdditionalImage}
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="product-name" className="flex items-center"><span className="text-red-500 mr-1">*</span>Nama produk</Label>
-                    <Input 
-                      id="product-name" 
-                      placeholder="[Merek] + [Konten] + [Lingkup penggunaan] + [Tipe produk] + [Fungsi/Fitur Utama]" 
-                      maxLength={255} 
+                    <Input
+                      id="product-name"
+                      placeholder="[Merek] + [Konten] + [Lingkup penggunaan] + [Tipe produk] + [Fungsi/Fitur Utama]"
+                      maxLength={255}
                       value={productName} // Bind value to state
                       onChange={(e) => setProductName(e.target.value)} // Update state on change
                     />
@@ -798,11 +798,11 @@ const AddProductPage = () => {
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="product-description" className="flex items-center"><span className="text-red-500 mr-1">*</span>Deskripsi produk</Label>
-                    <Textarea 
-                      id="product-description" 
-                      placeholder="Masukkan deskripsi produk yang menarik..." 
-                      rows={8} 
-                      value={productDescription} 
+                    <Textarea
+                      id="product-description"
+                      placeholder="Masukkan deskripsi produk yang menarik..."
+                      rows={8}
+                      value={productDescription}
                       onChange={(e) => setProductDescription(e.target.value)}
                     />
                   </div>
@@ -811,7 +811,7 @@ const AddProductPage = () => {
               </Card>
 
               {/* Card Harga Modal */}
-              <CostPriceSection 
+              <CostPriceSection
                 ref={costPriceRef}
                 showManualCostPrice={showManualCostPrice}
                 onToggleShowManualCostPrice={(checked: boolean) => setShowManualCostPrice(Boolean(checked))}
@@ -824,36 +824,36 @@ const AddProductPage = () => {
                   <CardTitle>Info penjualan</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                <SalesInfoSection
-                  addVariant={addVariant}
-                  onToggleAddVariant={(checked: boolean) => {
-                    setAddVariant(checked);
-                    if (checked && variants.length === 0) {
-                      handleAddVariantSection();
-                    } else if (!checked) {
-                      setVariants([]);
-                    }
-                  }}
-                  defaultPrice={defaultPrice}
-                  onDefaultPriceChange={(value: string) => setDefaultPrice(value)}
-                  defaultQuantity={defaultQuantity}
-                  onDefaultQuantityChange={(value: string) => setDefaultQuantity(value)}
-                />
+                  <SalesInfoSection
+                    addVariant={addVariant}
+                    onToggleAddVariant={(checked: boolean) => {
+                      setAddVariant(checked);
+                      if (checked && variants.length === 0) {
+                        onAddVariantSection();
+                      } else if (!checked) {
+                        setVariants([]);
+                      }
+                    }}
+                    defaultPrice={defaultPrice}
+                    onDefaultPriceChange={(value: string) => setDefaultPrice(value)}
+                    defaultQuantity={defaultQuantity}
+                    onDefaultQuantityChange={(value: string) => setDefaultQuantity(value)}
+                  />
                   {/* Variant Creation Forms (Conditional & Mapped) */}
                   {addVariant && (
                     <VariantsEditor
                       addVariant={addVariant}
                       variants={variants}
                       variantTableData={variantTableData}
-                      onAddVariantSection={handleAddVariantSection}
-                      onRemoveVariantSection={handleRemoveVariantSection}
-                      onVariantNameChange={handleVariantNameChange}
-                      onRemoveVariantOption={handleRemoveVariantOption}
-                      onVariantOptionValueChange={handleVariantOptionValueChange}
-                      onVariantOptionImageChange={handleVariantOptionImageChange}
-                      onVariantTableInputChange={handleVariantTableInputChange}
-                      onWeightUnitChange={handleWeightUnitChange}
-                      onRemoveVariantCombination={handleRemoveVariantCombination}
+                      onAddVariantSection={onAddVariantSection}
+                      onRemoveVariantSection={onRemoveVariantSection}
+                      onVariantNameChange={onVariantNameChange}
+                      onRemoveVariantOption={onRemoveVariantOption}
+                      onVariantOptionValueChange={onVariantOptionValueChange}
+                      onVariantOptionImageChange={onVariantOptionImageChange}
+                      onVariantTableInputChange={onVariantTableInputChange}
+                      onWeightUnitChange={onWeightUnitChange}
+                      onRemoveVariantCombination={onRemoveVariantCombination}
                     />
                   )}
 
@@ -862,138 +862,7 @@ const AddProductPage = () => {
 
                   {/* Variant Combination Table (List Varian) */}
                   {/* Moved inside VariantsEditor */}
-                  {false && (
-                    <div className="mt-6 space-y-4">
-                      <Separator />
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-lg font-semibold flex items-center">
-                          <span className="text-red-500 mr-1">*</span>List Varian
-                        </h3>
-                        {/* TODO: Implement Bulk Edit Functionality */}
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm">
-                              Ubah sekaligus <ChevronDown className="h-4 w-4 ml-1" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem>Ubah Harga</DropdownMenuItem>
-                            <DropdownMenuItem>Ubah Kuantitas</DropdownMenuItem>
-                            <DropdownMenuItem>Ubah Berat</DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                      <div className="flex items-center space-x-2 mb-4">
-                        <Checkbox id="pre-order" />
-                        <Label htmlFor="pre-order" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center">
-                          Pre-order
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <HelpCircle className="h-3 w-3 text-muted-foreground ml-1 cursor-help" />
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Aktifkan jika produk ini memerlukan pre-order.</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </Label>
-                      </div>
-                      
-                      <Card className="overflow-hidden">
-                        <ScrollArea className="max-h-[400px] w-full">
-                          <Table className="min-w-full">
-                            <TableHeader className="sticky top-0 bg-muted/50 z-10">
-                              <TableRow>
-                                {/* Dynamic Variant Headers */}
-                                {variants.filter(v => v.name).map(variant => (
-                                  <TableHead key={variant.id}>{variant.name}</TableHead>
-                                ))}<TableHead className="min-w-[150px]"><span className="text-red-500 mr-1">*</span>Harga jual <TooltipProvider><Tooltip><TooltipTrigger asChild><HelpCircle className="h-3 w-3 text-muted-foreground ml-1 inline-block cursor-help" /></TooltipTrigger><TooltipContent><p>Harga jual akhir produk.</p></TooltipContent></Tooltip></TooltipProvider></TableHead><TableHead className="min-w-[120px]"><span className="text-red-500 mr-1">*</span>Kuantitas <TooltipProvider><Tooltip><TooltipTrigger asChild><HelpCircle className="h-3 w-3 text-muted-foreground ml-1 inline-block cursor-help" /></TooltipTrigger><TooltipContent><p>Jumlah stok tersedia.</p></TooltipContent></Tooltip></TooltipProvider></TableHead><TableHead className="min-w-[150px]">SKU Penjual <TooltipProvider><Tooltip><TooltipTrigger asChild><HelpCircle className="h-3 w-3 text-muted-foreground ml-1 inline-block cursor-help" /></TooltipTrigger><TooltipContent><p>Kode unik SKU untuk varian ini.</p></TooltipContent></Tooltip></TooltipProvider></TableHead><TableHead className="min-w-[180px]"><span className="text-red-500 mr-1">*</span>Berat dengan kemasan</TableHead><TableHead className="w-[50px]"></TableHead>{/* For Delete Button */}
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {variantTableData.map((combination) => (
-                                <TableRow key={combination.combinationId}>
-                                  {/* Dynamic Variant Values */}
-                                  {variants.filter(v => v.name).map(variant => (
-                                    <TableCell key={`${combination.combinationId}-${variant.id}`}>
-                                      {combination.options[variant.name] || '-'}
-                                    </TableCell>
-                                  ))}
-                                  {/* Input Fields */}
-                                  <TableCell>
-                                    <div className="relative">
-                                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">Rp</span>
-                                      <Input
-                                        type="number"
-                                        placeholder="0"
-                                        className="pl-8"
-                                        value={combination.price}
-                                        onChange={(e) => handleVariantTableInputChange(combination.combinationId, 'price', e.target.value)}
-                                      />
-                                    </div>
-                                  </TableCell>
-                                  <TableCell>
-                                    <Input
-                                      type="number"
-                                      placeholder="0"
-                                      value={combination.quantity}
-                                      onChange={(e) => handleVariantTableInputChange(combination.combinationId, 'quantity', e.target.value)}
-                                    />
-                                  </TableCell>
-                                  <TableCell>
-                                    <Input
-                                      placeholder="Masukkan SKU"
-                                      value={combination.sku}
-                                      onChange={(e) => handleVariantTableInputChange(combination.combinationId, 'sku', e.target.value)}
-                                    />
-                                  </TableCell>
-                                  <TableCell>
-                                    <div className="flex items-center gap-1">
-                                      <Input
-                                        type="number"
-                                        placeholder="0"
-                                        className="flex-1"
-                                        value={combination.weight}
-                                        onChange={(e) => handleVariantTableInputChange(combination.combinationId, 'weight', e.target.value)}
-                                      />
-                                      <Select
-                                        value={combination.weightUnit}
-                                        onValueChange={(value) => handleWeightUnitChange(combination.combinationId, value as 'g' | 'kg')}
-                                      >
-                                        <SelectTrigger className="w-[60px] shrink-0">
-                                          <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          <SelectItem value="g">g</SelectItem>
-                                          <SelectItem value="kg">kg</SelectItem>
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
-                                  </TableCell>
-                                  <TableCell>
-                                    {/* TODO: Implement Delete Row Functionality */}
-                                    <TooltipProvider>
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleRemoveVariantCombination(combination.combinationId)}>
-                                            <Trash2 className="h-4 w-4" />
-                                          </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                          <p>Hapus Varian</p>
-                                        </TooltipContent>
-                                      </Tooltip>
-                                    </TooltipProvider>
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </ScrollArea>
-                      </Card>
-                    </div>
-                  )}
+                  {/* Moved inside VariantsEditor */}
 
                   {/* Purchase Limit Switch */}
                   <Separator />
@@ -1033,20 +902,20 @@ const AddProductPage = () => {
               <ShippingSection ref={shippingRef} id="pengiriman" />
               {/* End Pengiriman */}
 
-                  {/* SKU Mapping Card */}
-                  <div ref={skuMappingRef} id="sku-mapping">
-                    <SkuMappingCard 
-                      productId={productId} 
-                      selectedChannels={selectedChannels}
-                      selectedStores={selectedStores}
-                      skuMappingOption={skuMappingOption}
-                      enableSkuMapping={enableSkuMapping}
-                      onEnableSkuMappingChange={(checked: boolean) => setEnableSkuMapping(checked)}
-                      onSkuMappingOptionChange={setSkuMappingOption}
-                      onSelectedChannelsChange={setSelectedChannels}
-                      onSelectedStoresChange={setSelectedStores}
-                    />
-                  </div>
+              {/* SKU Mapping Card */}
+              <div ref={skuMappingRef} id="sku-mapping">
+                <SkuMappingCard
+                  productId={productId}
+                  selectedChannels={selectedChannels}
+                  selectedStores={selectedStores}
+                  skuMappingOption={skuMappingOption}
+                  enableSkuMapping={enableSkuMapping}
+                  onEnableSkuMappingChange={(checked: boolean) => setEnableSkuMapping(checked)}
+                  onSkuMappingOptionChange={setSkuMappingOption}
+                  onSelectedChannelsChange={setSelectedChannels}
+                  onSelectedStoresChange={setSelectedStores}
+                />
+              </div>
 
             </div>
           </ScrollArea>
@@ -1074,13 +943,13 @@ const AddProductPage = () => {
               {/* Dynamic Preview Content */}
               <div className="border rounded-md p-4 space-y-3 bg-muted/20">
                 <div className="flex justify-between items-center mb-2">
-                   <p className="text-sm font-medium">Detail produk</p>
-                   {/* Icons can be made dynamic later if needed */}
-                   <div className="flex gap-2 text-muted-foreground">
-                      <ImageIcon className="h-4 w-4 cursor-pointer hover:text-primary"/>
-                      <Package className="h-4 w-4 cursor-pointer hover:text-primary"/>
-                      <Truck className="h-4 w-4 cursor-pointer hover:text-primary"/>
-                   </div>
+                  <p className="text-sm font-medium">Detail produk</p>
+                  {/* Icons can be made dynamic later if needed */}
+                  <div className="flex gap-2 text-muted-foreground">
+                    <ImageIcon className="h-4 w-4 cursor-pointer hover:text-primary" />
+                    <Package className="h-4 w-4 cursor-pointer hover:text-primary" />
+                    <Truck className="h-4 w-4 cursor-pointer hover:text-primary" />
+                  </div>
                 </div>
                 {/* Main Image Preview */}
                 <div className="aspect-square bg-muted rounded-md flex items-center justify-center mb-3 relative overflow-hidden">
@@ -1125,20 +994,20 @@ const AddProductPage = () => {
                     }
                   })()}
                 </div>
-                <Separator className="my-4"/>
+                <Separator className="my-4" />
                 {/* Variant Selection Preview (Basic structure) */}
                 {addVariant && variants.length > 0 && (
                   <>
                     <div className="flex justify-between items-center">
-                        <span className="text-xs text-muted-foreground">Pilih {variants[0]?.name || 'varian'}</span>
-                        {/* Link to spec can be added later */}
+                      <span className="text-xs text-muted-foreground">Pilih {variants[0]?.name || 'varian'}</span>
+                      {/* Link to spec can be added later */}
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {variants[0]?.options.filter(opt => opt.value).slice(0, 5).map(opt => (
-                        <Button 
-                          key={opt.id} 
+                        <Button
+                          key={opt.id}
                           variant={selectedPreviewOptionId === opt.id ? "default" : "outline"} // Highlight selected
-                          size="sm" 
+                          size="sm"
                           className="text-xs h-7 px-2"
                           onClick={() => setSelectedPreviewOptionId(opt.id)} // Set selected on click
                         >
@@ -1152,16 +1021,16 @@ const AddProductPage = () => {
                 {!addVariant && (
                   <>
                     <div className="flex justify-between items-center">
-                        <span className="text-xs text-muted-foreground">Pilih opsi</span>
-                        <span className="text-xs text-primary cursor-pointer hover:underline">Spesifikasi &gt;</span>
+                      <span className="text-xs text-muted-foreground">Pilih opsi</span>
+                      <span className="text-xs text-primary cursor-pointer hover:underline">Spesifikasi &gt;</span>
                     </div>
                     <div className="border rounded p-2 text-xs text-center text-muted-foreground bg-background">Default</div>
                   </>
                 )}
-                 <div className="flex gap-2 mt-4">
-                    <Button variant="outline" size="sm" className="flex-1 text-xs h-7 px-2">Tambah ke Keranjang</Button>
-                    <Button size="sm" className="flex-1 text-xs h-7 px-2">Beli sekarang</Button>
-                 </div>
+                <div className="flex gap-2 mt-4">
+                  <Button variant="outline" size="sm" className="flex-1 text-xs h-7 px-2">Tambah ke Keranjang</Button>
+                  <Button size="sm" className="flex-1 text-xs h-7 px-2">Beli sekarang</Button>
+                </div>
               </div>
             </CardContent>
           </Card>

@@ -14,7 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { Loader2, Trash2 } from 'lucide-react';
-import { MaterialStatus } from '@/lib/db/schema';
+import { MaterialStatus, MaterialStatusType } from '@/lib/db/schema';
 import Image from 'next/image'; // Import Image
 import { cn } from '@/lib/utils'; // Import cn
 import { Upload, X } from 'lucide-react'; // Import Upload and X icons
@@ -201,7 +201,7 @@ export default function EditMaterialPage() {
           throw new Error(uploadResult.message || 'Upload failed');
         }
         finalImageUrl = uploadResult.url; // Update URL with the newly uploaded one
-        console.log("New image uploaded, URL:", finalImageUrl);
+        console.log({ message: 'New image uploaded', finalImageUrl });
       } catch (uploadError: any) {
         toast.error('Error Upload', { description: `Gagal mengunggah gambar baru: ${uploadError.message}` });
         setIsLoading(false);
@@ -210,7 +210,7 @@ export default function EditMaterialPage() {
     } else if (isRemovingImage) {
       // 2. Handle Image Removal if flagged
       finalImageUrl = null;
-      console.log("Image marked for removal.");
+      console.log({ message: 'Image marked for removal' });
     }
     // If no new file and not removing, finalImageUrl remains the initially fetched URL
 
@@ -539,7 +539,7 @@ export default function EditMaterialPage() {
                 <Skeleton className="h-10 w-full" />
               ) : (
                 <Select
-                  onValueChange={(value) => form.setValue('status', value as MaterialStatus)}
+                  onValueChange={(value) => form.setValue('status', value as MaterialStatusType)}
                   value={form.watch('status')}
                   disabled={isLoading}
                 >

@@ -25,29 +25,29 @@ interface ShelfPreviewItem {
 }
 
 // Component for visual grid preview
-const VisualGridPreview = ({ 
-  prefix, 
-  column, 
-  startRow, 
-  rowCount, 
-  selectedStatus 
-}: { 
-  prefix: string; 
-  column: string; 
-  startRow: string; 
-  rowCount: string; 
+const VisualGridPreview = ({
+  prefix,
+  column,
+  startRow,
+  rowCount,
+  selectedStatus
+}: {
+  prefix: string;
+  column: string;
+  startRow: string;
+  rowCount: string;
   selectedStatus: string;
 }) => {
   // Convert inputs to numbers for calculations
   const columnCount = parseInt(column) || 1;
   const startRowNum = parseInt(startRow) || 1;
   const rowCountNum = parseInt(rowCount) || 0;
-  
+
   // Function to get status color
   const getStatusColor = (status: string) => {
     return status === 'Aktif' ? 'bg-green-500' : 'bg-red-400';
   };
-  
+
   // Don't render grid if inputs are invalid
   if (!prefix || rowCountNum <= 0 || rowCountNum > 50 || columnCount <= 0 || columnCount > 10) {
     return (
@@ -57,13 +57,13 @@ const VisualGridPreview = ({
       </div>
     );
   }
-  
+
   return (
     <div className="mt-2 p-2 border rounded-md bg-slate-50">
       <div className="text-xs text-slate-500 mb-3 font-medium">
         Kolom 1-{columnCount}, Baris {startRowNum}-{startRowNum + rowCountNum - 1}
       </div>
-      
+
       <div className="max-h-[500px] overflow-y-auto pr-2">
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {Array.from({ length: columnCount }).map((_, colIndex) => {
@@ -75,7 +75,7 @@ const VisualGridPreview = ({
                   {Array.from({ length: rowCountNum }).map((_, rowIndex) => {
                     const rowNum = startRowNum + rowIndex;
                     const shelfName = `${prefix}-${colNum}-${rowNum}`;
-                    
+
                     return (
                       <div key={`${colNum}-${rowNum}`} className="flex items-center">
                         <div className={`w-10 h-10 flex items-center justify-center text-xs rounded-md mr-2 border ${getStatusColor(selectedStatus)} text-white font-medium`}>
@@ -101,13 +101,13 @@ export default function AddBulkShelfPage() {
   const router = useRouter();
   const [selectedWarehouse, setSelectedWarehouse] = useState('');
   const [selectedArea, setSelectedArea] = useState('');
-  
+
   // New form fields for structured naming
   const [prefix, setPrefix] = useState('');
   const [column, setColumn] = useState('1');
   const [startRow, setStartRow] = useState('1');
   const [rowCount, setRowCount] = useState('5');
-  
+
   const [capacity, setCapacity] = useState('');
   const [status, setStatus] = useState('Aktif');
   const [filteredAreas, setFilteredAreas] = useState(dummyAreasData);
@@ -118,7 +118,7 @@ export default function AddBulkShelfPage() {
 
 
   // Handle warehouse selection change
-  const handleWarehouseChange = (value: string) => {
+  const onWarehouseChange = (value: string) => {
     setSelectedWarehouse(value);
     setSelectedArea('');
 
@@ -152,7 +152,7 @@ export default function AddBulkShelfPage() {
         const rowNum = startRowNum + i;
         // Generate name in format: Prefix-Column-Row
         const name = `${prefix}-${c}-${rowNum}`;
-        
+
         // Generate position in format: Rak{prefixNum}, Kolom{columnNum}, Baris{rowNum}
         const position = `Rak-${prefix}, Kolom-${c}, Baris-${rowNum}`;
 
@@ -164,7 +164,7 @@ export default function AddBulkShelfPage() {
   };
 
   // Validate and submit form
-  const handleSubmit = (e: React.FormEvent) => {
+  const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
     setFormSuccess(null);
@@ -195,7 +195,7 @@ export default function AddBulkShelfPage() {
       setFormError('Jumlah baris harus antara 1-50');
       return;
     }
-    
+
     const columnCount = parseInt(column);
     if (isNaN(columnCount) || columnCount <= 0 || columnCount > 10) {
       setFormError('Jumlah kolom harus antara 1-10');
@@ -210,7 +210,7 @@ export default function AddBulkShelfPage() {
         // Find warehouse and area names
         const selectedWarehouseObj = dummyWarehousesData.find(w => w.id === selectedWarehouse);
         const warehouseName = selectedWarehouseObj ? selectedWarehouseObj.name : '';
-        
+
         const selectedAreaObj = dummyAreasData.find(a => a.id === selectedArea);
         const areaName = selectedAreaObj ? selectedAreaObj.name : '';
 
@@ -223,10 +223,10 @@ export default function AddBulkShelfPage() {
         for (let c = 1; c <= columnCount; c++) {
           for (let i = 0; i < rowCountNum; i++) {
             const rowNum = startRowNum + i;
-            
+
             // Generate name in format: Prefix-Column-Row
             const name = `${prefix}-${c}-${rowNum}`;
-            
+
             // Generate position in format: Rak{prefixNum}, Kolom{columnNum}, Baris{rowNum}
             const position = `Rak-${prefix}, Kolom-${c}, Baris-${rowNum}`;
 
@@ -250,9 +250,9 @@ export default function AddBulkShelfPage() {
 
         // Here we would send the data to the API/database
         console.log('Bulk shelves to add:', newShelves);
-        
+
         setFormSuccess(`${newShelves.length} rak berhasil ditambahkan!`);
-        
+
         // Redirect after success
         setTimeout(() => {
           router.push('/inventory/warehouse/shelves');
@@ -271,16 +271,16 @@ export default function AddBulkShelfPage() {
       <SiteHeader />
       <div className="flex-1 p-4">
         <div className="flex items-center gap-2 mb-4">
-          <Button 
-            variant="ghost" 
-            size="icon" 
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => router.push('/inventory/warehouse/shelves')}
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <h1 className="text-xl font-semibold">Tambah Rak Bulk</h1>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card className="md:col-span-2">
             <CardHeader>
@@ -297,16 +297,16 @@ export default function AddBulkShelfPage() {
                   <AlertDescription>{formError}</AlertDescription>
                 </Alert>
               )}
-              
+
               {formSuccess && (
-                <Alert variant="success" className="mb-6 bg-green-50 text-green-800 border-green-200">
+                <Alert variant="default" className="mb-6 bg-green-50 text-green-800 border-green-200">
                   <CheckCircle2 className="h-4 w-4 text-green-600" />
                   <AlertTitle>Berhasil</AlertTitle>
                   <AlertDescription>{formSuccess}</AlertDescription>
                 </Alert>
               )}
-              
-              <form onSubmit={handleSubmit}>
+
+              <form onSubmit={onSubmit}>
                 <div className="grid gap-6">
                   <div className="bg-blue-50 border border-blue-100 rounded-md p-4 mb-2">
                     <div className="flex gap-2 items-start">
@@ -329,7 +329,7 @@ export default function AddBulkShelfPage() {
                       </Label>
                       <Select
                         value={selectedWarehouse}
-                        onValueChange={handleWarehouseChange}
+                        onValueChange={onWarehouseChange}
                         disabled={isSubmitting}
                       >
                         <SelectTrigger>
@@ -344,7 +344,7 @@ export default function AddBulkShelfPage() {
                         </SelectContent>
                       </Select>
                     </div>
-                    
+
                     <div className="grid gap-3">
                       <Label htmlFor="areaId">
                         Area <span className="text-red-500">*</span>
@@ -367,11 +367,11 @@ export default function AddBulkShelfPage() {
                       </Select>
                     </div>
                   </div>
-                  
+
                   {/* Struktur Penamaan section */}
                   <div className="border rounded-md p-4">
                     <h3 className="text-base font-medium mb-4">Struktur Penamaan Rak</h3>
-                    
+
                     <div className="grid gap-4">
                       <div className="grid gap-3">
                         <Label htmlFor="prefix">
@@ -386,7 +386,7 @@ export default function AddBulkShelfPage() {
                           required
                         />
                       </div>
-                      
+
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="grid gap-3">
                           <Label htmlFor="column">
@@ -404,7 +404,7 @@ export default function AddBulkShelfPage() {
                             required
                           />
                         </div>
-                        
+
                         <div className="grid gap-3">
                           <Label htmlFor="startRow">
                             Baris Awal <span className="text-red-500">*</span>
@@ -420,7 +420,7 @@ export default function AddBulkShelfPage() {
                             required
                           />
                         </div>
-                        
+
                         <div className="grid gap-3">
                           <Label htmlFor="rowCount">
                             Jumlah Baris <span className="text-red-500">*</span>
@@ -438,26 +438,26 @@ export default function AddBulkShelfPage() {
                           />
                         </div>
                       </div>
-                      
+
                       <div className="mt-2">
                         <p className="text-sm text-slate-500">
                           Format posisi akan menjadi: <code className="bg-slate-100 px-1 rounded">Rak {prefix}, Kolom 1-{column}, Baris {startRow}-{parseInt(startRow) + parseInt(rowCount) - 1}</code>
                         </p>
                       </div>
-                      
+
                       <div className="mt-4 border rounded-md p-4 bg-slate-50">
                         <h3 className="text-base font-medium mb-3">Preview</h3>
-                        <VisualGridPreview 
-                          prefix={prefix} 
-                          column={column} 
-                          startRow={startRow} 
+                        <VisualGridPreview
+                          prefix={prefix}
+                          column={column}
+                          startRow={startRow}
                           rowCount={rowCount}
                           selectedStatus={status}
                         />
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="grid gap-3">
                       <Label htmlFor="capacity">
@@ -474,7 +474,7 @@ export default function AddBulkShelfPage() {
                         required
                       />
                     </div>
-                    
+
                     <div className="grid gap-3">
                       <Label htmlFor="status">
                         Status
@@ -495,17 +495,17 @@ export default function AddBulkShelfPage() {
                     </div>
                   </div>
                 </div>
-                
+
                 <CardFooter className="flex justify-end gap-2 px-0 pt-6">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     onClick={() => router.push('/inventory/warehouse/shelves')}
                     disabled={isSubmitting}
                   >
                     Batal
                   </Button>
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     disabled={isSubmitting}
                   >
                     {isSubmitting ? (
@@ -534,7 +534,7 @@ export default function AddBulkShelfPage() {
                   </CardDescription>
                 </div>
                 <Badge variant="outline" className="whitespace-nowrap">
-                  <Layers className="h-3 w-3 mr-1" /> 
+                  <Layers className="h-3 w-3 mr-1" />
                   {previewShelves.length} Rak
                 </Badge>
               </CardHeader>
@@ -573,7 +573,7 @@ export default function AddBulkShelfPage() {
                 )}
               </CardContent>
             </Card>
-            
+
             {/* Help card with tips */}
             <Card>
               <CardHeader>

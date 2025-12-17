@@ -108,7 +108,7 @@ export default function AllOrdersPage() {
   });
   const [searchTerm, setSearchTerm] = useState('');
 
-  const handleFilterChange = (category: string, value: string) => {
+  const onFilterChange = (category: string, value: string) => {
     setActiveFilters(prev => {
       const currentValues = prev[category] || [];
       if (currentValues.includes(value)) {
@@ -119,14 +119,14 @@ export default function AllOrdersPage() {
     });
   };
 
-  const removeFilter = (category: string, value: string) => {
+  const onRemoveFilter = (category: string, value: string) => {
     setActiveFilters(prev => ({
       ...prev,
       [category]: (prev[category] || []).filter(v => v !== value),
     }));
   };
 
-  const clearAllFilters = () => {
+  const onClearAllFilters = () => {
     setActiveFilters({});
   };
 
@@ -224,7 +224,7 @@ export default function AllOrdersPage() {
                                 <React.Fragment key={categoryKey}>
                                   <DropdownMenuLabel className="text-xs font-semibold">{categoryKey.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}</DropdownMenuLabel>
                                   {options.map(option => (
-                                    <DropdownMenuItem key={option} onSelect={(e) => e.preventDefault()} onClick={() => handleFilterChange(categoryKey, option)}>
+                                    <DropdownMenuItem key={option} onSelect={(e) => e.preventDefault()} onClick={() => onFilterChange(categoryKey, option)}>
                                       <Checkbox checked={activeFilters[categoryKey]?.includes(option)} className="mr-2" />
                                       {option}
                                     </DropdownMenuItem>
@@ -232,7 +232,7 @@ export default function AllOrdersPage() {
                                   <DropdownMenuSeparator />
                                 </React.Fragment>
                               ))}
-                              <DropdownMenuItem onClick={clearAllFilters} className="text-red-600">
+                              <DropdownMenuItem onClick={onClearAllFilters} className="text-red-600">
                                 <RefreshCcw className="mr-2 h-4 w-4" /> Hapus Semua Filter
                               </DropdownMenuItem>
                             </DropdownMenuContent>
@@ -243,7 +243,7 @@ export default function AllOrdersPage() {
                             values.map(value => (
                               <Badge key={`${category}-${value}`} variant="secondary" className="flex items-center gap-1">
                                 {value}
-                                <Button variant="ghost" size="icon" className="h-4 w-4 p-0 ml-1" onClick={() => removeFilter(category, value)}>
+                                <Button variant="ghost" size="icon" className="h-4 w-4 p-0 ml-1" onClick={() => onRemoveFilter(category, value)}>
                                   <X className="h-3 w-3" />
                                 </Button>
                               </Badge>
@@ -251,7 +251,7 @@ export default function AllOrdersPage() {
                           )}
 
                           {getActiveFilterCount() > 0 && (
-                             <p className="text-sm text-muted-foreground">Ada {getActiveFilterCount()} filter aktif</p>
+                            <p className="text-sm text-muted-foreground">Ada {getActiveFilterCount()} filter aktif</p>
                           )}
 
                           <div className="ml-auto flex items-center gap-2">
@@ -368,35 +368,35 @@ export default function AllOrdersPage() {
                     </CardContent>
                   </Card>
                 </TabsContent>
-                 <TabsContent value="dikirim">
+                <TabsContent value="dikirim">
                   <Card>
                     <CardContent className="pt-6">
                       <p>Konten untuk tab Dikirim akan ditampilkan di sini.</p>
                     </CardContent>
                   </Card>
                 </TabsContent>
-                 <TabsContent value="selesai">
+                <TabsContent value="selesai">
                   <Card>
                     <CardContent className="pt-6">
                       <p>Konten untuk tab Selesai akan ditampilkan di sini.</p>
                     </CardContent>
                   </Card>
                 </TabsContent>
-                 <TabsContent value="dalam-proses">
+                <TabsContent value="dalam-proses">
                   <Card>
                     <CardContent className="pt-6">
                       <p>Konten untuk tab Dalam Proses akan ditampilkan di sini.</p>
                     </CardContent>
                   </Card>
                 </TabsContent>
-                 <TabsContent value="dibatalkan">
+                <TabsContent value="dibatalkan">
                   <Card>
                     <CardContent className="pt-6">
                       <p>Konten untuk tab Dibatalkan akan ditampilkan di sini.</p>
                     </CardContent>
                   </Card>
                 </TabsContent>
-                 <TabsContent value="pengantaran-gagal">
+                <TabsContent value="pengantaran-gagal">
                   <Card>
                     <CardContent className="pt-6">
                       <p>Konten untuk tab Pengantaran Gagal akan ditampilkan di sini.</p>

@@ -1,27 +1,27 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { db } from '@/lib/db';
-import { productionBatches, productionMaterialUsages } from '@/lib/db/schema';
+import { productionBatches } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    context: { params: Promise<{ id: string }> }
 ) {
     try {
         const tenantId = request.headers.get('X-Tenant-Id');
         if (!tenantId) return NextResponse.json({ message: 'Tenant ID required' }, { status: 400 });
 
-        const { id } = params;
+        const { id } = await context.params;
 
         const batch = await db.query.productionBatches.findFirst({
             where: eq(productionBatches.id, id),
             with: {
                 product: {
-                    columns: { name: true, unit: true }
+                    columns: { name: true }
                 },
                 materialUsages: {
                     with: {
-                        materialStockBatch: {
+                        materialBatch: {
                             with: {
                                 material: {
                                     columns: { name: true, unit: true, code: true }
@@ -45,7 +45,7 @@ export async function GET(
         return NextResponse.json(batch, { status: 200 });
 
     } catch (error) {
-        console.error('Failed to fetch production batch detail:', error);
+        console.error({ message: 'Failed to fetch production batch detail', error });
         return NextResponse.json({ message: 'Failed to fetch batch detail' }, { status: 500 });
     }
 }

@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { productVariantCombinations, products } from '@/lib/db/schema';
-import { eq, and, asc } from 'drizzle-orm';
+import { productVariantCombinations } from '@/lib/db/schema';
+import { asc } from 'drizzle-orm';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { productId: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
-  const { productId } = params; // Params are awaited via Next.js framework in recent versions, or just access if sync.
-  // In Next.js 15, params might be a Promise.
-  // The original code had `await params`. I should handle that if necessary.
+  const { id: productId } = await context.params;
 
   const tenantId = request.headers.get('X-Tenant-Id');
 
@@ -25,9 +23,6 @@ export async function GET(
     const variantCombinations = await db.query.productVariantCombinations.findMany({
       where: (variantCombos, { eq, and }) => and(
         eq(variantCombos.productId, productId)
-        // We must ensure the product belongs to the tenant.
-        // Drizzle doesn't support implicit join in `where` easily for filtering unless we sort of use `exists` or fetch separately.
-        // Or we can query `products` first.
       ),
       orderBy: [asc(productVariantCombinations.sku)],
       with: {
@@ -38,7 +33,6 @@ export async function GET(
     });
 
     // Filter by tenantId in JS or ensure we check it.
-    // If we just check fetched combinations' product tenantId.
     const filteredCombinations = variantCombinations.filter(vc => vc.product && vc.product.tenantId === tenantId);
 
     // Clean up response to remove `product` object if not needed
@@ -48,15 +42,13 @@ export async function GET(
     });
 
     if (responseData.length === 0) {
-      // Check if product exists regardless of variants?
-      // Original code returns empty array if no variants.
       return NextResponse.json([]);
     }
 
     return NextResponse.json(responseData);
 
   } catch (error) {
-    console.error(`Gagal mengambil kombinasi varian untuk produk ${productId}:`, error);
+    console.error({ message: 'Failed to fetch variant combinations', productId, error });
     return NextResponse.json({ message: 'Gagal mengambil data kombinasi varian' }, { status: 500 });
   }
 }

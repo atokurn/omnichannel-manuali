@@ -42,7 +42,7 @@ export default function AddOrderPage() {
   const [orderHour, setOrderHour] = useState<string>(format(orderDate ?? new Date(), 'HH'));
   const [orderMinute, setOrderMinute] = useState<string>(format(orderDate ?? new Date(), 'mm'));
 
-  const handleCreateOrder = () => {
+  const onCreateOrder = () => {
     // Logic to handle order creation
     console.log('Order Data:', {
       orderId,
@@ -76,11 +76,11 @@ export default function AddOrderPage() {
     router.push('/orders/orders'); // Example redirect
   };
 
-  const handleCancel = () => {
+  const onCancel = () => {
     router.back(); // Go back to the previous page
   };
 
-  const handleDateSelect = (selectedDate: Date | undefined) => {
+  const onDateSelect = (selectedDate: Date | undefined) => {
     if (selectedDate) {
       const currentHour = parseInt(orderHour);
       const currentMinute = parseInt(orderMinute);
@@ -89,7 +89,7 @@ export default function AddOrderPage() {
     }
   };
 
-  const handleTimeChange = (type: 'hour' | 'minute', value: string) => {
+  const onTimeChange = (type: 'hour' | 'minute', value: string) => {
     let numericValue = parseInt(value);
     if (isNaN(numericValue)) numericValue = 0;
 
@@ -230,7 +230,7 @@ export default function AddOrderPage() {
                               <CalendarComponent
                                 mode="single"
                                 selected={orderDate}
-                                onSelect={handleDateSelect} // Use custom handler
+                                onSelect={onDateSelect} // Use custom handler
                                 initialFocus
                                 locale={id} // Set locale to Indonesian
                               />
@@ -245,7 +245,7 @@ export default function AddOrderPage() {
                                     min="0"
                                     max="23"
                                     value={orderHour}
-                                    onChange={(e) => handleTimeChange('hour', e.target.value)}
+                                    onChange={(e) => onTimeChange('hour', e.target.value)}
                                     className="w-16 h-9 text-center"
                                     aria-label="Jam"
                                   />
@@ -255,7 +255,7 @@ export default function AddOrderPage() {
                                     min="0"
                                     max="59"
                                     value={orderMinute}
-                                    onChange={(e) => handleTimeChange('minute', e.target.value)}
+                                    onChange={(e) => onTimeChange('minute', e.target.value)}
                                     className="w-16 h-9 text-center"
                                     aria-label="Menit"
                                   />
@@ -349,10 +349,10 @@ export default function AddOrderPage() {
 
                     {/* Action Buttons */}
                     <div className="flex justify-end gap-2 mt-6">
-                      <Button variant="outline" onClick={handleCancel} type="button">
+                      <Button variant="outline" onClick={onCancel} type="button">
                         Batal
                       </Button>
-                      <Button onClick={handleCreateOrder} type="button">
+                      <Button onClick={onCreateOrder} type="button">
                         Buat Pesanan
                       </Button>
                     </div>

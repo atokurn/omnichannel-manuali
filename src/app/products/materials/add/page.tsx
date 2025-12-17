@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Switch } from '@/components/ui/switch';
 // import { useToast } from '@/components/ui/use-toast'; // Remove useToast import
 import { toast } from 'sonner'; // Import toast from sonner
-import { MaterialStatus } from '@/lib/db/schema'; // Import MaterialStatus
+import { MaterialStatus, MaterialStatusType } from '@/lib/db/schema'; // Import MaterialStatus
 import Image from 'next/image'; // Import Image component
 import { cn } from '@/lib/utils'; // Import cn for conditional classes
 import { Combobox } from "@/components/ui/combobox";
@@ -27,7 +27,7 @@ interface MaterialFormData {
   minStockLevel: string; // Minimal stock level
   basePrice: string; // Keep as string for input, convert on submit
   description: string;
-  status: MaterialStatus; // Use enum type
+  status: MaterialStatusType; // Use const map type
   isDynamicPrice: boolean;
   imageUrl?: string; // Add optional imageUrl
   categoryId: string; // Add category field
@@ -117,7 +117,7 @@ export default function AddMaterialPage() {
         const result = await response.json();
         setCategories(result.data);
       } catch (error) {
-        console.error('Error fetching categories:', error);
+        console.error({ message: 'Error fetching categories', error });
         toast.error('Error', { description: 'Gagal mengambil data kategori' });
       } finally {
         setIsLoadingCategories(false);
@@ -140,7 +140,7 @@ export default function AddMaterialPage() {
           setFormData(prev => ({ ...prev, warehouseId: result[0].id }));
         }
       } catch (error) {
-        console.error('Error fetching warehouses:', error);
+        console.error({ message: 'Error fetching warehouses', error });
       } finally {
         setIsLoadingWarehouses(false);
       }
@@ -219,7 +219,7 @@ export default function AddMaterialPage() {
   };
 
   const handleSelectChange = (name: keyof MaterialFormData, value: string) => {
-    setFormData((prev) => ({ ...prev, [name]: value as MaterialStatus })); // Cast value for status
+    setFormData((prev) => ({ ...prev, [name]: value as MaterialStatusType })); // Cast value for status
     // Clear error for this field when user selects
     if (formErrors[name as keyof FormErrors]) {
       setFormErrors((prev) => ({ ...prev, [name]: undefined }));
@@ -296,7 +296,7 @@ export default function AddMaterialPage() {
         }
 
         uploadedImageUrl = uploadResult.url; // Get URL from upload API response
-        console.log("Image uploaded successfully, URL:", uploadedImageUrl);
+        console.log({ message: 'Image uploaded successfully', uploadedImageUrl });
 
       } catch (uploadError: any) {
         setFormErrors({ general: `Gagal mengunggah gambar: ${uploadError.message}` });
@@ -359,7 +359,7 @@ export default function AddMaterialPage() {
       }
 
     } catch (error) {
-      console.error('Failed to save material:', error);
+      console.error({ message: 'Failed to save material', error });
       // If it's not a validation/conflict error already handled, show a general error
       // Avoid overwriting specific upload errors
       if (!formErrors.general && !Object.keys(formErrors).some(k => k !== 'general')) {
@@ -686,7 +686,7 @@ export default function AddMaterialPage() {
                 <div className="grid gap-6">
                   <div className="grid gap-3">
                     <Label htmlFor="status">Status</Label>
-                    <Select name="status" onValueChange={(value) => handleSelectChange('status', value as MaterialStatus)} value={formData.status} required>
+                    <Select name="status" onValueChange={(value) => handleSelectChange('status', value as MaterialStatusType)} value={formData.status} required>
                       <SelectTrigger id="status" aria-label="Pilih Status" className={`${formErrors.status ? 'border-red-500' : ''}`}>
                         <SelectValue placeholder="Pilih status" />
                       </SelectTrigger>

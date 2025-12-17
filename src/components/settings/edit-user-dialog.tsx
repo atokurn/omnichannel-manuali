@@ -38,12 +38,12 @@ export function EditUserDialog({ open, user, onClose, onUserUpdated }: EditUserD
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingRoles, setLoadingRoles] = useState(true);
-  
+
   // Fetch roles when dialog opens
   useEffect(() => {
     fetchRoles();
   }, []);
-  
+
   async function fetchRoles() {
     try {
       setLoadingRoles(true);
@@ -53,21 +53,21 @@ export function EditUserDialog({ open, user, onClose, onUserUpdated }: EditUserD
         setRoles(data.roles);
       }
     } catch (error) {
-      console.error('Failed to fetch roles', error);
+      console.error({ message: 'Failed to fetch roles', error });
       toast.error('Failed to fetch roles');
     } finally {
       setLoadingRoles(false);
     }
   }
-  
-  async function handleSubmit(e: React.FormEvent) {
+
+  async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    
+
     if (!name || !email || !roleId) {
       toast.error('Please fill in all required fields');
       return;
     }
-    
+
     try {
       setLoading(true);
       const res = await fetch(`/api/users/${user.id}`, {
@@ -80,7 +80,7 @@ export function EditUserDialog({ open, user, onClose, onUserUpdated }: EditUserD
           status: status ? 'active' : 'inactive'
         }),
       });
-      
+
       if (res.ok) {
         toast.success('User updated successfully');
         onUserUpdated();
@@ -89,13 +89,13 @@ export function EditUserDialog({ open, user, onClose, onUserUpdated }: EditUserD
         toast.error(error.message || 'Failed to update user');
       }
     } catch (error) {
-      console.error('Failed to update user', error);
+      console.error({ message: 'Failed to update user', error });
       toast.error('Failed to update user');
     } finally {
       setLoading(false);
     }
   }
-  
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
@@ -105,7 +105,7 @@ export function EditUserDialog({ open, user, onClose, onUserUpdated }: EditUserD
             Update user information for {user.name}.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={onSubmit}>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="name" className="text-right">

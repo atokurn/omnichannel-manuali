@@ -102,7 +102,7 @@ export default function AddSalePage() {
     loadData();
   }, []);
 
-  const handleInputChange = (field: keyof SaleFormData, value: string) => {
+  const onInputChange = (field: keyof SaleFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
       setErrors(prev => {
@@ -137,7 +137,7 @@ export default function AddSalePage() {
   };
 
   // Date handlers...
-  const handleDateSelect = (selectedDate: Date | undefined) => {
+  const onDateSelect = (selectedDate: Date | undefined) => {
     if (selectedDate) {
       const currentHour = parseInt(orderHour);
       const currentMinute = parseInt(orderMinute);
@@ -149,7 +149,7 @@ export default function AddSalePage() {
     }
   };
 
-  const handleTimeChange = (type: 'hour' | 'minute', value: string) => {
+  const onTimeChange = (type: 'hour' | 'minute', value: string) => {
     let numericValue = parseInt(value);
     if (isNaN(numericValue)) numericValue = 0;
     let newDate = formData.orderDate ?? new Date();
@@ -175,7 +175,7 @@ export default function AddSalePage() {
     setOrderMinute(format(now, 'mm'));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.orderId.trim()) { toast.error("Order ID wajib diisi"); return; }
     if (!formData.warehouseId) { toast.error("Gudang wajib dipilih"); return; }
@@ -242,18 +242,18 @@ export default function AddSalePage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-8">
+                <form onSubmit={onSubmit} className="space-y-8">
 
                   {/* Bagian 1: Detail Transaksi */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 border rounded-lg bg-muted/20">
                     <div className="space-y-4">
                       <div>
                         <Label>Order ID</Label>
-                        <Input value={formData.orderId} onChange={(e) => handleInputChange('orderId', e.target.value)} placeholder="Contoh: INV-2023001" />
+                        <Input value={formData.orderId} onChange={(e) => onInputChange('orderId', e.target.value)} placeholder="Contoh: INV-2023001" />
                       </div>
                       <div>
                         <Label>Platform</Label>
-                        <Select onValueChange={(val) => handleInputChange('platform', val)} value={formData.platform}>
+                        <Select onValueChange={(val) => onInputChange('platform', val)} value={formData.platform}>
                           <SelectTrigger><SelectValue placeholder="Pilih Platform" /></SelectTrigger>
                           <SelectContent>
                             {platformOptions.map((opt) => <SelectItem key={opt.id} value={opt.id}>{opt.name}</SelectItem>)}
@@ -262,7 +262,7 @@ export default function AddSalePage() {
                       </div>
                       <div>
                         <Label>Income Total (Financial Report)</Label>
-                        <Input type="number" value={formData.income} onChange={(e) => handleInputChange('income', e.target.value)} />
+                        <Input type="number" value={formData.income} onChange={(e) => onInputChange('income', e.target.value)} />
                       </div>
                     </div>
                     <div className="space-y-4">
@@ -276,16 +276,16 @@ export default function AddSalePage() {
                             </Button>
                           </PopoverTrigger>
                           <PopoverContent className="w-auto p-0 flex flex-col sm:flex-row">
-                            <CalendarComponent mode="single" selected={formData.orderDate} onSelect={handleDateSelect} initialFocus locale={id} />
+                            <CalendarComponent mode="single" selected={formData.orderDate} onSelect={onDateSelect} initialFocus locale={id} />
                             <div className="p-3 border-t sm:border-t-0 sm:border-l border-border flex flex-col items-center justify-center space-y-4">
                               <div className="flex items-center space-x-2">
                                 <Clock className="h-5 w-5 text-muted-foreground" />
                                 <span className="font-medium">Waktu</span>
                               </div>
                               <div className="flex items-center space-x-1">
-                                <Input type="number" min="0" max="23" value={orderHour} onChange={(e) => handleTimeChange('hour', e.target.value)} className="w-16 h-9 text-center" />
+                                <Input type="number" min="0" max="23" value={orderHour} onChange={(e) => onTimeChange('hour', e.target.value)} className="w-16 h-9 text-center" />
                                 <span>:</span>
-                                <Input type="number" min="0" max="59" value={orderMinute} onChange={(e) => handleTimeChange('minute', e.target.value)} className="w-16 h-9 text-center" />
+                                <Input type="number" min="0" max="59" value={orderMinute} onChange={(e) => onTimeChange('minute', e.target.value)} className="w-16 h-9 text-center" />
                               </div>
                               <Button variant="outline" size="sm" onClick={setTimeToNow} className="w-full">Hari ini</Button>
                             </div>
@@ -294,7 +294,7 @@ export default function AddSalePage() {
                       </div>
                       <div>
                         <Label>Gudang Asal (Stok Keluar)</Label>
-                        <Select onValueChange={(val) => handleInputChange('warehouseId', val)} value={formData.warehouseId}>
+                        <Select onValueChange={(val) => onInputChange('warehouseId', val)} value={formData.warehouseId}>
                           <SelectTrigger><SelectValue placeholder="Pilih Gudang" /></SelectTrigger>
                           <SelectContent>
                             {warehouses.map((w) => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}

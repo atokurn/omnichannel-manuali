@@ -222,8 +222,15 @@ export default function AreaStockMovementPage() {
   const [selectedDestinationWarehouse, setSelectedDestinationWarehouse] = useState<string>("all");
   const [selectedType, setSelectedType] = useState<string>("all");
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  const pageCount = Math.ceil(filteredData.length / pageSize);
+  const paginatedData = filteredData.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
   // Handler for movement type selection change
-  const handleTypeChange = (value: string) => {
+  const onTypeChange = (value: string) => {
     setSelectedType(value);
   };
 
@@ -313,10 +320,10 @@ export default function AreaStockMovementPage() {
       cell: ({ row }: any) => {
         const type = row.original.type;
         let badgeVariant = "secondary";
-        
+
         if (type === "Internal Transfer") badgeVariant = "default";
         if (type === "External Transfer") badgeVariant = "outline";
-        
+
         return <Badge variant={badgeVariant as any}>{type}</Badge>;
       },
     },
@@ -423,7 +430,7 @@ export default function AreaStockMovementPage() {
             {/* Filter Tipe */}
             <div>
               <Label className="mb-1 block text-sm font-medium">Tipe Pergerakan</Label>
-              <Select value={selectedType} onValueChange={handleTypeChange}>
+              <Select value={selectedType} onValueChange={onTypeChange}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Pilih Tipe Movement" />
                 </SelectTrigger>
@@ -443,7 +450,15 @@ export default function AreaStockMovementPage() {
               <Input placeholder="Cari SKU atau nama produk" />
             </div>
           </div>
-          <DataTable columns={columns} data={filteredData} />
+          <DataTable
+            columns={columns}
+            data={paginatedData}
+            pageCount={pageCount}
+            currentPage={currentPage}
+            onPageChange={setCurrentPage}
+            pageSize={pageSize}
+            onPageSizeChange={setPageSize}
+          />
         </CardContent>
       </Card>
     </main> // End main tag

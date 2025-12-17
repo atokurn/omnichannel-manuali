@@ -17,7 +17,7 @@ async function getCurrentUser() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    console.log('Received product data:', body);
+    console.log({ message: 'Received product data', body });
 
     if (!body.productName) {
       return NextResponse.json({ error: 'Nama produk wajib diisi' }, { status: 400 });
@@ -90,7 +90,7 @@ export async function POST(request: Request) {
             warehouseId: defaultWarehouse.id
           });
         } else {
-          console.warn('Tidak dapat menyimpan data inventory: Warehouse atau shelf tidak tersedia');
+          console.warn({ message: 'Cannot save inventory: Warehouse or shelf not available' });
         }
       }
 
@@ -141,11 +141,11 @@ export async function POST(request: Request) {
       return newProduct;
     });
 
-    console.log('Product created successfully:', result);
+    console.log({ message: 'Product created successfully', result });
     return NextResponse.json({ message: 'Product created successfully', product: result }, { status: 201 });
 
   } catch (error) {
-    console.error('Error creating product:', error);
+    console.error({ message: 'Error creating product', error });
     let errorMessage = 'Failed to create product';
     if (error instanceof Error) {
       errorMessage = error.message;
@@ -241,7 +241,7 @@ export async function GET(request: Request) {
           await ensureRedisConnection();
           cachedDataString = await redisClient.get(cacheKey);
         } catch (redisError) {
-          console.warn(`Redis GET error for key ${cacheKey}:`, redisError);
+          console.warn({ message: 'Redis GET error', cacheKey, redisError });
         }
 
         if (cachedDataString) {
@@ -310,7 +310,7 @@ export async function GET(request: Request) {
 
           try {
             await redisClient.set(cacheKey, JSON.stringify(processedCombinations), { EX: 300 });
-          } catch (e) { console.warn(e); }
+          } catch (e) { console.warn({ e }); }
         }
 
         totalStock = processedCombinations.reduce((sum, combo) => sum + (combo.quantity || 0), 0);
@@ -347,7 +347,7 @@ export async function GET(request: Request) {
     });
 
   } catch (error) {
-    console.error('Error fetching products:', error);
+    console.error({ message: 'Error fetching products', error });
     let errorMessage = 'Failed to fetch products';
     if (error instanceof Error) {
       errorMessage = error.message;

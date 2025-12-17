@@ -48,14 +48,14 @@ export default function AddStockCountPage() {
   const [selectedItems, setSelectedItems] = useState<SelectedItem[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const handleWarehouseChange = (value: string) => {
+  const onWarehouseChange = (value: string) => {
     setSelectedWarehouse(value);
     if (errors.warehouseId) {
       setErrors(prev => ({ ...prev, warehouseId: '' }));
     }
   };
 
-  const handleCountTypeChange = (value: CountType) => {
+  const onCountTypeChange = (value: CountType) => {
     setCountType(value);
     setSelectedItems([]); // Reset selected items when count type changes
     if (errors.countType) {
@@ -64,7 +64,7 @@ export default function AddStockCountPage() {
   };
 
   // Fungsi placeholder untuk menambah item (SKU atau Rak)
-  const handleSelectItem = () => {
+  const onSelectItem = () => {
     // Implementasi modal atau dropdown untuk memilih SKU/Rak
     console.log("Select Item clicked, type:", countType);
     // Contoh penambahan item dummy
@@ -81,7 +81,7 @@ export default function AddStockCountPage() {
   };
 
   // Fungsi untuk menghapus item terpilih
-  const handleRemoveItem = (itemId: string) => {
+  const onRemoveItem = (itemId: string) => {
     setSelectedItems(prev => prev.filter(item => item.id !== itemId));
   };
 
@@ -100,7 +100,7 @@ export default function AddStockCountPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async () => { // Make the function async
+  const onSubmit = async () => { // Make the function async
     if (validateForm()) {
       // Simulate API call to create stock count task
       console.log("Creating stock count task with data:", { selectedWarehouse, countType, selectedItems });
@@ -144,7 +144,7 @@ export default function AddStockCountPage() {
             {/* Warehouse Selection */}
             <div className="grid gap-3">
               <Label htmlFor="warehouse">Warehouse <span className="text-red-500">*</span></Label>
-              <Select onValueChange={handleWarehouseChange} value={selectedWarehouse}>
+              <Select onValueChange={onWarehouseChange} value={selectedWarehouse}>
                 <SelectTrigger id="warehouse" aria-label="Pilih Gudang">
                   <SelectValue placeholder="Pilih Gudang" />
                 </SelectTrigger>
@@ -160,7 +160,7 @@ export default function AddStockCountPage() {
             {/* Count Type Selection */}
             <div className="grid gap-3">
               <Label>Count Type <span className="text-red-500">*</span></Label>
-              <RadioGroup defaultValue="sku" value={countType} onValueChange={(value) => handleCountTypeChange(value as CountType)} className="flex space-x-4">
+              <RadioGroup defaultValue="sku" value={countType} onValueChange={(value) => onCountTypeChange(value as CountType)} className="flex space-x-4">
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="sku" id="sku" />
                   <Label htmlFor="sku">By Merchant SKU</Label>
@@ -184,7 +184,7 @@ export default function AddStockCountPage() {
                 <Card className="border-dashed">
                   <CardContent className="p-6 flex flex-col items-center justify-center min-h-[150px]">
                     {selectedItems.length === 0 ? (
-                      <Button variant="outline" onClick={handleSelectItem}>
+                      <Button variant="outline" onClick={onSelectItem}>
                         <Plus className="mr-2 h-4 w-4" /> {countType === 'sku' ? 'Select Merchant SKU' : 'Select Shelf'}
                       </Button>
                     ) : (
@@ -201,7 +201,7 @@ export default function AddStockCountPage() {
                               <TableRow key={item.id}>
                                 <TableCell>{item.name} ({item.id})</TableCell>
                                 <TableCell className="text-right">
-                                  <Button variant="ghost" size="icon" onClick={() => handleRemoveItem(item.id)}>
+                                  <Button variant="ghost" size="icon" onClick={() => onRemoveItem(item.id)}>
                                     <Trash2 className="h-4 w-4" />
                                   </Button>
                                 </TableCell>
@@ -209,7 +209,7 @@ export default function AddStockCountPage() {
                             ))}
                           </TableBody>
                         </Table>
-                        <Button variant="outline" size="sm" onClick={handleSelectItem} className="mt-4">
+                        <Button variant="outline" size="sm" onClick={onSelectItem} className="mt-4">
                           <Plus className="mr-2 h-4 w-4" /> Tambah Lagi
                         </Button>
                       </div>
@@ -222,7 +222,7 @@ export default function AddStockCountPage() {
           </div>
         </CardContent>
         <CardFooter className="border-t px-6 py-4">
-          <Button onClick={handleSubmit}>Buat Tugas Stock Count</Button>
+          <Button onClick={onSubmit}>Buat Tugas Stock Count</Button>
           {errors.submit && <p className="text-sm text-red-500 ml-4">{errors.submit}</p>}
         </CardFooter>
       </Card>

@@ -31,7 +31,7 @@ export function AddAreaDialog({ onAddArea }: AddAreaDialogProps) {
     status: 'Aktif'
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -39,16 +39,16 @@ export function AddAreaDialog({ onAddArea }: AddAreaDialogProps) {
     }));
   };
 
-  const handleSelectChange = (name: string, value: string) => {
+  const onSelectChange = (name: string, value: string) => {
     setFormData(prev => ({
       ...prev,
       [name]: value
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validasi sederhana
     if (!formData.name) {
       alert('Nama area harus diisi');
@@ -99,7 +99,7 @@ export function AddAreaDialog({ onAddArea }: AddAreaDialogProps) {
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={onSubmit}>
           <DialogHeader>
             <DialogTitle>Tambah Area Baru</DialogTitle>
             <DialogDescription>
@@ -115,7 +115,7 @@ export function AddAreaDialog({ onAddArea }: AddAreaDialogProps) {
                 id="name"
                 name="name"
                 value={formData.name}
-                onChange={handleChange}
+                onChange={onChange}
                 className="col-span-3"
                 placeholder="Nama area"
                 required
@@ -128,7 +128,7 @@ export function AddAreaDialog({ onAddArea }: AddAreaDialogProps) {
               <div className="col-span-3">
                 <Select
                   value={formData.warehouseId}
-                  onValueChange={(value) => handleSelectChange('warehouseId', value)}
+                  onValueChange={(value) => onSelectChange('warehouseId', value)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Pilih gudang" />
@@ -152,7 +152,7 @@ export function AddAreaDialog({ onAddArea }: AddAreaDialogProps) {
                 name="capacity"
                 type="number"
                 value={formData.capacity}
-                onChange={handleChange}
+                onChange={onChange}
                 className="col-span-3"
                 placeholder="Kapasitas dalam m²"
               />
@@ -164,7 +164,7 @@ export function AddAreaDialog({ onAddArea }: AddAreaDialogProps) {
               <div className="col-span-3">
                 <Select
                   value={formData.type}
-                  onValueChange={(value) => handleSelectChange('type', value)}
+                  onValueChange={(value) => onSelectChange('type', value)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Pilih tipe area" />
@@ -184,7 +184,7 @@ export function AddAreaDialog({ onAddArea }: AddAreaDialogProps) {
               <div className="col-span-3">
                 <Select
                   value={formData.status}
-                  onValueChange={(value) => handleSelectChange('status', value)}
+                  onValueChange={(value) => onSelectChange('status', value)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Pilih status" />

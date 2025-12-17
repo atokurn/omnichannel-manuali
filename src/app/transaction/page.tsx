@@ -5,7 +5,7 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar"
 
-export const description = "Transaction management page"
+// Transaction management page
 
 export default function Page() {
   return (

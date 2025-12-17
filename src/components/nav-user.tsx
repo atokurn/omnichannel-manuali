@@ -52,7 +52,7 @@ const fetchUserData = async (): Promise<UserData> => {
   const response = await fetch('/api/auth/me', {
     credentials: 'include', // Send cookies
   });
-  
+
   if (!response.ok) {
     if (response.status === 401) {
       // Not authenticated or token expired
@@ -62,9 +62,9 @@ const fetchUserData = async (): Promise<UserData> => {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(`Failed to fetch user: ${response.status} ${response.statusText} - ${errorData.message || 'No error details'}`);
   }
-  
+
   const data = await response.json();
-  
+
   // Validate the received data structure
   if (data && data.user && typeof data.user === 'object') {
     return data.user;
@@ -102,9 +102,9 @@ export function NavUser() {
     }
   });
 
-  const handleLogout = async () => {
+  const onLogout = async () => {
     try {
-      const response = await fetch("/api/auth/logout", { 
+      const response = await fetch("/api/auth/logout", {
         method: "POST",
         credentials: 'include' // Include credentials for logout too
       })
@@ -115,11 +115,11 @@ export function NavUser() {
         router.push("/sign")
         router.refresh()
       } else {
-        console.error("Logout failed:", response.statusText)
+        console.error({ message: "Logout failed", status: response.statusText })
         // Show error message to user
       }
     } catch (error) {
-      console.error("Error during logout:", error)
+      console.error({ message: "Error during logout", error })
       // Show error message to user
     }
   }
@@ -146,7 +146,7 @@ export function NavUser() {
 
   // Handle error state (optional: show an error message or fallback)
   if (error) { // Check specifically for the error state being set
-    console.error("Rendering error state:", error);
+    console.error({ message: "Rendering error state", error });
     // Display an error message or a fallback UI. For now, just log and return null.
     // You could render a simple error indicator here.
     // Example: return <div>Error loading user: {error}</div>;
@@ -223,7 +223,7 @@ export function NavUser() {
                 </DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout}>
+              <DropdownMenuItem onClick={onLogout}>
                 <LogOut />
                 Log out
               </DropdownMenuItem>
@@ -233,7 +233,7 @@ export function NavUser() {
       </SidebarMenu>
     )
   }
-  
+
   // Fallback if no user data
   return null;
 }

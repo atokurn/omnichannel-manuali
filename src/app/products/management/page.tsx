@@ -147,17 +147,9 @@ function VariantDetails({ combinations }: { combinations: VariantCombination[] }
               <TableCell>
                 <ProductImageTooltip
                   imageUrl={variant.imageUrl || '/placeholder.svg'}
-                  productName={`Varian ${Object.values(variant.options).join(', ')}`}
                   alt={`Varian ${Object.values(variant.options).join(', ')}`}
-                >
-                  <Image
-                    src={variant.imageUrl || '/placeholder.svg'}
-                    alt={`Varian ${Object.values(variant.options).join(', ')}`}
-                    width={30}
-                    height={30}
-                    className="rounded object-cover"
-                  />
-                </ProductImageTooltip>
+                  thumbnailSize={30}
+                />
               </TableCell>
               {optionNames.map(name => (
                 <TableCell key={`${variant.id}-${name}`}>{variant.options[name] || '-'}</TableCell>
@@ -209,15 +201,10 @@ const getColumns = (refreshData: () => void): ColumnDef<Product>[] => [
       const product = row.original;
       return (
         <div className="flex items-center gap-2">
-          <ProductImageTooltip imageUrl={product.mainImage} productName={product.name} alt={product.name}>
-            <Image
-              src={product.mainImage || '/placeholder.svg'} // Gunakan mainImage
-              alt={product.name}
-              width={40}
-              height={40}
-              className="rounded object-cover"
-            />
-          </ProductImageTooltip>
+          <ProductImageTooltip
+            imageUrl={product.mainImage || '/placeholder.svg'}
+            alt={product.name}
+          />
           <div>
             <div className="font-medium">{product.name}</div>
             <div className="text-xs text-muted-foreground">SKU Induk: {product.sku || '-'}</div>
@@ -336,10 +323,10 @@ const getColumns = (refreshData: () => void): ColumnDef<Product>[] => [
       const router = useRouter(); // Get router inside cell
       const [isDeleting, setIsDeleting] = useState(false);
 
-      const handleDelete = async () => {
+      const onDelete = async () => {
         if (!product || !product.id) {
           toast.error('Error Hapus', { description: 'ID Produk tidak valid.' });
-          console.error('handleDelete error: Invalid product ID', product);
+          console.error('onDelete error: Invalid product ID', product);
           return;
         }
 
@@ -408,7 +395,7 @@ const getColumns = (refreshData: () => void): ColumnDef<Product>[] => [
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel disabled={isDeleting}>Batal</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-red-600 hover:bg-red-700">
+                <AlertDialogAction onClick={onDelete} disabled={isDeleting} className="bg-red-600 hover:bg-red-700">
                   {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   Hapus
                 </AlertDialogAction>
@@ -540,19 +527,19 @@ export default function ProductManagementPage() {
   });
 
   // Handler untuk perubahan search term
-  const handleSearchChange = (term: string) => {
+  const onSearchChange = (term: string) => {
     setSearchTerm(term);
     setCurrentPage(1); // Reset to first page on search
     // fetchProducts will be called by useEffect due to searchTerm or currentPage dependency change
   };
 
   // Handler untuk perubahan halaman
-  const handlePageChange = (page: number) => {
+  const onPageChange = (page: number) => {
     setCurrentPage(page);
   };
 
   // Handler untuk perubahan ukuran halaman
-  const handlePageSizeChange = (size: number) => {
+  const onPageSizeChange = (size: number) => {
     setPageSize(size);
     setCurrentPage(1); // Reset to first page on page size change
   };
@@ -565,7 +552,7 @@ export default function ProductManagementPage() {
   }, [rowSelection, table]); // Dependency on table instance might be broad, consider if products can be used
 
   // Handler untuk bulk delete, dibungkus dengan useCallback
-  const handleBulkDelete = useCallback(async () => {
+  const onBulkDelete = useCallback(async () => {
     if (selectedRowCount === 0 || selectedRowIds.length === 0) {
       toast.error('Error Hapus Massal', { description: 'Tidak ada produk yang dipilih untuk dihapus.' });
       return;
@@ -628,7 +615,7 @@ export default function ProductManagementPage() {
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel disabled={isBulkDeleting}>Batal</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleBulkDelete} disabled={isBulkDeleting} className="bg-red-600 hover:bg-red-700">
+                    <AlertDialogAction onClick={onBulkDelete} disabled={isBulkDeleting} className="bg-red-600 hover:bg-red-700">
                       {isBulkDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                       Hapus
                     </AlertDialogAction>
@@ -644,7 +631,7 @@ export default function ProductManagementPage() {
         </CardHeader>
         <CardContent>
           {/* Search Input - TODO: Add a search input component here if needed, DataTable's search is not used directly anymore */}
-          {/* <Input placeholder="Cari produk..." value={searchTerm} onChange={(e) => handleSearchChange(e.target.value)} className="max-w-sm mb-4" /> */}
+          {/* <Input placeholder="Cari produk..." value={searchTerm} onChange={(e) => onSearchChange(e.target.value)} className="max-w-sm mb-4" /> */}
 
           {isLoading ? (
             <DataTableSkeleton columnCount={columns.length} rowCount={pageSize} />
@@ -750,7 +737,7 @@ export default function ProductManagementPage() {
               <Select
                 value={`${pageSize}`}
                 onValueChange={(value) => {
-                  handlePageSizeChange(Number(value));
+                  onPageSizeChange(Number(value));
                 }}
               >
                 <SelectTrigger id="rows-per-page" className="h-8 w-[70px]">
@@ -771,7 +758,7 @@ export default function ProductManagementPage() {
               <DataTablePagination
                 currentPage={currentPage}
                 pageCount={totalPages}
-                onPageChange={handlePageChange}
+                onPageChange={onPageChange}
               // pageSize, onPageSizeChange, totalItems are not props of DataTablePagination
               />
             )}

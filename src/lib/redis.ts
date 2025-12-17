@@ -9,7 +9,7 @@ const redisClient = createClient({
 });
 
 // Menangani error koneksi
-redisClient.on('error', (err) => console.error('Redis Client Error', err));
+redisClient.on('error', (err) => console.error({ message: 'Redis Client Error', err }));
 
 // Fungsi untuk menghubungkan klien (dipanggil sekali saat aplikasi start jika diperlukan)
 // Atau biarkan klien terhubung secara otomatis saat perintah pertama dijalankan
@@ -30,9 +30,9 @@ export async function ensureRedisConnection() {
   if (!redisClient.isOpen) {
     try {
       await redisClient.connect();
-      console.log('Connected to Redis');
+      console.log({ message: 'Connected to Redis' });
     } catch (err) {
-      console.error('Failed to connect to Redis:', err);
+      console.error({ message: 'Failed to connect to Redis', err });
       // Melempar ulang error atau menangani sesuai kebutuhan aplikasi
       throw err;
     }

@@ -9,7 +9,7 @@ import redisClient, { ensureRedisConnection } from '@/lib/redis';
 async function getCurrentUser() {
   const user = await getUser();
   if (!user || !user.id || !user.tenantId) {
-    console.error('Authentication error: User not authenticated or tenantId missing.');
+    console.error({ message: 'Authentication error: User not authenticated or tenantId missing' });
     throw new Error('User tidak terautentikasi atau data user tidak lengkap.');
   }
   return user;
@@ -45,7 +45,7 @@ export async function DELETE(request: Request) {
     const notFoundIds = ids.filter(id => !foundProductIds.includes(id));
 
     if (notFoundIds.length > 0) {
-      console.warn(`Bulk delete: Produk dengan ID berikut tidak ditemukan atau tidak dimiliki oleh tenant ${tenantId}: ${notFoundIds.join(', ')}`);
+      console.warn({ message: 'Bulk delete: Products not found or not owned by tenant', tenantId, notFoundIds });
     }
 
     if (foundProductIds.length === 0) {
@@ -101,7 +101,7 @@ export async function DELETE(request: Request) {
         const flatKeys = (await Promise.all(productCacheKeysToDelete.map(pattern => redisClient.keys(pattern)))).flat();
         if (flatKeys.length > 0) {
           await redisClient.del(flatKeys);
-          console.log(`Cache invalidated for multiple products:`, flatKeys);
+          console.log({ message: 'Cache invalidated for multiple products', flatKeys });
         }
       }
 
@@ -109,10 +109,10 @@ export async function DELETE(request: Request) {
       const productListKeys = await redisClient.keys(productListKeysPattern);
       if (productListKeys.length > 0) {
         await redisClient.del(productListKeys);
-        console.log(`Product list cache invalidated for tenant ${tenantId}:`, productListKeys);
+        console.log({ message: 'Product list cache invalidated', tenantId, productListKeys });
       }
     } catch (redisError) {
-      console.warn(`Redis cache invalidation error during bulk delete:`, redisError);
+      console.warn({ message: 'Redis cache invalidation error during bulk delete', redisError });
     }
 
     const count = foundProductIds.length;
@@ -124,7 +124,7 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ message }, { status: 200 });
 
   } catch (error: any) {
-    console.error('Error during bulk delete products:', error);
+    console.error({ message: 'Error during bulk delete products', error });
     let errorMessage = 'Gagal menghapus produk secara massal.';
     if (error instanceof Error) {
       errorMessage = error.message;

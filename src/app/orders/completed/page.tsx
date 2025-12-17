@@ -64,7 +64,7 @@ const dummyOrders: Order[] = [
     status: 'Pending',
     platform: 'TikTok',
   },
-    {
+  {
     id: '11',
     orderId: '577920885561132351',
     customer: 'cancel_user_1',
@@ -104,14 +104,14 @@ const getStatusBadgeVariant = (status: Order['status']): "default" | "secondary"
 };
 
 const getStatusBadgeStyle = (status: Order['status']): React.CSSProperties => {
-    switch (status) {
-      case 'Completed':
-        return { backgroundColor: '#4CAF50', color: 'white' }; // Hijau untuk Completed
-      // Tambahkan case lain jika perlu styling khusus
-      default:
-        return {};
-    }
-  };
+  switch (status) {
+    case 'Completed':
+      return { backgroundColor: '#4CAF50', color: 'white' }; // Hijau untuk Completed
+    // Tambahkan case lain jika perlu styling khusus
+    default:
+      return {};
+  }
+};
 
 export default function CompletedOrdersPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -146,7 +146,7 @@ export default function CompletedOrdersPage() {
     currentPage * rowsPerPage
   );
 
-  const handleSelectAll = (checked: boolean | 'indeterminate') => {
+  const onSelectAll = (checked: boolean | 'indeterminate') => {
     if (checked === true) {
       setSelectedOrders(currentTableData.map(order => order.id));
     } else {
@@ -154,7 +154,7 @@ export default function CompletedOrdersPage() {
     }
   };
 
-  const handleSelectRow = (id: string, checked: boolean) => {
+  const onSelectRow = (id: string, checked: boolean) => {
     if (checked) {
       setSelectedOrders([...selectedOrders, id]);
     } else {
@@ -174,7 +174,7 @@ export default function CompletedOrdersPage() {
     setCurrentPage((page) => Math.max(page - 1, 1));
   };
 
-  const handleRowsPerPageChange = (value: string) => {
+  const onRowsPerPageChange = (value: string) => {
     setRowsPerPage(Number(value));
     setCurrentPage(1); // Reset ke halaman pertama saat mengubah jumlah baris
   };
@@ -222,10 +222,10 @@ export default function CompletedOrdersPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead padding="checkbox">
+                        <TableHead>
                           <Checkbox
                             checked={isAllSelected || (isIndeterminate ? 'indeterminate' : false)}
-                            onCheckedChange={handleSelectAll}
+                            onCheckedChange={onSelectAll}
                             aria-label="Select all"
                           />
                         </TableHead>
@@ -246,10 +246,10 @@ export default function CompletedOrdersPage() {
                       {currentTableData.length > 0 ? (
                         currentTableData.map((order) => (
                           <TableRow key={order.id} data-state={selectedOrders.includes(order.id) ? 'selected' : undefined}>
-                            <TableCell padding="checkbox">
+                            <TableCell>
                               <Checkbox
                                 checked={selectedOrders.includes(order.id)}
-                                onCheckedChange={(checked) => handleSelectRow(order.id, !!checked)}
+                                onCheckedChange={(checked) => onSelectRow(order.id, !!checked)}
                                 aria-label={`Select row ${order.id}`}
                               />
                             </TableCell>
@@ -302,7 +302,7 @@ export default function CompletedOrdersPage() {
                       <p className="text-sm font-medium">Baris per halaman</p>
                       <Select
                         value={`${rowsPerPage}`}
-                        onValueChange={handleRowsPerPageChange}
+                        onValueChange={onRowsPerPageChange}
                       >
                         <SelectTrigger className="h-8 w-[70px]">
                           <SelectValue placeholder={rowsPerPage} />

@@ -19,12 +19,12 @@ export default function ShelvesPage() {
   const [filteredData, setFilteredData] = useState<Shelf[]>(dummyShelvesData);
   const [selectedWarehouse, setSelectedWarehouse] = useState<string | null>("all");
   const [selectedArea, setSelectedArea] = useState<string | null>("all");
-  
+
   // Fungsi untuk filter berdasarkan warehouse
-  const handleWarehouseChange = (warehouseId: string) => {
+  const onWarehouseChange = (warehouseId: string) => {
     setSelectedWarehouse(warehouseId);
     setSelectedArea("all"); // Reset area selection when warehouse changes
-    
+
     // Filter shelves by warehouse
     const shelves = getShelvesByWarehouse(warehouseId);
     if (Array.isArray(shelves)) {
@@ -36,9 +36,9 @@ export default function ShelvesPage() {
   };
 
   // Fungsi untuk filter berdasarkan area
-  const handleAreaChange = (areaId: string) => {
+  const onAreaChange = (areaId: string) => {
     setSelectedArea(areaId);
-    
+
     // Filter shelves by area
     const shelves = getShelvesByArea(areaId);
     if (Array.isArray(shelves)) {
@@ -90,10 +90,10 @@ export default function ShelvesPage() {
       cell: ({ row }: any) => {
         const status = row.original.status;
         let badgeVariant = "secondary";
-        
+
         if (status === "Aktif") badgeVariant = "success";
         if (status === "Nonaktif") badgeVariant = "destructive";
-        
+
         return <Badge variant={badgeVariant as any}>{status}</Badge>;
       },
     },
@@ -131,7 +131,7 @@ export default function ShelvesPage() {
   ];
 
   // Filter areas based on selected warehouse
-  const filteredAreas = selectedWarehouse && selectedWarehouse !== "all" 
+  const filteredAreas = selectedWarehouse && selectedWarehouse !== "all"
     ? dummyAreasData.filter(area => area.warehouseId === selectedWarehouse)
     : dummyAreasData;
 
@@ -166,7 +166,7 @@ export default function ShelvesPage() {
           <div className="mb-4 flex gap-4">
             <Select
               value={selectedWarehouse || "all"}
-              onValueChange={handleWarehouseChange}
+              onValueChange={onWarehouseChange}
             >
               <SelectTrigger className="w-[280px]">
                 <SelectValue placeholder="Pilih Gudang" />
@@ -183,28 +183,28 @@ export default function ShelvesPage() {
 
             <Select
               value={selectedArea || "all"}
-              onValueChange={handleAreaChange}
+              onValueChange={onAreaChange}
             >
               <SelectTrigger className="w-[280px]">
                 <SelectValue placeholder="Pilih Area" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Semua Area</SelectItem>
-                        {filteredAreas.map(area => (
-                          <SelectItem key={area.id} value={area.id}>
-                            {area.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <DataTable 
-                    columns={columns} 
-                    data={filteredData} 
-                    searchKey="name" 
-                  />
-                </CardContent>
-              </Card>
+                {filteredAreas.map(area => (
+                  <SelectItem key={area.id} value={area.id}>
+                    {area.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DataTable
+            columns={columns}
+            data={filteredData}
+            searchKey="name"
+          />
+        </CardContent>
+      </Card>
     </main>
   );
 }

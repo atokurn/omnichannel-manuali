@@ -32,11 +32,11 @@ export function LowStockNotification() {
 
     // Setup WebSocket connection
     const ws = new WebSocket(process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001');
-    
+
     ws.onopen = () => {
-      console.log('WebSocket connection established');
+      console.log({ message: 'WebSocket connection established' });
     };
-    
+
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
@@ -44,17 +44,17 @@ export function LowStockNotification() {
           // Add new low stock item to the list
           setLowStockItems(prev => {
             // Check if item already exists
-            const exists = prev.some(item => 
-              item.product.id === data.item.product.id && 
+            const exists = prev.some(item =>
+              item.product.id === data.item.product.id &&
               item.warehouse.id === data.item.warehouse.id
             );
-            
+
             if (exists) {
               // Update existing item
-              return prev.map(item => 
-                (item.product.id === data.item.product.id && 
-                 item.warehouse.id === data.item.warehouse.id) 
-                  ? data.item 
+              return prev.map(item =>
+                (item.product.id === data.item.product.id &&
+                  item.warehouse.id === data.item.warehouse.id)
+                  ? data.item
                   : item
               );
             } else {
@@ -64,20 +64,20 @@ export function LowStockNotification() {
           });
         }
       } catch (error) {
-        console.error('Error parsing WebSocket message:', error);
+        console.error({ message: 'Error parsing WebSocket message', error });
       }
     };
-    
+
     ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
+      console.error({ message: 'WebSocket error', error });
     };
-    
+
     ws.onclose = () => {
-      console.log('WebSocket connection closed');
+      console.log({ message: 'WebSocket connection closed' });
     };
-    
+
     setSocket(ws);
-    
+
     // Cleanup on unmount
     return () => {
       if (ws) {
@@ -93,9 +93,9 @@ export function LowStockNotification() {
         throw new Error('Failed to fetch low stock items');
       }
       const data = await response.json();
-      
+
       // Transform data to match expected format
-      const formattedItems = data.flatMap((product: any) => 
+      const formattedItems = data.flatMap((product: any) =>
         product.inventories
           .filter((inv: any) => inv.quantity < product.minStockLevel)
           .map((inv: any) => ({
@@ -112,10 +112,10 @@ export function LowStockNotification() {
             }
           }))
       );
-      
+
       setLowStockItems(formattedItems);
     } catch (error) {
-      console.error('Error fetching low stock items:', error);
+      console.error({ message: 'Error fetching low stock items', error });
     }
   }
 
@@ -129,8 +129,8 @@ export function LowStockNotification() {
         <Button variant="outline" size="icon" className="relative">
           <Bell className="h-4 w-4" />
           {lowStockItems.length > 0 && (
-            <Badge 
-              variant="destructive" 
+            <Badge
+              variant="destructive"
               className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs"
             >
               {lowStockItems.length}
@@ -161,9 +161,9 @@ export function LowStockNotification() {
                       {item.warehouse.name}
                     </p>
                   </div>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
+                  <Button
+                    variant="ghost"
+                    size="icon"
                     onClick={() => dismissItem(item.id)}
                   >
                     <X className="h-4 w-4" />

@@ -55,7 +55,7 @@ export function DatePickerWithRange({
     { label: "Last 90 Days", value: "last-90-days" },
   ]
 
-  const handlePresetChange = (preset: string) => {
+  const onPresetChange = (preset: string) => {
     const today = new Date()
     let newRange: DateRange | undefined
 
@@ -172,7 +172,7 @@ export function DatePickerWithRange({
                     key={preset.value}
                     variant="ghost"
                     className="w-full justify-start text-left mb-1"
-                    onClick={() => handlePresetChange(preset.value)}
+                    onClick={() => onPresetChange(preset.value)}
                   >
                     {preset.label}
                   </Button>

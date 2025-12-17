@@ -136,15 +136,15 @@ const getColumns = (refetchData: () => void): ColumnDef<Category>[] => [
       const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
       const [isDeleting, setIsDeleting] = useState(false);
 
-      const handleView = () => {
+      const onView = () => {
         router.push(`/products/categories/view/${categoryId}`);
       };
 
-      const handleEdit = () => {
+      const onEdit = () => {
         router.push(`/products/categories/edit/${categoryId}`);
       };
 
-      const handleDelete = async () => {
+      const onDelete = async () => {
         setIsDeleting(true);
         try {
           // Panggil API untuk menghapus kategori
@@ -179,11 +179,11 @@ const getColumns = (refetchData: () => void): ColumnDef<Category>[] => [
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>Aksi</DropdownMenuLabel>
-                <DropdownMenuItem onClick={handleView}>
+                <DropdownMenuItem onClick={onView}>
                   <Eye className="mr-2 h-4 w-4" />
                   Lihat
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleEdit}>
+                <DropdownMenuItem onClick={onEdit}>
                   <FileEdit className="mr-2 h-4 w-4" />
                   Edit
                 </DropdownMenuItem>
@@ -204,7 +204,7 @@ const getColumns = (refetchData: () => void): ColumnDef<Category>[] => [
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel disabled={isDeleting}>Batal</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-red-600 hover:bg-red-700">
+                <AlertDialogAction onClick={onDelete} disabled={isDeleting} className="bg-red-600 hover:bg-red-700">
                   {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   Hapus
                 </AlertDialogAction>
@@ -278,12 +278,12 @@ export default function CategoriesPage() {
     fetchCategories(pagination.page, pagination.limit);
   }, [fetchCategories, pagination.page, pagination.limit]); // Include fetchCategories in useEffect dependencies
 
-  const handlePageChange = useCallback((newPage: number) => {
+  const onPageChange = useCallback((newPage: number) => {
     setPagination(prev => ({ ...prev, page: newPage }));
   }, []);
 
   // Handler for page size change
-  const handlePageSizeChange = useCallback((newSize: number) => {
+  const onPageSizeChange = useCallback((newSize: number) => {
     setPagination(prev => ({ ...prev, limit: newSize, page: 1 })); // Reset to page 1 when size changes
   }, []);
 
@@ -295,7 +295,7 @@ export default function CategoriesPage() {
     return Object.keys(rowSelection).map(index => categories[parseInt(index)]?.id).filter(Boolean);
   }, [rowSelection, categories]);
 
-  const handleBulkDelete = async () => {
+  const onBulkDelete = async () => {
     if (selectedRowCount === 0) return;
     setIsBulkDeleting(true);
     try {
@@ -346,7 +346,7 @@ export default function CategoriesPage() {
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel disabled={isBulkDeleting}>Batal</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleBulkDelete} disabled={isBulkDeleting} className="bg-red-600 hover:bg-red-700">
+                    <AlertDialogAction onClick={onBulkDelete} disabled={isBulkDeleting} className="bg-red-600 hover:bg-red-700">
                       {isBulkDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                       Hapus
                     </AlertDialogAction>
@@ -389,8 +389,8 @@ export default function CategoriesPage() {
                 currentPage={pagination.page}
                 pageCount={pagination.totalPages}
                 pageSize={pagination.limit}
-                onPageChange={handlePageChange}
-                onPageSizeChange={handlePageSizeChange}
+                onPageChange={onPageChange}
+                onPageSizeChange={onPageSizeChange}
               />
             </>
           )}

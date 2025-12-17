@@ -169,24 +169,24 @@ export default function StockMovementPage() {
   const [selectedWarehouse, setSelectedWarehouse] = useState<string>("all");
 
   // Handler for date range change
-  const handleDateChange = (newDateRange: DateRange | undefined) => {
+  const onDateChange = (newDateRange: DateRange | undefined) => {
     setDateRange(newDateRange);
   };
 
   // Handler for warehouse selection change
-  const handleWarehouseChange = (value: string) => {
+  const onWarehouseChange = (value: string) => {
     setSelectedWarehouse(value);
   };
 
   // Handler for movement type selection change
-  const handleTypeChange = (value: string) => {
+  const onTypeChange = (value: string) => {
     setSelectedType(value);
   };
-  
+
   // Fungsi untuk filter data berdasarkan semua kriteria
   const filterData = () => {
     let filtered = [...dummyStockMovementData];
-    
+
     // Filter berdasarkan tipe
     if (selectedType !== "all") {
       filtered = filtered.filter(item => {
@@ -194,27 +194,27 @@ export default function StockMovementPage() {
         return type === selectedType;
       });
     }
-    
+
     // Filter berdasarkan warehouse
     if (selectedWarehouse !== "all") {
       filtered = filtered.filter(item => item.warehouse.id === selectedWarehouse);
     }
-    
+
     // Filter berdasarkan tanggal
     if (dateRange?.from) {
       filtered = filtered.filter(item => new Date(item.date) >= dateRange.from!);
     }
-    
+
     if (dateRange?.to) {
       // Tambahkan 1 hari ke endDate untuk mencakup seluruh hari yang dipilih
       const nextDay = new Date(dateRange.to);
       nextDay.setDate(nextDay.getDate() + 1);
       filtered = filtered.filter(item => new Date(item.date) < nextDay);
     }
-    
+
     setFilteredData(filtered);
   };
-  
+
   // Panggil filterData setiap kali filter berubah
   React.useEffect(() => {
     filterData();
@@ -254,12 +254,12 @@ export default function StockMovementPage() {
       cell: ({ row }: any) => {
         const type = row.original.type;
         let badgeVariant = "secondary";
-        
+
         if (type === "Stock In") badgeVariant = "default";
         if (type === "Stock Out") badgeVariant = "destructive";
         if (type === "Transfer In") badgeVariant = "outline";
         if (type === "Transfer Out") badgeVariant = "outline";
-        
+
         return <Badge variant={badgeVariant as any}>{type}</Badge>;
       },
     },
@@ -337,11 +337,11 @@ export default function StockMovementPage() {
             {/* Filters */}
             <div className="grid gap-2">
               <Label htmlFor="date-range">Date Range</Label>
-              <DatePickerWithRange date={dateRange} onDateChange={handleDateChange} />
+              <DatePickerWithRange date={dateRange} onDateChange={onDateChange} />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="warehouse-filter">Warehouse</Label>
-              <Select value={selectedWarehouse} onValueChange={handleWarehouseChange}>
+              <Select value={selectedWarehouse} onValueChange={onWarehouseChange}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Select Warehouse" />
                 </SelectTrigger>
@@ -357,7 +357,7 @@ export default function StockMovementPage() {
             </div>
             <div className="grid gap-2">
               <Label htmlFor="type-filter">Movement Type</Label>
-              <Select value={selectedType} onValueChange={handleTypeChange}>
+              <Select value={selectedType} onValueChange={onTypeChange}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Select Type" />
                 </SelectTrigger>

@@ -10,7 +10,7 @@ export class EcommerceSyncService {
   async getRequiredAttributes(categoryMappingId: string) { return []; }
   async upsertProductMapping(productId: string, platformId: string, storeId?: string) { throw new Error("Not implemented"); }
   async saveProductFieldValue(productMappingId: string, fieldName: string, fieldValue: string) { throw new Error("Not implemented"); }
-  async logSync(data: any) { console.log("Sync Log:", data); }
+  async logSync(data: unknown) { console.log({ syncLog: data }); }
   async prepareProductDataForPlatform(productId: string, platformId: string, storeId?: string) { throw new Error("Not implemented"); }
   async syncProductToPlatform(productId: string, platformId: string, storeId?: string) {
     return { success: false, message: "Service disabled during migration" };

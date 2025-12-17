@@ -32,7 +32,7 @@ export default function AccountSettingsPage() {
     }
   }, [user]);
 
-  const handleUpdate = async (e: React.FormEvent) => {
+  const onUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     try {
@@ -44,9 +44,9 @@ export default function AccountSettingsPage() {
       //   body: JSON.stringify({ firstName, lastName, email, phone /*, other fields */ }),
       // });
       // if (!response.ok) throw new Error('Failed to update profile');
-      
+
       // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000)); 
+      await new Promise(resolve => setTimeout(resolve, 1000));
       console.log('Updated profile:', { firstName, lastName, email, phone });
       toast.success('Profile updated successfully!');
     } catch (error) {
@@ -79,22 +79,22 @@ export default function AccountSettingsPage() {
           </div>
           {/* Main Content Skeleton */}
           <div className="lg:col-span-2">
-            <Skeleton className="mb-4 h-10 w-full" /> 
+            <Skeleton className="mb-4 h-10 w-full" />
             <Card>
               <CardContent className="space-y-6 pt-6">
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <Skeleton className="h-16 w-full" />
                   <Skeleton className="h-16 w-full" />
                 </div>
-                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <Skeleton className="h-16 w-full" />
                   <Skeleton className="h-16 w-full" />
                 </div>
-                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <Skeleton className="h-16 w-full" />
                   <Skeleton className="h-16 w-full" />
                 </div>
-                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <Skeleton className="h-16 w-full" />
                   <Skeleton className="h-16 w-full" />
                 </div>
@@ -124,7 +124,7 @@ export default function AccountSettingsPage() {
         {/* Left Sidebar - Simplified Profile Info */}
         <div className="lg:col-span-1">
           <Card>
-            <CardHeader className="items-center text-center flex justify-center flex-col"> {/* Added flex justify-center flex-col */} 
+            <CardHeader className="items-center text-center flex justify-center flex-col"> {/* Added flex justify-center flex-col */}
               <Avatar className="h-24 w-24">
                 <AvatarImage src={user.avatarUrl || undefined} alt={user.name || 'User'} />
                 <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
@@ -146,7 +146,7 @@ export default function AccountSettingsPage() {
           <Tabs defaultValue="account">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="account">Account</TabsTrigger>
-              <TabsTrigger value="company" disabled>Company</TabsTrigger> {/* Placeholder */} 
+              <TabsTrigger value="company" disabled>Company</TabsTrigger> {/* Placeholder */}
               <TabsTrigger value="notifications" disabled>Notifications</TabsTrigger> {/* Placeholder */}
             </TabsList>
 
@@ -158,7 +158,7 @@ export default function AccountSettingsPage() {
                   <CardDescription>Update your personal information.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <form onSubmit={handleUpdate} className="space-y-6">
+                  <form onSubmit={onUpdate} className="space-y-6">
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div className="space-y-2">
                         <Label htmlFor="firstName">First Name</Label>
@@ -170,7 +170,7 @@ export default function AccountSettingsPage() {
                       </div>
                     </div>
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                       <div className="space-y-2">
+                      <div className="space-y-2">
                         <Label htmlFor="phone">Phone Number</Label>
                         <Input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+1800-000-0000" />
                       </div>

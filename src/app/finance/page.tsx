@@ -5,7 +5,7 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar"
 
-export const description = "Tax management page"
+// Tax management page
 
 export default function Page() {
   return (

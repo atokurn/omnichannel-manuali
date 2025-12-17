@@ -1,6 +1,6 @@
 // Removed InventorySidebar, SiteHeader, SidebarInset, SidebarProvider imports
 
-export const description = "Inventory management page"
+// Inventory management page
 
 export default function Page() {
   return (

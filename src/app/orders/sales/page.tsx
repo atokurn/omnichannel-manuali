@@ -153,21 +153,21 @@ const getPlatformBadgeVariant = (platform: Sale['platform']): "default" | "secon
 };
 
 const getPlatformBadgeStyle = (platform: Sale['platform']): React.CSSProperties => {
-    switch (platform) {
-      case 'Shopee':
-        return { backgroundColor: '#FF6B00', color: 'white' };
-      case 'Tokopedia':
-        return { backgroundColor: '#4CAF50', color: 'white' };
-      case 'Lazada':
-        return { backgroundColor: '#1976D2', color: 'white' };
-      case 'TikTok':
-        return { backgroundColor: '#000000', color: 'white' };
-      case 'Manual':
-        return { backgroundColor: '#757575', color: 'white' };
-      default:
-        return {};
-    }
-  };
+  switch (platform) {
+    case 'Shopee':
+      return { backgroundColor: '#FF6B00', color: 'white' };
+    case 'Tokopedia':
+      return { backgroundColor: '#4CAF50', color: 'white' };
+    case 'Lazada':
+      return { backgroundColor: '#1976D2', color: 'white' };
+    case 'TikTok':
+      return { backgroundColor: '#000000', color: 'white' };
+    case 'Manual':
+      return { backgroundColor: '#757575', color: 'white' };
+    default:
+      return {};
+  }
+};
 
 export default function SalesPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -201,15 +201,15 @@ export default function SalesPage() {
     currentPage * rowsPerPage
   );
 
-  const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.checked) {
+  const onSelectAll = (checked: boolean | 'indeterminate') => {
+    if (checked === true) {
       setSelectedSales(currentTableData.map(sale => sale.id));
     } else {
       setSelectedSales([]);
     }
   };
 
-  const handleSelectRow = (id: string, checked: boolean) => {
+  const onSelectRow = (id: string, checked: boolean) => {
     if (checked) {
       setSelectedSales([...selectedSales, id]);
     } else {
@@ -217,15 +217,15 @@ export default function SalesPage() {
     }
   };
 
-  const handlePreviousPage = () => {
+  const onPreviousPage = () => {
     setCurrentPage((prev) => Math.max(prev - 1, 1));
   };
 
-  const handleNextPage = () => {
+  const onNextPage = () => {
     setCurrentPage((prev) => Math.min(prev + 1, totalPages));
   };
 
-  const handleRowsPerPageChange = (value: string) => {
+  const onRowsPerPageChange = (value: string) => {
     setRowsPerPage(Number(value));
     setCurrentPage(1); // Reset ke halaman pertama saat mengubah jumlah baris
   };
@@ -238,196 +238,190 @@ export default function SalesPage() {
           <OrdersSidebar />
           <SidebarInset>
             <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
-            <Card>
-            <CardContent className="flex flex-col gap-4">
-              {/* Header Section */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="relative">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      type="search"
-                      placeholder="Cari Order ID..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[300px]"
-                    />
-                  </div>
-                  <div className="space-y-2 md:col-span-1">
-                      <DatePickerWithRange
-                        date={dateRange}
-                        onDateChange={setDateRange}
-                        placeholder="Pilih rentang tanggal"
-                      />
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                <Button onClick={() => router.push('/orders/sales/add')}> {/* Adjust route as needed */}
-                  {/*<Plus className="mr-2 h-4 w-4" />*/}
-                  Tambah Penjualan
-                </Button>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="icon">
-                        <EllipsisVertical className="h-4 w-4" />
-                        <span className="sr-only">More actions</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem>
-                        <FileDown className="mr-2 h-4 w-4" />
-                        Eksport
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <FileUp className="mr-2 h-4 w-4" />
-                        Import
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  <Button size="sm" variant="outline" className="h-9 gap-1">
-                    <Eye className="mr-2 h-4 w-4" /> View
-                  </Button>
-                </div>
-              </div>
-
-              {/* Table Section */}
               <Card>
-                <CardContent className="p-0">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-[50px]">
-                          <Checkbox
-                            checked={selectedSales.length === currentTableData.length && currentTableData.length > 0}
-                            onCheckedChange={(checked) => {
-                                if (checked === true) {
-                                    setSelectedSales(currentTableData.map(sale => sale.id));
-                                } else if (checked === false) {
-                                    setSelectedSales([]);
-                                }
-                            }}
-                            aria-label="Select all"
-                          />
-                        </TableHead>
-                        <TableHead className="cursor-pointer">
-                          Order ID <ArrowUpDown className="ml-2 h-4 w-4 inline" />
-                        </TableHead>
-                        <TableHead className="cursor-pointer">
-                          Order at <ArrowUpDown className="ml-2 h-4 w-4 inline" />
-                        </TableHead>
-                        <TableHead className="text-right cursor-pointer">
-                          Income <ArrowUpDown className="ml-2 h-4 w-4 inline" />
-                        </TableHead>
-                        <TableHead className="text-right cursor-pointer">
-                          Price after discount <ArrowUpDown className="ml-2 h-4 w-4 inline" />
-                        </TableHead>
-                        <TableHead className="text-right cursor-pointer">
-                          Total Fees <ArrowUpDown className="ml-2 h-4 w-4 inline" />
-                        </TableHead>
-                        <TableHead className="cursor-pointer">
-                          Platform <ArrowUpDown className="ml-2 h-4 w-4 inline" />
-                        </TableHead>
-                        <TableHead className="w-[50px]">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {currentTableData.length > 0 ? (
-                        currentTableData.map((sale) => (
-                          <TableRow key={sale.id}>
-                            <TableCell>
-                              <Checkbox
-                                checked={selectedSales.includes(sale.id)}
-                                onCheckedChange={(checked) => handleSelectRow(sale.id, checked === true)}
-                                aria-label={`Select row ${sale.id}`}
-                              />
-                            </TableCell>
-                            <TableCell className="font-medium">{sale.orderId}</TableCell>
-                            <TableCell>{sale.orderAt}</TableCell>
-                            <TableCell className="text-right">{formatCurrency(sale.income)}</TableCell>
-                            <TableCell className="text-right">{formatCurrency(sale.priceAfterDiscount)}</TableCell>
-                            <TableCell className="text-right text-red-600">{formatCurrency(sale.totalFees)}</TableCell>
-                            <TableCell>
-                              <Badge variant={getPlatformBadgeVariant(sale.platform)} style={getPlatformBadgeStyle(sale.platform)}>{sale.platform}</Badge>
-                            </TableCell>
-                            <TableCell>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" className="h-8 w-8 p-0">
-                                    <span className="sr-only">Open menu</span>
-                                    <MoreHorizontal className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem>View Details</DropdownMenuItem>
-                                  <DropdownMenuItem>Edit Sale</DropdownMenuItem>
-                                  <DropdownMenuItem className="text-red-600">Delete Sale</DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={8} className="h-24 text-center">
-                            No results found.
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
+                <CardContent className="flex flex-col gap-4">
+                  {/* Header Section */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="relative">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          type="search"
+                          placeholder="Cari Order ID..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[300px]"
+                        />
+                      </div>
+                      <div className="space-y-2 md:col-span-1">
+                        <DatePickerWithRange
+                          date={dateRange}
+                          onDateChange={setDateRange}
+                          placeholder="Pilih rentang tanggal"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button onClick={() => router.push('/orders/sales/add')}> {/* Adjust route as needed */}
+                        {/*<Plus className="mr-2 h-4 w-4" />*/}
+                        Tambah Penjualan
+                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="icon">
+                            <EllipsisVertical className="h-4 w-4" />
+                            <span className="sr-only">More actions</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem>
+                            <FileDown className="mr-2 h-4 w-4" />
+                            Eksport
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>
+                            <FileUp className="mr-2 h-4 w-4" />
+                            Import
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                      <Button size="sm" variant="outline" className="h-9 gap-1">
+                        <Eye className="mr-2 h-4 w-4" /> View
+                      </Button>
+                    </div>
+                  </div>
 
-              {/* Pagination Section */}
-              <div className="flex items-center justify-between pt-4">
-                <div className="text-sm text-muted-foreground">
-                  {selectedSales.length} of {totalRows} row(s) selected.
-                </div>
-                <div className="flex items-center space-x-6 lg:space-x-8">
-                  <div className="flex items-center space-x-2">
-                    <p className="text-sm font-medium">Rows per page</p>
-                    <Select
-                      value={`${rowsPerPage}`}
-                      onValueChange={(value) => handleRowsPerPageChange(value)}
-                    >
-                      <SelectTrigger className="h-8 w-[70px]">
-                        <SelectValue placeholder={rowsPerPage} />
-                      </SelectTrigger>
-                      <SelectContent side="top">
-                        {[10, 20, 30, 40, 50].map((pageSize) => (
-                          <SelectItem key={pageSize} value={`${pageSize}`}>
-                            {pageSize}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  {/* Table Section */}
+                  <Card>
+                    <CardContent className="p-0">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[50px]">
+                              <Checkbox
+                                checked={selectedSales.length === currentTableData.length && currentTableData.length > 0}
+                                onCheckedChange={onSelectAll}
+                                aria-label="Select all"
+                              />
+                            </TableHead>
+                            <TableHead className="cursor-pointer">
+                              Order ID <ArrowUpDown className="ml-2 h-4 w-4 inline" />
+                            </TableHead>
+                            <TableHead className="cursor-pointer">
+                              Order at <ArrowUpDown className="ml-2 h-4 w-4 inline" />
+                            </TableHead>
+                            <TableHead className="text-right cursor-pointer">
+                              Income <ArrowUpDown className="ml-2 h-4 w-4 inline" />
+                            </TableHead>
+                            <TableHead className="text-right cursor-pointer">
+                              Price after discount <ArrowUpDown className="ml-2 h-4 w-4 inline" />
+                            </TableHead>
+                            <TableHead className="text-right cursor-pointer">
+                              Total Fees <ArrowUpDown className="ml-2 h-4 w-4 inline" />
+                            </TableHead>
+                            <TableHead className="cursor-pointer">
+                              Platform <ArrowUpDown className="ml-2 h-4 w-4 inline" />
+                            </TableHead>
+                            <TableHead className="w-[50px]">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {currentTableData.length > 0 ? (
+                            currentTableData.map((sale) => (
+                              <TableRow key={sale.id}>
+                                <TableCell>
+                                  <Checkbox
+                                    checked={selectedSales.includes(sale.id)}
+                                    onCheckedChange={(checked) => onSelectRow(sale.id, checked === true)}
+                                    aria-label={`Select row ${sale.id}`}
+                                  />
+                                </TableCell>
+                                <TableCell className="font-medium">{sale.orderId}</TableCell>
+                                <TableCell>{sale.orderAt}</TableCell>
+                                <TableCell className="text-right">{formatCurrency(sale.income)}</TableCell>
+                                <TableCell className="text-right">{formatCurrency(sale.priceAfterDiscount)}</TableCell>
+                                <TableCell className="text-right text-red-600">{formatCurrency(sale.totalFees)}</TableCell>
+                                <TableCell>
+                                  <Badge variant={getPlatformBadgeVariant(sale.platform)} style={getPlatformBadgeStyle(sale.platform)}>{sale.platform}</Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="ghost" className="h-8 w-8 p-0">
+                                        <span className="sr-only">Open menu</span>
+                                        <MoreHorizontal className="h-4 w-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuItem>View Details</DropdownMenuItem>
+                                      <DropdownMenuItem>Edit Sale</DropdownMenuItem>
+                                      <DropdownMenuItem className="text-red-600">Delete Sale</DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          ) : (
+                            <TableRow>
+                              <TableCell colSpan={8} className="h-24 text-center">
+                                No results found.
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+
+                  {/* Pagination Section */}
+                  <div className="flex items-center justify-between pt-4">
+                    <div className="text-sm text-muted-foreground">
+                      {selectedSales.length} of {totalRows} row(s) selected.
+                    </div>
+                    <div className="flex items-center space-x-6 lg:space-x-8">
+                      <div className="flex items-center space-x-2">
+                        <p className="text-sm font-medium">Rows per page</p>
+                        <Select
+                          value={`${rowsPerPage}`}
+                          onValueChange={(value) => onRowsPerPageChange(value)}
+                        >
+                          <SelectTrigger className="h-8 w-[70px]">
+                            <SelectValue placeholder={rowsPerPage} />
+                          </SelectTrigger>
+                          <SelectContent side="top">
+                            {[10, 20, 30, 40, 50].map((pageSize) => (
+                              <SelectItem key={pageSize} value={`${pageSize}`}>
+                                {pageSize}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex w-[100px] items-center justify-center text-sm font-medium">
+                        Page {currentPage} of {totalPages}
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          variant="outline"
+                          className="h-8 w-8 p-0"
+                          onClick={onPreviousPage}
+                          disabled={currentPage === 1}
+                        >
+                          <span className="sr-only">Go to previous page</span>
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="h-8 w-8 p-0"
+                          onClick={onNextPage}
+                          disabled={currentPage === totalPages}
+                        >
+                          <span className="sr-only">Go to next page</span>
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex w-[100px] items-center justify-center text-sm font-medium">
-                    Page {currentPage} of {totalPages}
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      variant="outline"
-                      className="h-8 w-8 p-0"
-                      onClick={handlePreviousPage}
-                      disabled={currentPage === 1}
-                    >
-                      <span className="sr-only">Go to previous page</span>
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="h-8 w-8 p-0"
-                      onClick={handleNextPage}
-                      disabled={currentPage === totalPages}
-                    >
-                      <span className="sr-only">Go to next page</span>
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-              </CardContent>
+                </CardContent>
               </Card>
             </main>
           </SidebarInset>

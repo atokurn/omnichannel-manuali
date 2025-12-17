@@ -8,9 +8,9 @@ const uploadDir = join(process.cwd(), 'public', 'uploads');
 if (!existsSync(uploadDir)) {
   try {
     mkdirSync(uploadDir, { recursive: true });
-    console.log(`Created upload directory: ${uploadDir}`);
+    console.log({ message: 'Created upload directory', uploadDir });
   } catch (error) {
-    console.error(`Failed to create upload directory: ${uploadDir}`, error);
+    console.error({ message: 'Failed to create upload directory', uploadDir, error });
   }
 }
 
@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     const file: File | null = data.get('file') as unknown as File;
     const prefix = data.get('prefix') as string || 'product';
     const productId = data.get('productId') as string || 'temp';
-    
+
     if (!file) {
       return NextResponse.json({ success: false, message: 'No file uploaded.' }, { status: 400 });
     }
@@ -50,14 +50,14 @@ export async function POST(request: NextRequest) {
     const path = join(productDir, filename);
 
     await writeFile(path, buffer);
-    console.log(`File uploaded successfully: ${path}`);
+    console.log({ message: 'File uploaded successfully', path });
 
     // Return the relative URL path for accessing the file
     const fileUrl = `/uploads/${productId}/${filename}`;
     return NextResponse.json({ success: true, url: fileUrl });
 
   } catch (error) {
-    console.error('Error saving file:', error);
+    console.error({ message: 'Error saving file', error });
     let errorMessage = 'Failed to save file.';
     if (error instanceof Error) {
       errorMessage = error.message;

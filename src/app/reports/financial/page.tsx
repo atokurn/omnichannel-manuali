@@ -94,7 +94,7 @@ export default function FinancialReportPage() {
     }
   }
 
-  function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+  function onInputChange(e: React.ChangeEvent<HTMLInputElement>) {
     const { name, value } = e.target;
     setFilters(prev => ({
       ...prev,
@@ -102,14 +102,14 @@ export default function FinancialReportPage() {
     }));
   }
 
-  function handleWarehouseChange(value: string) {
+  function onWarehouseChange(value: string) {
     setFilters(prev => ({
       ...prev,
       warehouseId: value
     }));
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     fetchReport();
   }
@@ -124,7 +124,7 @@ export default function FinancialReportPage() {
           <CardDescription>Select date range and warehouse to generate report</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={onSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="startDate">Start Date</Label>
@@ -133,7 +133,7 @@ export default function FinancialReportPage() {
                   name="startDate"
                   type="date"
                   value={filters.startDate}
-                  onChange={handleInputChange}
+                  onChange={onInputChange}
                   required
                 />
               </div>
@@ -144,13 +144,13 @@ export default function FinancialReportPage() {
                   name="endDate"
                   type="date"
                   value={filters.endDate}
-                  onChange={handleInputChange}
+                  onChange={onInputChange}
                   required
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="warehouse">Warehouse (Optional)</Label>
-                <Select value={filters.warehouseId} onValueChange={handleWarehouseChange}>
+                <Select value={filters.warehouseId} onValueChange={onWarehouseChange}>
                   <SelectTrigger id="warehouse">
                     <SelectValue placeholder="All Warehouses" />
                   </SelectTrigger>
@@ -197,7 +197,7 @@ export default function FinancialReportPage() {
                 </p>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Cost</CardTitle>
@@ -212,7 +212,7 @@ export default function FinancialReportPage() {
                 </p>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Net Profit</CardTitle>

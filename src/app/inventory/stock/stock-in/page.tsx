@@ -154,12 +154,12 @@ export default function StockInPage() {
   }, [searchTerm, selectedWarehouse]);
 
   // Fungsi untuk handle perubahan warehouse
-  const handleWarehouseChange = (warehouseId: string) => {
+  const onWarehouseChange = (warehouseId: string) => {
     setSelectedWarehouse(warehouseId);
   };
 
   // Fungsi untuk handle perubahan input pencarian
-  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const onSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(event.target.value);
   };
 
@@ -194,11 +194,11 @@ export default function StockInPage() {
       cell: ({ row }: any) => {
         const type = row.original.type;
         let badgeVariant = "secondary";
-        
+
         if (type === "Pembelian") badgeVariant = "default";
         if (type === "Transfer") badgeVariant = "outline";
         if (type === "Retur") badgeVariant = "success";
-        
+
         return <Badge variant={badgeVariant as any}>{type}</Badge>;
       },
     },
@@ -259,15 +259,15 @@ export default function StockInPage() {
           </div>
           <Link href="/inventory/stock/stock-in/add" passHref>
             <Button className="ml-auto">
-            Tambah Stok Masuk
+              Tambah Stok Masuk
             </Button>
           </Link>
         </CardHeader>
         <CardContent>
           <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div className="w-full">
+            <div className="w-full">
               <Label htmlFor="warehouse-filter" className="mb-1 block text-sm font-medium">Gudang</Label>
-              <Select onValueChange={handleWarehouseChange} defaultValue="all">
+              <Select onValueChange={onWarehouseChange} defaultValue="all">
                 <SelectTrigger id="warehouse-filter">
                   <SelectValue placeholder="Pilih Gudang" />
                 </SelectTrigger>
@@ -291,7 +291,7 @@ export default function StockInPage() {
                   placeholder="Cari SKU atau Nama Produk"
                   className="pl-8"
                   value={searchTerm}
-                  onChange={handleSearchChange}
+                  onChange={onSearchChange}
                 />
               </div>
             </div>

@@ -62,7 +62,7 @@ export default function StartProductionPage() {
         fetchData();
     }, []);
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const onSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
 
@@ -111,7 +111,7 @@ export default function StartProductionPage() {
                             <CardDescription>Pilih produk dan tentukan jumlah yang akan diproduksi.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <form onSubmit={handleSubmit} className="grid gap-6">
+                            <form onSubmit={onSubmit} className="grid gap-6">
                                 <div className="grid gap-3">
                                     <Label>Produk</Label>
                                     <Combobox

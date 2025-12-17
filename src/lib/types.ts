@@ -1,4 +1,4 @@
-import { MaterialStatus } from './db/schema';
+import { MaterialStatusType } from './db/schema';
 
 export interface PaginationState {
     page: number;
@@ -23,7 +23,7 @@ export interface FormattedMaterial {
     initialStock: number;
     basePrice: number;
     description?: string | null;
-    status: MaterialStatus;
+    status: MaterialStatusType;
     isDynamicPrice: boolean;
     createdAt: string; // ISO string from JSON serialization
     updatedAt: string;

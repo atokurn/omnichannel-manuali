@@ -20,14 +20,14 @@ interface DeleteUserDialogProps {
 
 export function DeleteUserDialog({ open, user, onClose, onUserDeleted }: DeleteUserDialogProps) {
   const [loading, setLoading] = useState(false);
-  
-  async function handleDelete() {
+
+  async function onDelete() {
     try {
       setLoading(true);
       const res = await fetch(`/api/users/${user.id}`, {
         method: 'DELETE',
       });
-      
+
       if (res.ok) {
         toast.success('User deleted successfully');
         onUserDeleted();
@@ -36,13 +36,13 @@ export function DeleteUserDialog({ open, user, onClose, onUserDeleted }: DeleteU
         toast.error(error.message || 'Failed to delete user');
       }
     } catch (error) {
-      console.error('Failed to delete user', error);
+      console.error({ message: 'Failed to delete user', error });
       toast.error('Failed to delete user');
     } finally {
       setLoading(false);
     }
   }
-  
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
@@ -56,7 +56,7 @@ export function DeleteUserDialog({ open, user, onClose, onUserDeleted }: DeleteU
           <Button type="button" variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="button" variant="destructive" onClick={handleDelete} disabled={loading}>
+          <Button type="button" variant="destructive" onClick={onDelete} disabled={loading}>
             {loading ? 'Deleting...' : 'Delete User'}
           </Button>
         </DialogFooter>

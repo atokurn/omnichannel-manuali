@@ -49,7 +49,7 @@ export function AddCategoryDialog({ onAddCategory, onSuccess }: AddCategoryDialo
     type: '', // Tambahkan state untuk tipe
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const onChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -57,7 +57,7 @@ export function AddCategoryDialog({ onAddCategory, onSuccess }: AddCategoryDialo
     }));
   };
 
-  const handleSelectChange = (value: string) => {
+  const onSelectChange = (value: string) => {
     setFormData(prev => ({
       ...prev,
       type: value
@@ -67,7 +67,7 @@ export function AddCategoryDialog({ onAddCategory, onSuccess }: AddCategoryDialo
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -95,7 +95,7 @@ export function AddCategoryDialog({ onAddCategory, onSuccess }: AddCategoryDialo
       }
 
       const savedCategory = await response.json();
-      
+
       // Panggil callback jika ada
       if (onAddCategory) {
         onAddCategory(savedCategory);
@@ -108,10 +108,10 @@ export function AddCategoryDialog({ onAddCategory, onSuccess }: AddCategoryDialo
         type: '', // Reset tipe
       });
       setOpen(false);
-      
+
       // Tampilkan notifikasi sukses menggunakan toast
       toast.success('Sukses', { description: 'Kategori berhasil disimpan' });
-      
+
       // Panggil callback onSuccess jika disediakan
       if (onSuccess) {
         onSuccess();
@@ -133,7 +133,7 @@ export function AddCategoryDialog({ onAddCategory, onSuccess }: AddCategoryDialo
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[450px]">
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={onSubmit}>
           <DialogHeader>
             <DialogTitle>Tambah Kategori Baru</DialogTitle>
             <DialogDescription>
@@ -149,21 +149,21 @@ export function AddCategoryDialog({ onAddCategory, onSuccess }: AddCategoryDialo
                 id="name"
                 name="name"
                 value={formData.name}
-                onChange={handleChange}
+                onChange={onChange}
                 className="col-span-3"
                 placeholder="Nama kategori"
                 required
               />
             </div>
-            <div className="grid grid-cols-4 items-start gap-4"> {/* Ubah items-center menjadi items-start untuk Textarea */} 
-              <Label htmlFor="description" className="text-right pt-2"> {/* Tambahkan padding top untuk label */} 
+            <div className="grid grid-cols-4 items-start gap-4"> {/* Ubah items-center menjadi items-start untuk Textarea */}
+              <Label htmlFor="description" className="text-right pt-2"> {/* Tambahkan padding top untuk label */}
                 Deskripsi
               </Label>
               <Textarea
                 id="description"
                 name="description"
                 value={formData.description}
-                onChange={handleChange}
+                onChange={onChange}
                 className="col-span-3"
                 placeholder="Deskripsi singkat kategori (opsional)"
                 rows={3} // Atur jumlah baris awal
@@ -173,7 +173,7 @@ export function AddCategoryDialog({ onAddCategory, onSuccess }: AddCategoryDialo
               <Label htmlFor="type" className="text-right">
                 Tipe Kategori
               </Label>
-              <Select name="type" value={formData.type} onValueChange={handleSelectChange}>
+              <Select name="type" value={formData.type} onValueChange={onSelectChange}>
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Pilih tipe kategori" />
                 </SelectTrigger>

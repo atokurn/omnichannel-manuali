@@ -60,11 +60,11 @@ export async function GET(request: NextRequest) {
     const cachedData = await redisClient.get(cacheKey);
 
     if (cachedData) {
-      console.log(`Cache hit for key: ${cacheKey}`);
+      console.log({ message: 'Cache hit', cacheKey });
       return NextResponse.json(JSON.parse(cachedData));
     }
 
-    console.log(`Cache miss for key: ${cacheKey}. Fetching from DB.`);
+    console.log({ message: 'Cache miss, fetching from DB', cacheKey });
 
     // Fetch materials with category
     const materialsData = await db.query.materials.findMany({
@@ -118,12 +118,12 @@ export async function GET(request: NextRequest) {
     await redisClient.set(cacheKey, JSON.stringify(responseData), {
       EX: 3600,
     });
-    console.log(`Cache set for key: ${cacheKey}`);
+    console.log({ message: 'Cache set', cacheKey });
 
     return NextResponse.json(responseData);
 
   } catch (error) {
-    console.error('Failed to fetch materials:', error);
+    console.error({ message: 'Failed to fetch materials', error });
     if (error instanceof Error && error.message.includes('Redis')) {
       return NextResponse.json({ message: 'Masalah koneksi cache, coba lagi nanti.' }, { status: 503 });
     }
@@ -219,15 +219,15 @@ export async function POST(request: NextRequest) {
     // Invalidate cache
     const keys = await redisClient.keys(`materials:tenant:${tenantId}:page:*`);
     if (keys.length > 0) {
-      console.log(`Invalidating cache keys for tenant ${tenantId}:`, keys);
+      console.log({ message: 'Invalidating cache keys', tenantId, keys });
       await redisClient.del(keys);
-      console.log(`Cache invalidated for tenant ${tenantId}.`);
+      console.log({ message: 'Cache invalidated', tenantId });
     }
 
     return NextResponse.json(result, { status: 201 });
 
   } catch (error) {
-    console.error('Failed to create material:', error);
+    console.error({ message: 'Failed to create material', error });
     if (error instanceof Error && 'code' in error && error.code === 'P2002') { // Prisma P2002 code check is invalid for Drizzle error usually
       // Drizzle/Postgres error code for unique violation is 23505
       // But error object structure depends on driver (node-postgres)
@@ -282,13 +282,13 @@ export async function DELETE(request: NextRequest) {
     const keys = await redisClient.keys(`materials:tenant:${tenantId}:page:*`);
     if (keys.length > 0) {
       await redisClient.del(keys);
-      console.log(`Invalidated ${keys.length} material cache keys for tenant ${tenantId} after DELETE.`);
+      console.log({ message: 'Invalidated material cache keys after DELETE', tenantId, count: keys.length });
     }
 
     return NextResponse.json({ message: `${deleteResult.length} material berhasil dihapus` }, { status: 200 });
 
   } catch (error) {
-    console.error('Failed to delete materials:', error);
+    console.error({ message: 'Failed to delete materials', error });
     return NextResponse.json({ message: 'Gagal menghapus material' }, { status: 500 });
   }
 }

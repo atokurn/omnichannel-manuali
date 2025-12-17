@@ -128,25 +128,25 @@ export function MaterialSelectionDialog({ trigger, onSelect, initialSelectedIds 
     if (isOpen && tenantId) {
       fetchMaterials(1, pagination.limit, ''); // Fetch on open
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, tenantId]);
 
   // Efek untuk menginisialisasi rowSelection setelah materials diambil
   useEffect(() => {
     if (materials.length > 0 && initialSelectedIds.length > 0) {
-      console.log('Materials loaded:', materials.length, 'items');
-      console.log('Initializing selection with IDs:', initialSelectedIds);
-      
+      console.log({ message: 'Materials loaded', count: materials.length });
+      console.log({ message: 'Initializing selection with IDs', initialSelectedIds });
+
       const initialSelection: RowSelectionState = {};
       initialSelectedIds.forEach(id => {
         const index = materials.findIndex(m => m.id === id);
-        console.log(`Material ID ${id}: found at index ${index}`);
+        console.log({ message: `Material ID ${id}`, index });
         if (index !== -1) {
           initialSelection[index] = true;
         }
       });
-      
-      console.log('Setting row selection:', initialSelection);
+
+      console.log({ message: 'Setting row selection', initialSelection });
       setRowSelection(initialSelection);
     }
   }, [materials, initialSelectedIds]);
@@ -162,20 +162,20 @@ export function MaterialSelectionDialog({ trigger, onSelect, initialSelectedIds 
     return () => {
       clearTimeout(handler);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm, isOpen, tenantId, pagination.limit]);
 
-  const handlePageChange = (newPage: number) => {
+  const onPageChange = (newPage: number) => {
     setPagination(prev => ({ ...prev, page: newPage }));
     fetchMaterials(newPage, pagination.limit, searchTerm);
   };
 
-  const handlePageSizeChange = (newSize: number) => {
+  const onPageSizeChange = (newSize: number) => {
     setPagination(prev => ({ ...prev, limit: newSize, page: 1 }));
     fetchMaterials(1, newSize, searchTerm);
   };
 
-  const handleSave = () => {
+  const onSave = () => {
     const selectedMaterialData = Object.keys(rowSelection)
       .map(index => materials[parseInt(index)])
       .filter(Boolean); // Filter out undefined if index is out of bounds
@@ -218,15 +218,15 @@ export function MaterialSelectionDialog({ trigger, onSelect, initialSelectedIds 
               currentPage={pagination.page}
               pageCount={pagination.totalPages}
               pageSize={pagination.limit}
-              onPageChange={handlePageChange}
-              onPageSizeChange={handlePageSizeChange}
+              onPageChange={onPageChange}
+              onPageSizeChange={onPageSizeChange}
               enableRowSelection // Enable row selection
             />
           )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setIsOpen(false)}>Cancel</Button>
-          <Button onClick={handleSave}>Save</Button>
+          <Button onClick={onSave}>Save</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

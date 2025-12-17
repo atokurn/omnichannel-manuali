@@ -1,6 +1,6 @@
 "use client"
 
-import React, { forwardRef } from "react";
+import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -11,11 +11,12 @@ import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { HelpCircle } from "lucide-react";
 
-type ShippingSectionProps = {
+interface ShippingSectionProps {
   id?: string;
-};
+  ref?: React.Ref<HTMLDivElement>;
+}
 
-const ShippingSection = forwardRef<HTMLDivElement, ShippingSectionProps>(({ id }, ref) => {
+function ShippingSection({ id, ref }: ShippingSectionProps) {
   return (
     <Card ref={ref} id={id}>
       <CardHeader>
@@ -124,8 +125,6 @@ const ShippingSection = forwardRef<HTMLDivElement, ShippingSectionProps>(({ id }
       </CardContent>
     </Card>
   );
-});
-
-ShippingSection.displayName = "ShippingSection";
+}
 
 export default ShippingSection;

@@ -156,12 +156,12 @@ export default function StockOutPage() {
   }, [searchTerm, selectedWarehouse]);
 
   // Fungsi untuk handle perubahan warehouse
-  const handleWarehouseChange = (warehouseId: string) => {
+  const onWarehouseChange = (warehouseId: string) => {
     setSelectedWarehouse(warehouseId);
   };
 
   // Fungsi untuk handle perubahan input pencarian
-  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const onSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(event.target.value);
   };
 
@@ -196,11 +196,11 @@ export default function StockOutPage() {
       cell: ({ row }: any) => {
         const reason = row.original.reason;
         let badgeVariant = "secondary";
-        
+
         if (reason === "Penjualan") badgeVariant = "default";
         if (reason === "Transfer") badgeVariant = "outline";
         if (reason === "Rusak") badgeVariant = "destructive";
-        
+
         return <Badge variant={badgeVariant as any}>{reason}</Badge>;
       },
     },
@@ -267,7 +267,7 @@ export default function StockOutPage() {
           <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="flex flex-col space-y-1.5">
               <Label htmlFor="warehouse">Gudang</Label>
-              <Select onValueChange={handleWarehouseChange} defaultValue="all">
+              <Select onValueChange={onWarehouseChange} defaultValue="all">
                 <SelectTrigger id="warehouse">
                   <SelectValue placeholder="Pilih Gudang" />
                 </SelectTrigger>
@@ -282,7 +282,7 @@ export default function StockOutPage() {
               </Select>
             </div>
             <div className="w-full">
-            <Label htmlFor="search" className="mb-1 block text-sm font-medium">Pencarian</Label>
+              <Label htmlFor="search" className="mb-1 block text-sm font-medium">Pencarian</Label>
               <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -291,7 +291,7 @@ export default function StockOutPage() {
                   placeholder="Cari SKU atau Nama Produk"
                   className="pl-8"
                   value={searchTerm}
-                  onChange={handleSearchChange}
+                  onChange={onSearchChange}
                 />
               </div>
             </div>

@@ -22,17 +22,17 @@ import { Separator } from "@/components/ui/separator";
 // Component for shelf preview
 const ShelfPreview = ({ shelf }: { shelf: Partial<Shelf> }) => {
   // Find warehouse and area names
-  const selectedWarehouse = shelf.warehouseId 
-    ? dummyWarehousesData.find(w => w.id === shelf.warehouseId) 
+  const selectedWarehouse = shelf.warehouseId
+    ? dummyWarehousesData.find(w => w.id === shelf.warehouseId)
     : null;
-  const selectedArea = shelf.areaId 
-    ? dummyAreasData.find(a => a.id === shelf.areaId) 
+  const selectedArea = shelf.areaId
+    ? dummyAreasData.find(a => a.id === shelf.areaId)
     : null;
-  
+
   // Get status badge variant
   const getStatusVariant = (status: string) => {
-    switch(status) {
-      case 'Aktif': return 'success';
+    switch (status) {
+      case 'Aktif': return 'default';
       case 'Nonaktif': return 'destructive';
       default: return 'secondary';
     }
@@ -46,30 +46,30 @@ const ShelfPreview = ({ shelf }: { shelf: Partial<Shelf> }) => {
           <PackageCheck className="h-5 w-5 mr-2 text-slate-500" />
           <span className="font-medium">{shelf.name || 'Nama Rak'}</span>
         </div>
-        
+
         <div className="flex flex-col gap-2 pl-7">
           <div className="flex justify-between">
             <span className="text-sm text-slate-500">Gudang:</span>
             <span className="text-sm font-medium">{selectedWarehouse?.name || '-'}</span>
           </div>
-          
+
           <div className="flex justify-between">
             <span className="text-sm text-slate-500">Area:</span>
             <span className="text-sm font-medium">{selectedArea?.name || '-'}</span>
           </div>
-          
+
           <div className="flex justify-between">
             <span className="text-sm text-slate-500">Posisi:</span>
             <span className="text-sm font-medium">{shelf.position || '-'}</span>
           </div>
-          
+
           <div className="flex justify-between">
             <span className="text-sm text-slate-500">Kapasitas:</span>
             <span className="text-sm font-medium">
               {shelf.capacity ? `${parseInt(shelf.capacity.toString()).toLocaleString()} unit` : '-'}
             </span>
           </div>
-          
+
           <div className="flex justify-between items-center">
             <span className="text-sm text-slate-500">Status:</span>
             {shelf.status ? (
@@ -101,7 +101,7 @@ export default function AddShelfPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -109,7 +109,7 @@ export default function AddShelfPage() {
     }));
   };
 
-  const handleSelectChange = (name: string, value: string) => {
+  const onSelectChange = (name: string, value: string) => {
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -130,11 +130,11 @@ export default function AddShelfPage() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
     setFormSuccess(null);
-    
+
     // Validasi form
     if (!formData.name) {
       setFormError('Nama rak harus diisi');
@@ -164,7 +164,7 @@ export default function AddShelfPage() {
         // Temukan nama warehouse dan area berdasarkan ID
         const selectedWarehouse = dummyWarehousesData.find(w => w.id === formData.warehouseId);
         const warehouseName = selectedWarehouse ? selectedWarehouse.name : '';
-        
+
         const selectedArea = dummyAreasData.find(a => a.id === formData.areaId);
         const areaName = selectedArea ? selectedArea.name : '';
 
@@ -181,9 +181,9 @@ export default function AddShelfPage() {
 
         // Di sini seharusnya ada kode untuk menyimpan data ke API/database
         console.log('Data rak baru:', newShelf);
-        
+
         setFormSuccess('Rak berhasil ditambahkan!');
-        
+
         // Reset form setelah berhasil
         setTimeout(() => {
           router.push('/inventory/warehouse/shelves');
@@ -206,16 +206,16 @@ export default function AddShelfPage() {
           <SidebarInset>
             <div className="flex flex-1 flex-col gap-4 p-4">
               <div className="flex items-center gap-2">
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
+                <Button
+                  variant="ghost"
+                  size="icon"
                   onClick={() => router.push('/inventory/warehouse/shelves')}
                 >
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <h1 className="text-xl font-semibold">Tambah Rak Baru</h1>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Card className="md:col-span-2">
                   <CardHeader>
@@ -232,16 +232,16 @@ export default function AddShelfPage() {
                         <AlertDescription>{formError}</AlertDescription>
                       </Alert>
                     )}
-                    
+
                     {formSuccess && (
-                      <Alert variant="success" className="mb-6 bg-green-50 text-green-800 border-green-200">
+                      <Alert variant="default" className="mb-6 bg-green-50 text-green-800 border-green-200">
                         <CheckCircle2 className="h-4 w-4 text-green-600" />
                         <AlertTitle>Berhasil</AlertTitle>
                         <AlertDescription>{formSuccess}</AlertDescription>
                       </Alert>
                     )}
-                    
-                    <form onSubmit={handleSubmit}>
+
+                    <form onSubmit={onSubmit}>
                       <div className="grid gap-6">
                         <div className="grid gap-3">
                           <Label htmlFor="name">
@@ -251,20 +251,20 @@ export default function AddShelfPage() {
                             id="name"
                             name="name"
                             value={formData.name}
-                            onChange={handleChange}
+                            onChange={onChange}
                             placeholder="Nama rak"
                             disabled={isSubmitting}
                             required
                           />
                         </div>
-                        
+
                         <div className="grid gap-3">
                           <Label htmlFor="warehouseId">
                             Gudang <span className="text-red-500">*</span>
                           </Label>
                           <Select
                             value={formData.warehouseId}
-                            onValueChange={(value) => handleSelectChange('warehouseId', value)}
+                            onValueChange={(value) => onSelectChange('warehouseId', value)}
                             disabled={isSubmitting}
                           >
                             <SelectTrigger>
@@ -279,14 +279,14 @@ export default function AddShelfPage() {
                             </SelectContent>
                           </Select>
                         </div>
-                        
+
                         <div className="grid gap-3">
                           <Label htmlFor="areaId">
                             Area <span className="text-red-500">*</span>
                           </Label>
                           <Select
                             value={formData.areaId}
-                            onValueChange={(value) => handleSelectChange('areaId', value)}
+                            onValueChange={(value) => onSelectChange('areaId', value)}
                             disabled={!formData.warehouseId || isSubmitting}
                           >
                             <SelectTrigger>
@@ -301,7 +301,7 @@ export default function AddShelfPage() {
                             </SelectContent>
                           </Select>
                         </div>
-                        
+
                         <div className="grid gap-3">
                           <Label htmlFor="position">
                             Posisi
@@ -310,12 +310,12 @@ export default function AddShelfPage() {
                             id="position"
                             name="position"
                             value={formData.position}
-                            onChange={handleChange}
+                            onChange={onChange}
                             placeholder="Contoh: Baris 1, Kolom A"
                             disabled={isSubmitting}
                           />
                         </div>
-                        
+
                         <div className="grid gap-3">
                           <Label htmlFor="capacity">
                             Kapasitas (unit) <span className="text-red-500">*</span>
@@ -325,20 +325,20 @@ export default function AddShelfPage() {
                             name="capacity"
                             type="number"
                             value={formData.capacity}
-                            onChange={handleChange}
+                            onChange={onChange}
                             placeholder="Kapasitas dalam unit"
                             disabled={isSubmitting}
                             required
                           />
                         </div>
-                        
+
                         <div className="grid gap-3">
                           <Label htmlFor="status">
                             Status
                           </Label>
                           <Select
                             value={formData.status}
-                            onValueChange={(value) => handleSelectChange('status', value)}
+                            onValueChange={(value) => onSelectChange('status', value)}
                             disabled={isSubmitting}
                           >
                             <SelectTrigger>
@@ -351,17 +351,17 @@ export default function AddShelfPage() {
                           </Select>
                         </div>
                       </div>
-                      
+
                       <CardFooter className="flex justify-end gap-2 px-0 pt-6">
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           onClick={() => router.push('/inventory/warehouse/shelves')}
                           disabled={isSubmitting}
                         >
                           Batal
                         </Button>
-                        <Button 
-                          type="submit" 
+                        <Button
+                          type="submit"
                           disabled={isSubmitting}
                         >
                           {isSubmitting ? (
@@ -389,10 +389,13 @@ export default function AddShelfPage() {
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <ShelfPreview shelf={formData} />
+                      <ShelfPreview shelf={{
+                        ...formData,
+                        capacity: formData.capacity ? parseInt(formData.capacity) : 0
+                      }} />
                     </CardContent>
                   </Card>
-                  
+
                   {/* Help card with tips */}
                   <Card>
                     <CardHeader>

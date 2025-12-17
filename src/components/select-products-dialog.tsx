@@ -60,7 +60,7 @@ export function SelectProductsDialog({ trigger, onSave, initialSelectedProducts 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<{id: string, name: string}[]>([]);
+  const [categories, setCategories] = useState<{ id: string, name: string }[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -69,7 +69,7 @@ export function SelectProductsDialog({ trigger, onSave, initialSelectedProducts 
     if (isOpen && initialSelectedProducts && initialSelectedProducts.length > 0) {
       const selectedProductsMap: Record<string, boolean> = {};
       const selectedVariantsMap: Record<string, string> = {};
-      
+
       initialSelectedProducts.forEach(item => {
         if (item.variantId) {
           // Jika ini adalah varian, tandai produk induk sebagai dipilih
@@ -81,7 +81,7 @@ export function SelectProductsDialog({ trigger, onSave, initialSelectedProducts 
           selectedProductsMap[item.id] = true;
         }
       });
-      
+
       setSelectedProducts(selectedProductsMap);
       setSelectedVariants(selectedVariantsMap);
     }
@@ -126,9 +126,9 @@ export function SelectProductsDialog({ trigger, onSave, initialSelectedProducts 
     }
   }, [isOpen]);
 
-  const handleSelectProduct = (productId: string, checked: boolean) => {
+  const onSelectProduct = (productId: string, checked: boolean) => {
     setSelectedProducts(prev => ({ ...prev, [productId]: checked }));
-    
+
     // If unchecking, remove any selected variants for this product
     if (!checked) {
       const updatedVariants = { ...selectedVariants };
@@ -142,13 +142,13 @@ export function SelectProductsDialog({ trigger, onSave, initialSelectedProducts 
     }
   };
 
-  const handleSelectVariant = (variantId: string, productId: string, checked: boolean) => {
+  const onSelectVariant = (variantId: string, productId: string, checked: boolean) => {
     setSelectedVariants(prev => ({ ...prev, [variantId]: checked ? productId : '' }));
   };
 
-  const handleSave = () => {
+  const onSaveClick = () => {
     const selectedItems = [];
-    
+
     // Add non-variant products
     products.forEach(product => {
       if (selectedProducts[product.id] && !product.hasVariants) {
@@ -165,19 +165,19 @@ export function SelectProductsDialog({ trigger, onSave, initialSelectedProducts 
         });
       }
     });
-    
+
     // Add selected variants
     Object.entries(selectedVariants).forEach(([variantId, productId]) => {
       if (productId) {
         const product = products.find(p => p.id === productId);
         const variant = product?.combinations?.find(v => v.id === variantId);
-        
+
         if (product && variant) {
           // Format variant options for display
           const optionsText = Object.entries(variant.options)
             .map(([key, value]) => `${key}: ${value}`)
             .join(', ');
-          
+
           selectedItems.push({
             id: product.id,
             productId: product.id, // Tambahkan productId untuk referensi produk induk
@@ -194,16 +194,16 @@ export function SelectProductsDialog({ trigger, onSave, initialSelectedProducts 
         }
       }
     });
-    
+
     onSave(selectedItems);
     setIsOpen(false);
   };
 
   const filteredProducts = products.filter(product => {
-    const matchesSearch = 
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    const matchesSearch =
+      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (product.sku && product.sku.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesCategory = selectedCategory === 'all' || 
+    const matchesCategory = selectedCategory === 'all' ||
       product.category?.name.toLowerCase() === selectedCategory.toLowerCase();
     return matchesSearch && matchesCategory;
   });
@@ -240,7 +240,7 @@ export function SelectProductsDialog({ trigger, onSave, initialSelectedProducts 
               </SelectContent>
             </Select>
           </div>
-          
+
           {isLoading ? (
             <div className="flex justify-center items-center h-[400px]">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -275,7 +275,7 @@ export function SelectProductsDialog({ trigger, onSave, initialSelectedProducts 
                           <TableCell>
                             <Checkbox
                               checked={!!selectedProducts[product.id]}
-                              onCheckedChange={(checked) => handleSelectProduct(product.id, !!checked)}
+                              onCheckedChange={(checked) => onSelectProduct(product.id, !!checked)}
                               aria-label={`Select ${product.name}`}
                             />
                           </TableCell>
@@ -289,12 +289,12 @@ export function SelectProductsDialog({ trigger, onSave, initialSelectedProducts 
                           <TableCell>{product.category?.name || '-'}</TableCell>
                           <TableCell className="text-right">{product.totalStock}</TableCell>
                           <TableCell className="text-right">
-                            {product.hasVariants 
-                              ? `Rp ${product.minVariantPrice?.toLocaleString('id-ID')} - ${product.maxVariantPrice?.toLocaleString('id-ID')}` 
+                            {product.hasVariants
+                              ? `Rp ${product.minVariantPrice?.toLocaleString('id-ID')} - ${product.maxVariantPrice?.toLocaleString('id-ID')}`
                               : `Rp ${product.price?.toLocaleString('id-ID')}`}
                           </TableCell>
                         </TableRow>
-                        
+
                         {/* Show variants if product has them and is selected */}
                         {product.hasVariants && selectedProducts[product.id] && product.combinations && (
                           <TableRow className="bg-muted/30">
@@ -307,14 +307,14 @@ export function SelectProductsDialog({ trigger, onSave, initialSelectedProducts 
                                     const optionsText = Object.entries(variant.options)
                                       .map(([key, value]) => `${key}: ${value}`)
                                       .join(', ');
-                                    
+
                                     return (
                                       <div key={variant.id} className="grid grid-cols-12 gap-2 items-center text-sm">
                                         <div className="col-span-1">
                                           <Checkbox
                                             checked={!!selectedVariants[variant.id]}
-                                            onCheckedChange={(checked) => 
-                                              handleSelectVariant(variant.id, product.id, !!checked)
+                                            onCheckedChange={(checked) =>
+                                              onSelectVariant(variant.id, product.id, !!checked)
                                             }
                                             aria-label={`Select variant ${optionsText}`}
                                           />
@@ -343,7 +343,7 @@ export function SelectProductsDialog({ trigger, onSave, initialSelectedProducts 
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setIsOpen(false)}>Cancel</Button>
-          <Button onClick={handleSave}>Save</Button>
+          <Button onClick={onSaveClick}>Save</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -64,7 +64,7 @@ const dummyOrders: Order[] = [
     status: 'Pending',
     platform: 'TikTok',
   },
-    {
+  {
     id: '11',
     orderId: '577920885561132351',
     customer: 'cancel_user_1',
@@ -114,16 +114,16 @@ const getStatusBadgeVariant = (status: Order['status']): "default" | "secondary"
 };
 
 const getStatusBadgeStyle = (status: Order['status']): React.CSSProperties => {
-    switch (status) {
-      case 'Shipped':
-        return { borderColor: '#2196F3', color: '#2196F3' }; // Biru untuk Shipped (outline)
-      case 'Completed':
-        return { backgroundColor: '#4CAF50', color: 'white' }; // Hijau untuk Completed
-      // Tambahkan case lain jika perlu styling khusus
-      default:
-        return {};
-    }
-  };
+  switch (status) {
+    case 'Shipped':
+      return { borderColor: '#2196F3', color: '#2196F3' }; // Biru untuk Shipped (outline)
+    case 'Completed':
+      return { backgroundColor: '#4CAF50', color: 'white' }; // Hijau untuk Completed
+    // Tambahkan case lain jika perlu styling khusus
+    default:
+      return {};
+  }
+};
 
 export default function ShippedOrdersPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -158,7 +158,7 @@ export default function ShippedOrdersPage() {
     currentPage * rowsPerPage
   );
 
-  const handleSelectAll = (checked: boolean | 'indeterminate') => {
+  const onSelectAll = (checked: boolean | 'indeterminate') => {
     if (checked === true) {
       setSelectedOrders(currentTableData.map(order => order.id));
     } else {
@@ -166,7 +166,7 @@ export default function ShippedOrdersPage() {
     }
   };
 
-  const handleSelectRow = (id: string, checked: boolean) => {
+  const onSelectRow = (id: string, checked: boolean) => {
     if (checked) {
       setSelectedOrders([...selectedOrders, id]);
     } else {
@@ -186,7 +186,7 @@ export default function ShippedOrdersPage() {
     setCurrentPage((page) => Math.max(page - 1, 1));
   };
 
-  const handleRowsPerPageChange = (value: string) => {
+  const onRowsPerPageChange = (value: string) => {
     setRowsPerPage(Number(value));
     setCurrentPage(1); // Reset ke halaman pertama saat mengubah jumlah baris
   };
@@ -234,10 +234,10 @@ export default function ShippedOrdersPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead padding="checkbox">
+                        <TableHead>
                           <Checkbox
                             checked={isAllSelected || (isIndeterminate ? 'indeterminate' : false)}
-                            onCheckedChange={handleSelectAll}
+                            onCheckedChange={onSelectAll}
                             aria-label="Select all"
                           />
                         </TableHead>
@@ -262,10 +262,10 @@ export default function ShippedOrdersPage() {
                     <TableBody>
                       {currentTableData.map((order) => (
                         <TableRow key={order.id}>
-                          <TableCell padding="checkbox">
+                          <TableCell>
                             <Checkbox
                               checked={selectedOrders.includes(order.id)}
-                              onCheckedChange={(checked) => handleSelectRow(order.id, !!checked)}
+                              onCheckedChange={(checked) => onSelectRow(order.id, !!checked)}
                               aria-label={`Select order ${order.orderId}`}
                             />
                           </TableCell>
@@ -313,7 +313,7 @@ export default function ShippedOrdersPage() {
                     Menampilkan <strong>{(currentPage - 1) * rowsPerPage + 1}-{(currentPage - 1) * rowsPerPage + currentTableData.length}</strong> dari <strong>{totalRows}</strong> pesanan
                   </div>
                   <div className="flex items-center gap-2">
-                     <Select value={rowsPerPage.toString()} onValueChange={handleRowsPerPageChange}>
+                    <Select value={rowsPerPage.toString()} onValueChange={onRowsPerPageChange}>
                       <SelectTrigger className="w-[70px]">
                         <SelectValue placeholder={rowsPerPage} />
                       </SelectTrigger>

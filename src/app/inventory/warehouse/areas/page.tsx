@@ -17,9 +17,9 @@ import { AddAreaDialog } from "@/components/warehouse/add-area-dialog";
 export default function AreasPage() {
   const [filteredData, setFilteredData] = useState<Area[]>(dummyAreasData);
   const [selectedWarehouse, setSelectedWarehouse] = useState<string | null>("all");
-  
+
   // Fungsi untuk filter berdasarkan warehouse
-  const handleWarehouseChange = (warehouseId: string) => {
+  const onWarehouseChange = (warehouseId: string) => {
     setSelectedWarehouse(warehouseId);
     // Menggunakan fungsi dari service, tapi karena ini sinkron untuk demo
     // kita tidak perlu async/await
@@ -51,11 +51,11 @@ export default function AreasPage() {
       cell: ({ row }: any) => {
         const type = row.original.type;
         let badgeVariant = "secondary";
-        
+
         if (type === "Penyimpanan") badgeVariant = "default";
         if (type === "Penerimaan") badgeVariant = "outline";
         if (type === "Pengiriman") badgeVariant = "success";
-        
+
         return <Badge variant={badgeVariant as any}>{type}</Badge>;
       },
     },
@@ -79,10 +79,10 @@ export default function AreasPage() {
       cell: ({ row }: any) => {
         const status = row.original.status;
         let badgeVariant = "secondary";
-        
+
         if (status === "Aktif") badgeVariant = "success";
         if (status === "Nonaktif") badgeVariant = "destructive";
-        
+
         return <Badge variant={badgeVariant as any}>{status}</Badge>;
       },
     },
@@ -136,7 +136,7 @@ export default function AreasPage() {
           <div className="mb-4">
             <Select
               value={selectedWarehouse || "all"}
-              onValueChange={handleWarehouseChange}
+              onValueChange={onWarehouseChange}
             >
               <SelectTrigger className="w-[280px]">
                 <SelectValue placeholder="Pilih Gudang" />
@@ -151,10 +151,10 @@ export default function AreasPage() {
               </SelectContent>
             </Select>
           </div>
-          <DataTable 
-            columns={columns} 
-            data={filteredData} 
-            searchKey="name" 
+          <DataTable
+            columns={columns}
+            data={filteredData}
+            searchKey="name"
           />
         </CardContent>
       </Card>

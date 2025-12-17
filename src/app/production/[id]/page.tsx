@@ -64,7 +64,7 @@ export default function ProductionDetailPage() {
         }
     };
 
-    const handleComplete = async (e: React.FormEvent) => {
+    const onComplete = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsCompleting(true);
 
@@ -184,7 +184,7 @@ export default function ProductionDetailPage() {
                                 <CardDescription>Input hasil akhir untuk menutup batch ini.</CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <form onSubmit={handleComplete} className="grid gap-4">
+                                <form onSubmit={onComplete} className="grid gap-4">
                                     <div className="grid gap-2">
                                         <Label>Jumlah Produk Jadi (Actual Qty)</Label>
                                         <Input

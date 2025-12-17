@@ -11,9 +11,43 @@ import {
     productionStatusEnum,
     productStockBatchSourceEnum
 } from '@/lib/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import { MaterialService } from './material-service';
 import { nanoid } from 'nanoid';
+import { cache } from 'react';
+import { getCurrentUser } from '@/lib/auth';
+
+/**
+ * Fetches production batches for the current user's tenant
+ * Cached for performance
+ */
+export const getProductionBatches = cache(async (limit: number = 20) => {
+    const user = await getCurrentUser();
+    if (!user?.tenantId) {
+        return [];
+    }
+
+    const batches = await db.query.productionBatches.findMany({
+        where: eq(productionBatches.tenantId, user.tenantId),
+        orderBy: [desc(productionBatches.createdAt)],
+        limit,
+        with: {
+            product: {
+                columns: { name: true }
+            }
+        }
+    });
+
+    return batches.map(batch => ({
+        id: batch.id,
+        batchCode: batch.batchCode,
+        productName: batch.product?.name || 'Unknown',
+        status: batch.status as 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED',
+        plannedQty: batch.plannedQty,
+        producedQty: batch.producedQty,
+        createdAt: batch.createdAt.toISOString()
+    }));
+});
 
 export class ProductionService {
     /**

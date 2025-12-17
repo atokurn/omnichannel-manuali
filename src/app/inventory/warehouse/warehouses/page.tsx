@@ -86,11 +86,6 @@ const dummyWarehousesData: Warehouse[] = [
 export default function WarehousesPage() {
   const [filteredData, setFilteredData] = useState<Warehouse[]>(dummyWarehousesData);
 
-  // Fungsi untuk filter tidak lagi berdasarkan status
-  const handleStatusChange = (status: string) => {
-    setFilteredData(dummyWarehousesData);
-  };
-
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 

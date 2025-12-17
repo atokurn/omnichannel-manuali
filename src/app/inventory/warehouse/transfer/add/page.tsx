@@ -23,8 +23,16 @@ const dummyWarehouses = [
   { id: "3", name: "Gudang Cabang B" },
 ];
 
+// Interface untuk data produk dummy
+interface Product {
+  id: string;
+  name: string;
+  sku: string;
+  availableStock: Record<string, number>;
+}
+
 // Data dummy untuk SKU (ganti dengan data asli)
-const dummySKUs = [
+const dummySKUs: Product[] = [
   { id: "PRD-001", name: "Laptop Asus", sku: "PRD-001", availableStock: { "1": 50, "2": 10 } }, // Stok tersedia per gudang
   { id: "PRD-002", name: "Mouse Logitech", sku: "PRD-002", availableStock: { "1": 100, "3": 20 } },
   { id: "PRD-003", name: "Keyboard Mechanical", sku: "PRD-003", availableStock: { "1": 30, "2": 5, "3": 15 } },
@@ -58,7 +66,7 @@ export default function AddWarehouseTransferPage() {
   const skuInputRef = useRef<HTMLInputElement>(null);
 
   // Fungsi untuk menangani perubahan input form utama
-  const handleChange = (field: string, value: string) => {
+  const onChange = (field: string, value: string) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -93,7 +101,7 @@ export default function AddWarehouseTransferPage() {
   }, [scanMode]);
 
   // Fungsi untuk menangani perubahan input item
-  const handleItemChange = (itemId: string, field: string, value: string) => {
+  const onItemChange = (itemId: string, field: string, value: string) => {
     setFormData(prev => ({
       ...prev,
       items: prev.items.map(item =>
@@ -176,12 +184,12 @@ export default function AddWarehouseTransferPage() {
   };
 
   // Fungsi untuk menangani input SKU
-  const handleSkuInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onSkuInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSkuInput(e.target.value);
   };
 
   // Fungsi untuk menangani keypress pada input SKU
-  const handleSkuKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const onSkuKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && skuInput.trim() !== "") {
       e.preventDefault();
       addItem();
@@ -211,7 +219,7 @@ export default function AddWarehouseTransferPage() {
   };
 
   // Fungsi untuk mengubah quantity item
-  const handleQuantityChange = (itemId: string, value: string) => {
+  const onQuantityChange = (itemId: string, value: string) => {
     const numericValue = parseInt(value);
     if (isNaN(numericValue) || numericValue < 0) {
       value = '0'; // Set ke 0 jika input tidak valid atau negatif
@@ -270,7 +278,7 @@ export default function AddWarehouseTransferPage() {
   };
 
   // Fungsi untuk submit form
-  const handleSubmit = (e: React.FormEvent) => {
+  const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (validateForm()) {
       console.log("Submitting Transfer Data:", formData);
@@ -299,7 +307,7 @@ export default function AddWarehouseTransferPage() {
                 </h1>
               </div>
 
-              <form onSubmit={handleSubmit}>
+              <form onSubmit={onSubmit}>
                 <Card>
                   <CardHeader>
                     <CardTitle>Informasi Transfer</CardTitle>
@@ -311,7 +319,7 @@ export default function AddWarehouseTransferPage() {
                         <Label htmlFor="sourceWarehouse">Gudang Asal</Label>
                         <Select
                           value={formData.sourceWarehouseId}
-                          onValueChange={(value) => handleChange('sourceWarehouseId', value)}
+                          onValueChange={(value) => onChange('sourceWarehouseId', value)}
                         >
                           <SelectTrigger id="sourceWarehouse" aria-label="Pilih Gudang Asal">
                             <SelectValue placeholder="Pilih Gudang Asal" />
@@ -330,7 +338,7 @@ export default function AddWarehouseTransferPage() {
                         <Label htmlFor="destinationWarehouse">Gudang Tujuan</Label>
                         <Select
                           value={formData.destinationWarehouseId}
-                          onValueChange={(value) => handleChange('destinationWarehouseId', value)}
+                          onValueChange={(value) => onChange('destinationWarehouseId', value)}
                         >
                           <SelectTrigger id="destinationWarehouse" aria-label="Pilih Gudang Tujuan">
                             <SelectValue placeholder="Pilih Gudang Tujuan" />
@@ -351,7 +359,7 @@ export default function AddWarehouseTransferPage() {
                       <Textarea
                         id="notes"
                         value={formData.notes}
-                        onChange={(e) => handleChange('notes', e.target.value)}
+                        onChange={(e) => onChange('notes', e.target.value)}
                         placeholder="Tambahkan catatan transfer..."
                         maxLength={255}
                       />
@@ -379,8 +387,8 @@ export default function AddWarehouseTransferPage() {
                           type="text"
                           placeholder={scanMode ? "Scan atau ketik SKU..." : "Ketik SKU..."}
                           value={skuInput}
-                          onChange={handleSkuInputChange}
-                          onKeyPress={handleSkuKeyPress}
+                          onChange={onSkuInputChange}
+                          onKeyPress={onSkuKeyPress}
                           className="pl-8"
                           disabled={!formData.sourceWarehouseId} // Disable jika gudang asal belum dipilih
                         />
@@ -423,7 +431,7 @@ export default function AddWarehouseTransferPage() {
                                 <Input
                                   type="number"
                                   value={item.quantity}
-                                  onChange={(e) => handleQuantityChange(item.id, e.target.value)}
+                                  onChange={(e) => onQuantityChange(item.id, e.target.value)}
                                   className={`w-20 text-right ${itemErrors[item.id]?.quantity ? 'border-red-500' : ''}`}
                                   min="1"
                                   max={item.available}

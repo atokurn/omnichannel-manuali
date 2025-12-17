@@ -27,12 +27,12 @@ export function AddUserDialog({ open, onClose, onUserAdded }: AddUserDialogProps
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingRoles, setLoadingRoles] = useState(true);
-  
+
   // Fetch roles when dialog opens
   useState(() => {
     fetchRoles();
   });
-  
+
   async function fetchRoles() {
     try {
       setLoadingRoles(true);
@@ -47,21 +47,21 @@ export function AddUserDialog({ open, onClose, onUserAdded }: AddUserDialogProps
         }
       }
     } catch (error) {
-      console.error('Failed to fetch roles', error);
+      console.error({ message: 'Failed to fetch roles', error });
       toast.error('Failed to fetch roles');
     } finally {
       setLoadingRoles(false);
     }
   }
-  
-  async function handleSubmit(e: React.FormEvent) {
+
+  async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    
+
     if (!name || !email || !password || !roleId) {
       toast.error('Please fill in all required fields');
       return;
     }
-    
+
     try {
       setLoading(true);
       const res = await fetch('/api/users', {
@@ -69,7 +69,7 @@ export function AddUserDialog({ open, onClose, onUserAdded }: AddUserDialogProps
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, password, roleId }),
       });
-      
+
       if (res.ok) {
         toast.success('User added successfully');
         onUserAdded();
@@ -78,13 +78,13 @@ export function AddUserDialog({ open, onClose, onUserAdded }: AddUserDialogProps
         toast.error(error.message || 'Failed to add user');
       }
     } catch (error) {
-      console.error('Failed to add user', error);
+      console.error({ message: 'Failed to add user', error });
       toast.error('Failed to add user');
     } finally {
       setLoading(false);
     }
   }
-  
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
@@ -94,7 +94,7 @@ export function AddUserDialog({ open, onClose, onUserAdded }: AddUserDialogProps
             Create a new user for your organization.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={onSubmit}>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="name" className="text-right">
